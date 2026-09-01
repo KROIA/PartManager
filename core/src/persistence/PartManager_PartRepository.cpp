@@ -3,6 +3,7 @@
 #include "persistence/PartManager_TagRepository.h"
 #include "PartManager_global.h"
 
+#include <cstdio>
 #include <cstdlib>
 
 #if QT_ENABLED
@@ -107,6 +108,16 @@ namespace PartManager
 			return file;
 		}
 
+		// std::to_string() on a double is fixed 6-decimal notation, which silently rounds every
+		// sub-micro value to "0.000000" — a 100 nF capacitance would reach attr_capacitance as 0
+		// and never match a search again. 17 significant digits round-trips any IEEE double.
+		std::string toSqlNumber(double value)
+		{
+			char buffer[64] = { 0 };
+			std::snprintf(buffer, sizeof(buffer), "%.17g", value);
+			return buffer;
+		}
+
 		// (Re)writes every searchable numeric attr_<key> column for partId, from its type's effective
 		// attribute list and the part's own attributes JSON. Missing/non-numeric values are left untouched.
 		void writeSearchableAttrColumns(SQLiteWrapper::SQLite& db, int partId, int partTypeId, const std::string& attributesJson)
@@ -125,7 +136,7 @@ namespace PartManager
 				}
 				db.executeWithParams(
 					"UPDATE part SET attr_" + attribute.key + "=? WHERE id=?;",
-					{ std::to_string(value), std::to_string(partId) });
+					{ toSqlNumber(value), std::to_string(partId) });
 			}
 		}
 	}

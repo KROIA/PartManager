@@ -18,6 +18,7 @@ public:
 	{
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_PartRepository::crudRoundTripAndSearchableAttrColumn);
+		ADD_TEST(TST_PartRepository::smallAndLargeAttrValuesKeepPrecision);
 #endif
 	}
 
@@ -87,6 +88,48 @@ private:
 
 		TEST_ASSERT_M(PartManager::PartRepository::deletePart(db, partId), "deletePart failed");
 		TEST_ASSERT_M(!PartManager::PartRepository::findPart(db, partId, readBack), "part must be gone after delete");
+	}
+
+	// A 100 nF capacitance is a perfectly ordinary part, and it is small enough that a
+	// fixed-6-decimal number format writes it into attr_capacitance as a flat 0.
+	TEST_FUNCTION(smallAndLargeAttrValuesKeepPrecision)
+	{
+		TEST_START;
+
+		std::filesystem::path path = std::filesystem::temp_directory_path() / "PartManager_TST_PartRepository_precision.db";
+		std::filesystem::remove(path);
+		SQLiteWrapper::SQLite db(path.string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+
+		PartManager::PartType capacitor;
+		capacitor.name = "Capacitor";
+		capacitor.domain = "electronic";
+		int typeId = PartManager::PartTypeRepository::insertType(db, capacitor);
+
+		PartManager::PartTypeAttribute capacitance;
+		capacitance.partTypeId = typeId;
+		capacitance.key = "capacitance";
+		capacitance.label = "Capacitance";
+		capacitance.unit = "F";
+		capacitance.datatype = PartManager::AttributeDataType::Dimension;
+		capacitance.searchable = true;
+		PartManager::PartTypeRepository::insertAttribute(db, capacitance);
+
+		PartManager::Part part;
+		part.partTypeId = typeId;
+		part.name = "100n 0603 ceramic";
+		part.attributes = "{\"capacitance\":{\"value\":1e-07,\"unit\":\"F\"}}";
+
+		int partId = PartManager::PartRepository::insertPart(db, part);
+		TEST_ASSERT(partId != 0);
+
+		std::vector<std::vector<std::string>> rows = db.fetchAll(
+			"SELECT attr_capacitance FROM part WHERE id=" + std::to_string(partId) + ";");
+		TEST_ASSERT(!rows.empty() && !rows.front().empty());
+		double stored = std::atof(rows.front().front().c_str());
+		TEST_ASSERT_M(stored > 9.9e-8 && stored < 1.01e-7, "100 nF must not be rounded away");
 	}
 #endif
 
