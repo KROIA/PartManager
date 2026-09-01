@@ -8,6 +8,7 @@
 #include "tests/TST_PartTypeRepository.h"
 #include "tests/TST_PartRepository.h"
 #include "tests/TST_TagRepository.h"
+#include "tests/TST_StockRepository.h"
 #include "tests/TST_UnitTable.h"
 #include "tests/TST_ValueParser.h"
 #include "tests/TST_MainWindowController.h"

@@ -13,6 +13,7 @@
 #include "mouser/PartManager_MouserClient.h"
 #include "mouser/PartManager_MouserSearchService.h"
 #include "persistence/PartManager_PartRepository.h"
+#include "persistence/PartManager_StockRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_TagRepository.h"
 
@@ -240,8 +241,8 @@ int main(int argc, char* argv[])
 
 		PartManager::Part part = prefill.part;
 		part.partTypeId = findTypeIdByName(db, prefill.suggestedTypeName);
-		// ponytail: stock_qty written directly - StockRepository (TASKS.md item 5) does not exist
-		// yet, so there is no stock_transaction to log this against. Backfill when it lands.
+		// stock_qty is written directly here and turned into an 'initial' stock_transaction by the
+		// backfill run after the loop - one opening balance per imported part, no per-row bookkeeping.
 		part.stockQty = row.stockCount;
 
 		std::printf("%s %-22s type=%-14s qty=%-5d %s\n",
@@ -266,6 +267,18 @@ int main(int argc, char* argv[])
 			continue;
 		}
 		++imported;
+	}
+
+	// The schema migration backfills opening balances for databases that predate stock_transaction,
+	// but a part imported *after* that migration would otherwise carry a stock_qty with no log behind
+	// it forever. Same idempotent call, so re-running the importer never double-counts.
+	if (!dryRun)
+	{
+		int backfilled = PartManager::StockRepository::backfillOpeningBalances(db);
+		if (backfilled > 0)
+		{
+			std::printf("\nopening balances logged for %d part(s)\n", backfilled);
+		}
 	}
 
 	std::printf("\nimported=%d skipped=%d failed=%d%s\n", imported, skipped, failed,

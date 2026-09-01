@@ -3,6 +3,7 @@
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_TagRepository.h"
+#include "persistence/PartManager_StockRepository.h"
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 	#include "SQLite.h"
@@ -48,6 +49,16 @@ namespace PartManager
 		{
 			// v1 -> v2: tags (§2d). Same CREATE TABLE IF NOT EXISTS / db.isOpen() reasoning as above.
 			TagRepository::createSchema(db);
+		}
+		if (storedSchemaVersion < 3 && db.isOpen())
+		{
+			// v2 -> v3: the stock_transaction log (§3). Same CREATE TABLE IF NOT EXISTS / db.isOpen()
+			// reasoning as above. The backfill turns any standing part.stock_qty written before this
+			// table existed (the CSV import path) into one 'initial' opening-balance transaction, so
+			// the log is the source of truth for every part from here on. It is idempotent in its own
+			// right, so re-running this step can never double-count.
+			StockRepository::createSchema(db);
+			StockRepository::backfillOpeningBalances(db);
 		}
 		return SchemaCompatibility::migrated;
 	}

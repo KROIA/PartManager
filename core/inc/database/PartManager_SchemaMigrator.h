@@ -8,6 +8,8 @@
 // turn, so a step is never rewritten once shipped, only appended after.
 //   v1: core/domain + core/persistence tables (§2, §3).
 //   v2: tag/part_type_tag/part_tag (§2d).
+//   v3: stock_transaction (§3) + the opening-balance backfill for parts whose
+//       stock_qty was written directly, before the log existed.
 // @see docs/design/ARCHITECTURE.md §1c
 #pragma once
 
@@ -22,7 +24,7 @@ namespace PartManager
 {
 
 	// The schema (table/column structure) version this build of PartManager understands.
-	constexpr int CurrentSchemaVersion = 2;
+	constexpr int CurrentSchemaVersion = 3;
 
 	// Outcome of comparing a database's stored schema_version against CurrentSchemaVersion.
 	enum class SchemaCompatibility
