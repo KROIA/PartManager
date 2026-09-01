@@ -16,12 +16,25 @@
 namespace PartManager
 {
 
+	// How a database's schema compares to this build (§1c), decided from the .pmdb cache alone.
+	enum class SchemaBadge
+	{
+		current,		// same version as this build — opens normally
+		needsUpdate,	// older — opening backs up and migrates forward
+		tooNew,			// newer than this build — refuses to open, ever
+		stale,			// the .pmdb file is no longer on disk
+		unreadable		// the .pmdb is there but unparsable
+	};
+
 	// One row of the selector list.
 	struct DatabaseListEntry
 	{
 		QString name;			// the database's folder name — §1 has no stored name field
 		QString pmdbPath;
 		QString lastOpenedAt;	// ISO-8601, empty = never opened
+		QString description;	// free text from the folder's README.md (§1b)
+		int schemaVersion = 0;	// 0 when the badge is stale/unreadable
+		SchemaBadge badge = SchemaBadge::unreadable;
 	};
 
 	class DatabaseSelectorController
@@ -29,6 +42,14 @@ namespace PartManager
 	public:
 		// Every registered database, in registry order.
 		std::vector<DatabaseListEntry> knownDatabases() const;
+
+		// Schema badge for one .pmdb. Reads the entry file only — never opens the database (§1a).
+		static SchemaBadge badgeOf(const QString& pmdbPath, int& outSchemaVersion);
+
+		// The database's description — its folder's README.md minus the title line (§1b).
+		static QString descriptionOf(const QString& pmdbPath);
+		// Rewrites that README.md. False if it can't be written (folder gone, read-only).
+		static bool setDescription(const QString& pmdbPath, const QString& description);
 
 		// Creates `parentFolder/name`, registers it and returns it opened. nullptr on failure.
 		std::unique_ptr<DatabaseHandle> createDatabase(const QString& parentFolder, const QString& name,
@@ -46,6 +67,8 @@ namespace PartManager
 	private:
 		// Folder name of the database a .pmdb file belongs to.
 		static QString displayNameOf(const QString& pmdbPath);
+		// Path of the README.md sitting next to a .pmdb file.
+		static QString readmePathOf(const QString& pmdbPath);
 	};
 
 }

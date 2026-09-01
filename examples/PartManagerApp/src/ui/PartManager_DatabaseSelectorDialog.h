@@ -32,7 +32,10 @@ namespace PartManager
 		void onNewDatabase();
 		void onBrowseForExisting();
 		void onRemoveFromList();
+		void onManageDatabases();
 		void onOpenSelected();
+		// Enables/disables the buttons and shows the selected row's schema-badge explanation.
+		void onSelectionChanged();
 
 	private:
 		// Re-reads the registry into the list widget and re-enables/disables the buttons.

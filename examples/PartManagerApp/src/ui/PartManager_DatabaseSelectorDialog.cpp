@@ -1,4 +1,5 @@
 #include "ui/PartManager_DatabaseSelectorDialog.h"
+#include "ui/PartManager_ManageDatabasesDialog.h"
 #include "ui_PartManager_DatabaseSelectorDialog.h"
 
 #include <QFileDialog>
@@ -11,7 +12,14 @@ namespace PartManager
 	namespace
 	{
 		// Column index the .pmdb path is stored in — also the row's identity.
-		constexpr int PathColumn = 1;
+		constexpr int PathColumn = ManageDatabasesDialog::PathColumn;
+
+		// A row that can't be opened at all: the entry file is gone, or its schema is
+		// newer than this build and §1c refuses to open it either way.
+		bool isOpenable(SchemaBadge badge)
+		{
+			return badge != SchemaBadge::tooNew && badge != SchemaBadge::stale;
+		}
 	}
 
 	DatabaseSelectorDialog::DatabaseSelectorDialog(QWidget* parent)
@@ -23,16 +31,13 @@ namespace PartManager
 		connect(m_ui->newButton, &QPushButton::clicked, this, &DatabaseSelectorDialog::onNewDatabase);
 		connect(m_ui->browseButton, &QPushButton::clicked, this, &DatabaseSelectorDialog::onBrowseForExisting);
 		connect(m_ui->removeButton, &QPushButton::clicked, this, &DatabaseSelectorDialog::onRemoveFromList);
+		connect(m_ui->manageButton, &QPushButton::clicked, this, &DatabaseSelectorDialog::onManageDatabases);
 		connect(m_ui->openButton, &QPushButton::clicked, this, &DatabaseSelectorDialog::onOpenSelected);
 		connect(m_ui->quitButton, &QPushButton::clicked, this, &DatabaseSelectorDialog::reject);
 		connect(m_ui->databaseList, &QTreeWidget::itemDoubleClicked,
 			this, &DatabaseSelectorDialog::onOpenSelected);
 		connect(m_ui->databaseList, &QTreeWidget::itemSelectionChanged,
-			this, [this]() {
-				bool hasSelection = !selectedPmdbPath().isEmpty();
-				m_ui->openButton->setEnabled(hasSelection);
-				m_ui->removeButton->setEnabled(hasSelection);
-			});
+			this, &DatabaseSelectorDialog::onSelectionChanged);
 
 		refreshList();
 	}
@@ -53,16 +58,35 @@ namespace PartManager
 		for (const DatabaseListEntry& entry : m_controller.knownDatabases())
 		{
 			QTreeWidgetItem* item = new QTreeWidgetItem(m_ui->databaseList);
-			item->setText(0, entry.name); // user data (folder name) — not translated
-			item->setText(PathColumn, entry.pmdbPath);
-			item->setText(2, entry.lastOpenedAt.isEmpty() ? tr("never") : entry.lastOpenedAt);
+			ManageDatabasesDialog::fillRow(*item, entry);
 		}
-		m_ui->databaseList->resizeColumnToContents(0);
+		for (int column = ManageDatabasesDialog::NameColumn; column < PathColumn; ++column)
+		{
+			m_ui->databaseList->resizeColumnToContents(column);
+		}
 
 		bool isEmpty = m_ui->databaseList->topLevelItemCount() == 0;
 		m_ui->emptyHintLabel->setVisible(isEmpty);
-		m_ui->openButton->setEnabled(false);
-		m_ui->removeButton->setEnabled(false);
+		onSelectionChanged();
+	}
+
+	void DatabaseSelectorDialog::onSelectionChanged()
+	{
+		QString pmdbPath = selectedPmdbPath();
+		if (pmdbPath.isEmpty())
+		{
+			m_ui->openButton->setEnabled(false);
+			m_ui->removeButton->setEnabled(false);
+			m_ui->badgeHintLabel->clear();
+			return;
+		}
+
+		DatabaseListEntry entry;
+		entry.pmdbPath = pmdbPath;
+		entry.badge = DatabaseSelectorController::badgeOf(pmdbPath, entry.schemaVersion);
+		m_ui->openButton->setEnabled(isOpenable(entry.badge));
+		m_ui->removeButton->setEnabled(true);	// forgetting a dead entry is exactly how you clean one up
+		m_ui->badgeHintLabel->setText(ManageDatabasesDialog::badgeExplanation(entry));
 	}
 
 	QString DatabaseSelectorDialog::selectedPmdbPath() const
@@ -134,12 +158,24 @@ namespace PartManager
 		refreshList();
 	}
 
+	void DatabaseSelectorDialog::onManageDatabases()
+	{
+		ManageDatabasesDialog dialog(this);
+		dialog.exec();
+		refreshList();	// descriptions may have changed, entries may be gone
+	}
+
 	void DatabaseSelectorDialog::onOpenSelected()
 	{
 		QString pmdbPath = selectedPmdbPath();
 		if (pmdbPath.isEmpty())
 		{
 			return;
+		}
+		int schemaVersion = 0;
+		if (!isOpenable(DatabaseSelectorController::badgeOf(pmdbPath, schemaVersion)))
+		{
+			return;		// double-click can reach here past the disabled Open button
 		}
 
 		QString error;

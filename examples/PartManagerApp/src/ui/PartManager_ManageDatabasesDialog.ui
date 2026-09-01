@@ -1,23 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DatabaseSelectorDialog</class>
- <widget class="QDialog" name="DatabaseSelectorDialog">
+ <class>ManageDatabasesDialog</class>
+ <widget class="QDialog" name="ManageDatabasesDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>820</width>
-    <height>480</height>
+    <width>920</width>
+    <height>500</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>PartManager — Select a database</string>
+   <string>Manage Databases</string>
   </property>
   <layout class="QVBoxLayout" name="mainLayout">
    <item>
     <widget class="QLabel" name="headerLabel">
      <property name="text">
-      <string>Select a database to open — you can switch anytime from the right-click menu.</string>
+      <string>Every database PartManager knows about. Editing a description writes the database folder's README.md; nothing here ever deletes a database from disk.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
@@ -63,19 +66,9 @@
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="badgeHintLabel">
-     <property name="text">
-      <string/>
-     </property>
-     <property name="wordWrap">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QLabel" name="emptyHintLabel">
      <property name="text">
-      <string>No databases known yet — use &quot;New Database...&quot; to create one, or &quot;Browse for existing...&quot; to add one you already have.</string>
+      <string>No databases known yet — use &quot;New Database...&quot; or &quot;Browse for existing...&quot; on the selector to add one.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
@@ -85,16 +78,9 @@
    <item>
     <layout class="QHBoxLayout" name="buttonLayout">
      <item>
-      <widget class="QPushButton" name="newButton">
+      <widget class="QPushButton" name="editDescriptionButton">
        <property name="text">
-        <string>New Database...</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="browseButton">
-       <property name="text">
-        <string>Browse for existing...</string>
+        <string>Edit description...</string>
        </property>
       </widget>
      </item>
@@ -104,17 +90,7 @@
         <string>Remove from list</string>
        </property>
        <property name="toolTip">
-        <string>Forgets this database. Nothing is deleted from disk.</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="manageButton">
-       <property name="text">
-        <string>Manage Databases...</string>
-       </property>
-       <property name="toolTip">
-        <string>Descriptions, schema versions and the known-databases list.</string>
+        <string>Forgets this database. Its folder and all its files stay untouched on disk.</string>
        </property>
       </widget>
      </item>
@@ -132,19 +108,12 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="openButton">
+      <widget class="QPushButton" name="closeButton">
        <property name="text">
-        <string>Open Selected</string>
+        <string>Close</string>
        </property>
        <property name="default">
         <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="quitButton">
-       <property name="text">
-        <string>Quit</string>
        </property>
       </widget>
      </item>

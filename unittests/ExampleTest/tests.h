@@ -5,6 +5,7 @@
 #include "tests/TST_DatabaseMetadata.h"
 #include "tests/TST_SchemaMigrator.h"
 #include "tests/TST_DatabaseCreate.h"
+#include "tests/TST_DatabaseSelectorController.h"
 #include "tests/TST_PartTypeRepository.h"
 #include "tests/TST_PartRepository.h"
 #include "tests/TST_ListColumnRepository.h"
