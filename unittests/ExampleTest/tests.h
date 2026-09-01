@@ -13,4 +13,5 @@
 #include "tests/TST_MainWindowController.h"
 #include "tests/TST_PartEditorController.h"
 #include "tests/TST_Settings.h"
+#include "tests/TST_MouserSearchService.h"
 //#include "test_nasted.h"
