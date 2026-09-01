@@ -17,5 +17,11 @@
         <file>icons/edit-type-template.png</file>
         <file>icons/attach-file.png</file>
         <file>icons/open-datasheet.png</file>
+        <file>icons/database.png</file>
+        <file>icons/settings.png</file>
+        <file>icons/delete.png</file>
+        <file>icons/mouser-search.png</file>
+        <file>icons/import-csv.png</file>
+        <file>icons/orders.png</file>
     </qresource>
 </RCC>

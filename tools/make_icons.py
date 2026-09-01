@@ -28,8 +28,8 @@ TAUPE = "#A89986"
 AMBER = "#E9A13B"
 DEEP = "#A9C3D6"   # shaded face of the 3D cube
 
-STROKE = 26  # main outline
-THIN = 16    # inner detail lines
+STROKE = 20  # main outline
+THIN = 12    # inner detail lines
 
 
 def svg(body):
@@ -77,17 +77,22 @@ ICONS["manage-tags"] = (
 )
 
 # 3. Restock -- arrow down into a box, Home/Stock group.
+#    The arrowhead ends deep inside the box (box is y=268..448, tip at 385) so
+#    the overlap reads as "goes in". Stopping at the box's top edge, as the
+#    first version did, just looked like the two shapes were touching.
 ICONS["restock"] = (
     '<rect x="86" y="268" width="340" height="180" rx="18" fill="%s"/>'
-    '<polygon points="216,58 296,58 296,168 356,168 256,278 156,168 216,168" '
+    '<polygon points="216,110 296,110 296,270 356,270 256,385 156,270 216,270" '
     'fill="%s"/>' % (GREY, GREEN)
 )
 
 # 4. Take Out -- arrow up out of a box, Home/Stock group. Amber, not green, so
 #    direction is not the only thing telling it apart from Restock.
+#    Mirror of restock: same y range (110..385), tail buried in the box, head
+#    clear of it -- "comes out".
 ICONS["take-out"] = (
     '<rect x="86" y="268" width="340" height="180" rx="18" fill="%s"/>'
-    '<polygon points="216,278 216,168 156,168 256,58 356,168 296,168 296,278" '
+    '<polygon points="216,385 216,225 156,225 256,110 356,225 296,225 296,385" '
     'fill="%s"/>' % (GREY, AMBER)
 )
 
@@ -144,6 +149,81 @@ ICONS["open-datasheet"] = (
     '<rect x="164" y="314" width="196" height="46" rx="18" fill="%s" stroke-width="%d"/>'
     '<rect x="164" y="396" width="128" height="46" rx="18" fill="%s" stroke-width="%d"/>'
     % (PAPER, GREY, THIN, CYAN, THIN, CYAN, THIN, CYAN, THIN)
+)
+
+
+# 11. Home tab -- the supplied tab-home.png was a flat black silhouette, the one
+#     icon that did not match anything else in the ribbon.
+ICONS["tab-home"] = (
+    '<rect x="116" y="240" width="280" height="216" rx="20" fill="%s"/>'
+    '<polygon points="256,64 464,254 48,254" fill="%s"/>'
+    '<rect x="216" y="332" width="80" height="124" rx="14" fill="%s" stroke-width="%d"/>'
+    % (PAPER, AMBER, CYAN, THIN)
+)
+
+# 12. Mouser search -- a parts list under a magnifier. Item 7's embedded search
+#     browser. The lens is translucent so the rows stay visible through it,
+#     otherwise it is just a magnifier sitting on a blank card.
+ICONS["mouser-search"] = (
+    '<rect x="52" y="60" width="304" height="392" rx="22" fill="%s"/>'
+    '<rect x="100" y="120" width="208" height="42" rx="14" fill="%s" stroke-width="%d"/>'
+    '<rect x="100" y="196" width="208" height="42" rx="14" fill="%s" stroke-width="%d"/>'
+    '<rect x="100" y="272" width="144" height="42" rx="14" fill="%s" stroke-width="%d"/>'
+    % (PAPER, CYAN, THIN, CYAN, THIN, CYAN, THIN)
+    + outlined_stroke("M 398 386 L 466 454", CYAN, 40)
+    + '<circle cx="322" cy="310" r="114" fill="%s" fill-opacity="0.45"/>' % CYAN
+)
+
+# 13. Database -- the cylinder used by the database selector / Manage Databases.
+ICONS["database"] = (
+    '<path d="M 96 140 V 372 a 160 46 0 0 0 320 0 V 140 Z" fill="%s"/>'
+    '<path d="M 96 218 a 160 46 0 0 0 320 0" fill="none" stroke-width="%d"/>'
+    '<path d="M 96 296 a 160 46 0 0 0 320 0" fill="none" stroke-width="%d"/>'
+    '<ellipse cx="256" cy="140" rx="160" ry="46" fill="%s"/>'
+    % (CYAN, THIN, THIN, PAPER)
+)
+
+# 14. Settings -- gear for the App Settings dialog (item 12). Teeth are eight
+#     rotated rounded rects with the hub circle painted over their inner ends,
+#     which is a lot less arithmetic than a real 16-vertex gear outline.
+_teeth = ""
+for _i in range(8):
+    _teeth += ('<rect x="228" y="48" width="56" height="128" rx="14" fill="%s" '
+               'transform="rotate(%d 256 256)"/>' % (GREY, _i * 45))
+ICONS["settings"] = (
+    _teeth
+    + '<circle cx="256" cy="256" r="150" fill="%s"/>' % GREY
+    + '<circle cx="256" cy="256" r="66" fill="%s" stroke-width="%d"/>' % (PAPER, THIN)
+)
+
+# 15. Delete -- trash can, for part / tag / database row removal.
+ICONS["delete"] = (
+    '<rect x="204" y="54" width="104" height="52" rx="16" fill="%s"/>'
+    '<path d="M 150 166 H 362 L 342 452 H 170 Z" fill="%s"/>'
+    '<rect x="112" y="104" width="288" height="58" rx="18" fill="%s"/>'
+    '<rect x="212" y="222" width="30" height="168" rx="14" fill="%s" stroke-width="%d"/>'
+    '<rect x="270" y="222" width="30" height="168" rx="14" fill="%s" stroke-width="%d"/>'
+    % (GREY, PAPER, GREY, CYAN, THIN, CYAN, THIN)
+)
+
+# 16. Import -- document with an arrow going into it, for item 8's CSV/BOM
+#     import. Same green down-arrow as restock so "incoming" is one visual idea
+#     across the app.
+ICONS["import-csv"] = (
+    '<path d="M 84 48 H 276 L 372 144 V 348 H 84 Z" fill="%s"/>'
+    '<path d="M 276 48 L 372 144 H 276 Z" fill="%s" stroke-width="%d"/>'
+    '<rect x="132" y="196" width="180" height="42" rx="14" fill="%s" stroke-width="%d"/>'
+    '<rect x="132" y="264" width="120" height="42" rx="14" fill="%s" stroke-width="%d"/>'
+    '<polygon points="246,300 326,300 326,384 386,384 286,494 186,384 246,384" fill="%s"/>'
+    % (PAPER, GREY, THIN, CYAN, THIN, CYAN, THIN, GREEN)
+)
+
+# 17. Orders -- shopping cart for the Mouser cart / order view (item 9).
+ICONS["orders"] = (
+    '<path d="M 152 148 H 456 L 408 300 H 200 Z" fill="%s"/>' % CYAN
+    + outlined_stroke("M 56 76 H 112 L 208 356 H 404", CYAN, 30)
+    + '<circle cx="238" cy="432" r="46" fill="%s"/>' % GREY
+    + '<circle cx="380" cy="432" r="46" fill="%s"/>' % GREY
 )
 
 
