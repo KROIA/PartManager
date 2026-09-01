@@ -4,10 +4,14 @@
 #include "ui/PartManager_ManageTagsDialog.h"
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
+#include "ui/PartManager_StockDialog.h"
 #include "widgets/PartManager_TagChipDelegate.h"
 
+#include <QBrush>
+#include <QColor>
 #include <QHeaderView>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QTableWidgetItem>
 #include <QTimer>
 #include <QTreeWidgetItem>
@@ -24,12 +28,16 @@ namespace PartManager
 		// Tree item data roles: the node's part_type id, and its raw name without the "(count)" suffix.
 		constexpr int TypeIdRole = Qt::UserRole;
 		constexpr int TypeNameRole = Qt::UserRole + 1;
+
+		// A negative count means the book-keeping is off (§3) — it is shown, never hidden.
+		const QColor NegativeStockColor(0xC0, 0x39, 0x2B);
 	}
 
 	MainWindow::MainWindow(std::unique_ptr<DatabaseHandle> handle, QWidget* parent)
 		: QMainWindow(parent)
 		, m_ui(new Ui::MainWindow)
 		, m_controller(std::move(handle))
+		, m_stock(m_controller.handle())
 	{
 		m_ui->setupUi(this);
 		buildRibbon();
@@ -193,8 +201,9 @@ namespace PartManager
 
 		PartEditorDialog editor(m_controller.handle(), partId, this);
 		editor.exec();
-		// The editor autosaved as it went (§10), so the table is stale by the time it closes.
-		refreshCurrentCategory();
+		// The editor autosaved as it went (§10), so the table is stale by the time it closes — and
+		// since the quantity field is editable there, the tree's in-stock counts can be too.
+		reloadCategories();
 	}
 
 	void MainWindow::onNewPart()
@@ -220,6 +229,66 @@ namespace PartManager
 		dialog.exec();
 		// A renamed/recoloured/deleted tag changes the chips painted in the table.
 		refreshCurrentCategory();
+	}
+
+	int MainWindow::selectedPartId(QString* outName) const
+	{
+		// Same cell the part id and the chips ride on — the table selects whole rows.
+		QTableWidgetItem* item = m_ui->partTable->item(m_ui->partTable->currentRow(), 0);
+		if (!item || !item->isSelected())
+		{
+			return 0;
+		}
+		if (outName)
+		{
+			*outName = item->text();
+		}
+		return item->data(Qt::UserRole).toInt();
+	}
+
+	void MainWindow::onRestock()
+	{
+		changeStock(true);
+	}
+
+	void MainWindow::onTakeOut()
+	{
+		changeStock(false);
+	}
+
+	void MainWindow::changeStock(bool restocking)
+	{
+		QString partName;
+		const int partId = selectedPartId(&partName);
+		if (partId == 0)
+		{
+			// The buttons stay enabled: "nothing is selected" is worth saying once, and there is
+			// no other state in which they would be greyed out.
+			QMessageBox::information(this, restocking ? tr("Restock") : tr("Take Out"),
+				tr("Select a part in the table first."));
+			return;
+		}
+
+		StockDialog dialog(partName, m_stock.quantity(partId),
+			restocking ? StockDialog::Mode::Restock : StockDialog::Mode::TakeOut, this);
+		if (dialog.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+
+		const bool written = restocking
+			? m_stock.restock(partId, dialog.quantity(), dialog.note())
+			: m_stock.takeOut(partId, dialog.quantity(), dialog.note());
+		if (!written)
+		{
+			QMessageBox::warning(this, tr("Stock unchanged"),
+				tr("The database rejected the change — nothing was recorded."));
+			return;
+		}
+
+		// The quantity moved, so both the table's Stock column and the tree's in-stock counts
+		// are stale; reloadCategories() re-selects the same category and re-renders the rows.
+		reloadCategories();
 	}
 
 	void MainWindow::showParts(int typeId, const QString& typeName)
@@ -260,6 +329,11 @@ namespace PartManager
 					cell->setData(TagChipDelegate::TagsRole, tags);
 					cell->setData(Qt::UserRole, row.partId);
 				}
+				if (columns[static_cast<size_t>(columnIndex)].key == "stock_qty" && row.stockQty < 0)
+				{
+					// §3 lets stock go negative; a plain black number would hide that.
+					cell->setForeground(QBrush(NegativeStockColor));
+				}
 				m_ui->partTable->setItem(rowIndex, columnIndex, cell);
 			}
 		}
@@ -298,9 +372,8 @@ namespace PartManager
 		// Import from Mouser has no icon yet — that one is still on the asset list.
 		addButton(newGroup, tr("New Part"), QStringLiteral(":/icons/new-part.png"), &MainWindow::onNewPart);
 		addButton(newGroup, tr("New Partlist"), QStringLiteral(":/icons/new-partlist.png"), &MainWindow::onNotImplemented);
-		addButton(stockGroup, tr("Restock"), QStringLiteral(":/icons/restock.png"), &MainWindow::onNotImplemented);
-		addButton(stockGroup, tr("Take Out"), QStringLiteral(":/icons/take-out.png"), &MainWindow::onNotImplemented);
-		// The only button this slice can actually satisfy — everything it needs already exists.
+		addButton(stockGroup, tr("Restock"), QStringLiteral(":/icons/restock.png"), &MainWindow::onRestock);
+		addButton(stockGroup, tr("Take Out"), QStringLiteral(":/icons/take-out.png"), &MainWindow::onTakeOut);
 		addButton(viewGroup, tr("Refresh"), QStringLiteral(":/icons/refresh.png"), &MainWindow::reloadCategories);
 		addButton(viewGroup, tr("List / Grid"), QStringLiteral(":/icons/view-list.png"), &MainWindow::onNotImplemented);
 		addButton(viewGroup, tr("3D Viewer"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onNotImplemented);

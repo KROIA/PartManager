@@ -5,15 +5,18 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QBrush>
 #include <QColor>
 #include <QDesktopServices>
 #include <QFileDialog>
+#include <QHeaderView>
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QLocale>
 #include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QTableWidgetItem>
 #include <QTimer>
 #include <QUrl>
 
@@ -46,6 +49,7 @@ namespace PartManager
 		: QDialog(parent)
 		, m_ui(new Ui::PartEditorDialog)
 		, m_controller(handle)
+		, m_stock(handle)
 		, m_attributeForm(new AttributeFormWidget(this))
 		, m_saveTimer(new QTimer(this))
 	{
@@ -65,8 +69,18 @@ namespace PartManager
 		connect(m_ui->mpnEdit, &QLineEdit::textChanged, this, &PartEditorDialog::scheduleSave);
 		connect(m_ui->packageEdit, &QLineEdit::textChanged, this, &PartEditorDialog::scheduleSave);
 		connect(m_ui->descriptionEdit, &QPlainTextEdit::textChanged, this, &PartEditorDialog::scheduleSave);
+		// The quantity is the one field that is not a plain autosave: it becomes a §3 correction,
+		// and it commits on focus-loss/Enter rather than per keystroke so typing "12" logs one
+		// adjustment to 12 instead of one to 1 and another to 12.
+		connect(m_ui->stockSpin, &QAbstractSpinBox::editingFinished,
+			this, &PartEditorDialog::commitStockQuantity);
 		connect(m_ui->stockSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-			this, &PartEditorDialog::scheduleSave);
+			this, [this](int value)
+			{
+				// §3 allows a negative count and it means "recount me" — so it is painted, not hidden.
+				m_ui->stockSpin->setStyleSheet(value < 0
+					? QStringLiteral("color: #c0392b; font-weight: bold;") : QString());
+			});
 		connect(m_ui->stockMinSpin, QOverload<int>::of(&QSpinBox::valueChanged),
 			this, &PartEditorDialog::scheduleSave);
 		// The generated form commits on focus-loss, which already is the debounce point.
@@ -99,6 +113,7 @@ namespace PartManager
 			m_ui->scrollArea->setEnabled(false);
 			m_ui->addTagButton->setEnabled(false);
 			m_ui->datasheetGroup->setEnabled(false);
+			m_ui->stockHistoryGroup->setEnabled(false);
 			m_loading = false;
 			return;
 		}
@@ -112,6 +127,11 @@ namespace PartManager
 		m_ui->mpnEdit->setText(toQt(m_part.mpn));
 		m_ui->packageEdit->setText(toQt(m_part.package));
 		m_ui->descriptionEdit->setPlainText(toQt(m_part.description));
+		// The log is the source of truth, `part.stock_qty` only its cache (§3) — so the field shows
+		// the log's number, and m_part follows it. A database whose cache had drifted (an import
+		// that wrote the column directly) is then corrected by the next autosave rather than
+		// re-saved wrong, and correct()'s delta is computed against the number the user can see.
+		m_part.stockQty = m_stock.quantity(m_part.id);
 		m_ui->stockSpin->setValue(m_part.stockQty);
 		m_ui->stockMinSpin->setValue(m_part.stockMinQty);
 
@@ -120,6 +140,7 @@ namespace PartManager
 
 		reloadTags();
 		updateDatasheetState();
+		reloadHistory();
 		m_loading = false;
 	}
 
@@ -253,10 +274,9 @@ namespace PartManager
 		m_part.mpn = m_ui->mpnEdit->text().toStdString();
 		m_part.package = m_ui->packageEdit->text().toStdString();
 		m_part.description = m_ui->descriptionEdit->toPlainText().toStdString();
-		// ponytail: stock is edited straight on the cached part.stock_qty column. Ceiling is that
-		// the change writes no stock_transaction row, so §3's history/"value of wealth" numbers
-		// miss it; upgrade path is the Restock/Take Out screens once StockRepository exists.
-		m_part.stockQty = m_ui->stockSpin->value();
+		// Not read off the spin box here: the quantity is only ever changed by commitStockQuantity(),
+		// which logs it (§3). m_part.stockQty already holds what the log says, so the write below
+		// re-states the cache instead of overwriting it.
 		m_part.stockMinQty = m_ui->stockMinSpin->value();
 		m_part.attributes = m_attributeForm->valuesJson().toStdString();
 
@@ -271,8 +291,72 @@ namespace PartManager
 		}
 	}
 
+	void PartEditorDialog::commitStockQuantity()
+	{
+		const int target = m_ui->stockSpin->value();
+		if (m_loading || m_part.id == 0 || target == m_part.stockQty)
+		{
+			return;
+		}
+
+		// §3: an absolute count becomes a delta, logged as a manual adjustment. The note is the
+		// app's own chrome, not the user's text, so it is translated.
+		if (!m_stock.setQuantity(m_part.id, target, tr("Corrected in the part editor")))
+		{
+			m_ui->statusLabel->setText(tr("Could not save — the database rejected the change."));
+			return;
+		}
+		// setQuantity() already refreshed part.stock_qty; keeping m_part in step is what stops the
+		// next autosave() from writing the old number back over it.
+		m_part.stockQty = target;
+		m_ui->statusLabel->setText(tr("Stock corrected — the adjustment is in the history."));
+		reloadHistory();
+	}
+
+	void PartEditorDialog::reloadHistory()
+	{
+		const std::vector<StockTransaction> history = m_stock.history(m_part.id);
+		const std::vector<int> quantities = runningQuantities(history);
+
+		m_ui->historyTable->clearContents();
+		m_ui->historyTable->setRowCount(static_cast<int>(history.size()));
+		for (int row = 0; row < static_cast<int>(history.size()); ++row)
+		{
+			const StockTransaction& transaction = history[static_cast<size_t>(row)];
+			const int resulting = quantities[static_cast<size_t>(row)];
+
+			// A delta is signed both ways so a column of numbers reads as a ledger.
+			const QString delta = transaction.deltaQty > 0
+				? QStringLiteral("+%1").arg(transaction.deltaQty)
+				: QString::number(transaction.deltaQty);
+
+			auto cell = [this, row](int column, const QString& text)
+			{
+				m_ui->historyTable->setItem(row, column, new QTableWidgetItem(text));
+			};
+			cell(0, toQt(transaction.createdAt));   // SQLite's own timestamp
+			cell(1, delta);
+			cell(2, QString::number(resulting));
+			cell(3, stockReasonLabel(transaction.reason));
+			cell(4, toQt(transaction.note));        // user data
+
+			if (resulting < 0)
+			{
+				// Same signal as the part table's red count: the books say less than nothing is left.
+				m_ui->historyTable->item(row, 2)->setForeground(QBrush(QColor(0xC0, 0x39, 0x2B)));
+			}
+		}
+
+		m_ui->historyTable->resizeColumnsToContents();
+		m_ui->historyTable->horizontalHeader()->setStretchLastSection(true);
+		m_ui->historyTable->scrollToBottom();
+	}
+
 	void PartEditorDialog::done(int result)
 	{
+		// Arrow-clicking the spin box and closing at once never fires editingFinished, so the
+		// pending count is committed here as well — a no-op when nothing changed.
+		commitStockQuantity();
 		// A keystroke less than the debounce interval old would otherwise be lost on close.
 		if (m_saveTimer->isActive())
 		{

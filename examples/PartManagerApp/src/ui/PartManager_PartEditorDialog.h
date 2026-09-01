@@ -13,6 +13,7 @@
 #pragma once
 
 #include "controllers/PartManager_PartEditorController.h"
+#include "controllers/PartManager_StockController.h"
 #include <QDialog>
 
 class QTimer;
@@ -47,6 +48,13 @@ namespace PartManager
 		// Rebuilds the §2d chip row from the part's current tags.
 		void reloadTags();
 
+		// §3: the quantity field is a correction, not a write — it logs the difference as
+		// `manual_adjust` through StockRepository, so `part.stock_qty` can never drift from the
+		// log. A no-op when the number did not actually change.
+		void commitStockQuantity();
+		// Fills the history table from the part's transactions, oldest first.
+		void reloadHistory();
+
 		// §3 datasheet slot. Each of these ends in the same autosave() that every other field uses.
 		void attachDatasheet();
 		void downloadDatasheet();
@@ -67,6 +75,8 @@ namespace PartManager
 
 		Ui::PartEditorDialog* m_ui;
 		PartEditorController m_controller;
+		// Same connection as m_controller, but every quantity change goes through §3's log.
+		StockController m_stock;
 		AttributeFormWidget* m_attributeForm;
 		QTimer* m_saveTimer;
 		Part m_part;

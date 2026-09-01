@@ -12,6 +12,7 @@
 #pragma once
 
 #include "controllers/PartManager_MainWindowController.h"
+#include "controllers/PartManager_StockController.h"
 #include <QMainWindow>
 #include <memory>
 
@@ -44,8 +45,16 @@ namespace PartManager
 		void onNewPart();
 		// Parts tab's Manage Tags button (§2d).
 		void onManageTags();
+		// Home tab's Stock group (§7): both write one stock_transaction for the selected part (§3).
+		void onRestock();
+		void onTakeOut();
 
 	private:
+		// Shared body of the two Stock buttons — prompt, then one transaction through the controller.
+		void changeStock(bool restocking);
+		// part id of the selected table row, 0 when nothing is selected; outName gets its name.
+		int selectedPartId(QString* outName = nullptr) const;
+
 		// Re-renders the currently selected category, after an edit changed what it shows.
 		void refreshCurrentCategory();
 
@@ -62,6 +71,8 @@ namespace PartManager
 
 		Ui::MainWindow* m_ui;
 		MainWindowController m_controller;
+		// Non-owning view of the same connection m_controller holds open.
+		StockController m_stock;
 		RibbonWidget::Ribbon* m_ribbon = nullptr;
 		// Which category the table currently shows, so an edit can re-render it in place.
 		int m_currentTypeId = NoParentType;
