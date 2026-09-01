@@ -16,6 +16,7 @@
 #pragma once
 
 #include "database/PartManager_DatabaseHandle.h"
+#include "domain/PartManager_Part.h"
 #include "domain/PartManager_PartType.h"
 #include "domain/PartManager_PartTypeAttribute.h"
 #include "domain/PartManager_Tag.h"
@@ -58,6 +59,24 @@ namespace PartManager
 		int stockMinQty = 0;
 	};
 
+	// One label/value line of the §7c preview panel.
+	struct PreviewField
+	{
+		QString label;                      // attribute labels are user data, built-ins are tr()'d
+		QString value;                      // already display-formatted, same string the table cell holds
+	};
+
+	// Everything the §7c preview panel shows for one part. A partId of 0 is the empty
+	// state — nothing selected, or a part id that no longer resolves.
+	struct PartPreview
+	{
+		int partId = 0;
+		QString name;                       // user data, the panel's title
+		QString description;                // user data
+		std::vector<PreviewField> fields;   // manufacturer, mpn, package, attributes, stock, datasheet
+		std::vector<Tag> tags;              // §2d chips
+	};
+
 	// Assembles the part_type forest from flat rows, honoring parent_type_id (§2b).
 	// inStockByType maps a type id to the count of ITS OWN in-stock parts; each node's
 	// inStockCount comes back as that count plus every descendant's. Children are sorted
@@ -87,6 +106,21 @@ namespace PartManager
 	// dimensioned values go through ValueParser::format(), so 4700 Ω shows as "4.7 kΩ" (§2a).
 	QString formatAttributeValue(const QString& attributesJson, const PartColumn& column);
 
+	// One column's display text for one part — built-ins read the record's fields, attributes go
+	// through formatAttributeValue(). The table cell and the preview line are literally the same
+	// string, so the panel can never disagree with the row above it.
+	QString formatCell(const Part& part, const PartColumn& column);
+
+	// Display text for the §3 datasheet slot: "None", the stored file's name, or that name
+	// marked missing when the `part_file` row points at a file that is no longer on disk.
+	QString datasheetState(const QString& fileName, bool onDisk);
+
+	// §7c preview fields for a part: every column except `name` (which is the panel's title),
+	// with empty values dropped and the datasheet state appended last. `part.stockQty` is
+	// expected to already carry the authoritative quantity (see previewFor()).
+	PartPreview buildPreview(const Part& part, const std::vector<PartColumn>& columns,
+		const std::vector<Tag>& tags, const QString& datasheet);
+
 	class MainWindowController
 	{
 	public:
@@ -114,6 +148,10 @@ namespace PartManager
 		// parse matches nothing, same as SearchEngine.
 		std::vector<PartRow> partsFor(int typeId, const std::vector<PartColumn>& columns,
 			const QString& filterText = QString()) const;
+
+		// §7c preview panel content for one part. A partId of 0, or one that no longer resolves,
+		// comes back as the empty PartPreview the panel renders as its empty state.
+		PartPreview previewFor(int partId) const;
 
 	private:
 		std::unique_ptr<DatabaseHandle> m_handle;

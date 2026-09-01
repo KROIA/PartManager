@@ -9,9 +9,13 @@
 
 #include <QBrush>
 #include <QColor>
+#include <QFormLayout>
 #include <QHeaderView>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QPushButton>
+#include <QScrollArea>
 #include <QTableWidgetItem>
 #include <QTimer>
 #include <QTreeWidgetItem>
@@ -48,15 +52,24 @@ namespace PartManager
 
 		setupFilters();
 		m_ui->partTable->setItemDelegateForColumn(0, new TagChipDelegate(this));
+		// Only the table grows with the window; both side panels keep their width and can be
+		// collapsed to nothing, so the preview never eats the rows it is describing.
 		m_ui->bodySplitter->setStretchFactor(0, 0);
 		m_ui->bodySplitter->setStretchFactor(1, 1);
-		m_ui->bodySplitter->setSizes({ 240, 760 });
+		m_ui->bodySplitter->setStretchFactor(2, 0);
+		m_ui->bodySplitter->setSizes({ 220, 540, 240 });
 
 		connect(m_ui->categoryTree, &QTreeWidget::itemSelectionChanged,
 			this, &MainWindow::onCategorySelectionChanged);
 		// Double-clicking a row is the only way into the part editor (§12b's "part link").
 		connect(m_ui->partTable, &QTableWidget::cellDoubleClicked,
 			this, [this](int row, int) { onPartActivated(row); });
+		connect(m_ui->partTable, &QTableWidget::itemSelectionChanged,
+			this, &MainWindow::updatePreview);
+		// The panel's two buttons are the ribbon actions again, aimed at the selected row.
+		connect(m_ui->previewOpenButton, &QPushButton::clicked,
+			this, [this]() { onPartActivated(m_ui->partTable->currentRow()); });
+		connect(m_ui->previewTakeOutButton, &QPushButton::clicked, this, &MainWindow::onTakeOut);
 
 		reloadCategories();
 	}
@@ -168,6 +181,7 @@ namespace PartManager
 			m_ui->partTable->clearContents();
 			m_ui->partTable->setRowCount(0);
 			m_ui->partsHeaderLabel->setText(tr("Select a category"));
+			updatePreview();
 			return;
 		}
 
@@ -341,6 +355,57 @@ namespace PartManager
 		m_ui->partTable->resizeColumnsToContents();
 		m_ui->partTable->horizontalHeader()->setStretchLastSection(true);
 		m_ui->partsHeaderLabel->setText(tr("%1 — %n part(s)", "", static_cast<int>(rows.size())).arg(typeName));
+		// Refilling the table drops the selection without always emitting the signal, and the
+		// values behind a kept selection may have just changed anyway.
+		updatePreview();
+	}
+
+	void MainWindow::updatePreview()
+	{
+		const PartPreview preview = m_controller.previewFor(selectedPartId());
+		const bool hasPart = preview.partId != 0;
+
+		m_ui->previewEmptyLabel->setVisible(!hasPart);
+		m_ui->previewScroll->setVisible(hasPart);
+		m_ui->previewOpenButton->setEnabled(hasPart);
+		m_ui->previewTakeOutButton->setEnabled(hasPart);
+		if (!hasPart)
+		{
+			return;
+		}
+
+		m_ui->previewNameLabel->setText(preview.name); // user data
+		m_ui->previewDescriptionLabel->setText(preview.description);
+		m_ui->previewDescriptionLabel->setVisible(!preview.description.isEmpty());
+
+		// §2d chips as rich text: the table needs a delegate because it paints inside a cell,
+		// the panel just needs coloured runs of text — same colour rule, far less machinery.
+		QStringList chips;
+		for (const Tag& tag : preview.tags)
+		{
+			const QColor background(QString::fromStdString(tag.color));
+			chips.append(QStringLiteral("<span style=\"background-color:%1; color:%2;\">&nbsp;%3&nbsp;</span>")
+				.arg(background.isValid() ? background.name() : QStringLiteral("#CCCCCC"),
+					background.isValid() && background.lightness() < 128
+						? QStringLiteral("#FFFFFF") : QStringLiteral("#000000"),
+					QString::fromStdString(tag.name).toHtmlEscaped())); // user data
+		}
+		m_ui->previewTagsLabel->setText(chips.join(QStringLiteral(" ")));
+		m_ui->previewTagsLabel->setVisible(!chips.isEmpty());
+
+		// §7c: the field list is per-part, so it is built here rather than in the .ui — same
+		// reason the table's header is.
+		while (m_ui->previewFormLayout->rowCount() > 0)
+		{
+			m_ui->previewFormLayout->removeRow(0);
+		}
+		for (const PreviewField& field : preview.fields)
+		{
+			QLabel* value = new QLabel(field.value, m_ui->previewContent); // already display-ready
+			value->setWordWrap(true);
+			value->setTextInteractionFlags(Qt::TextSelectableByMouse);
+			m_ui->previewFormLayout->addRow(tr("%1:").arg(field.label), value);
+		}
 	}
 
 	void MainWindow::buildRibbon()

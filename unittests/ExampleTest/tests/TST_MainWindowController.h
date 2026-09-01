@@ -21,6 +21,7 @@ public:
 		ADD_TEST(TST_MainWindowController::dimensionValuesFormatWithSiPrefix);
 		ADD_TEST(TST_MainWindowController::treeMatchCountsRollUpLikeStock);
 		ADD_TEST(TST_MainWindowController::searchErrorOnlyReportsMalformedQueries);
+		ADD_TEST(TST_MainWindowController::previewShapesTheSelectedPartsFields);
 	}
 
 private:
@@ -225,6 +226,70 @@ private:
 		TEST_ASSERT(!PartManager::searchError("tag:").isEmpty());
 		TEST_ASSERT(!PartManager::searchError("resistance>").isEmpty());
 		TEST_ASSERT(!PartManager::searchError("resistance>abc").isEmpty());
+	}
+
+	TEST_FUNCTION(previewShapesTheSelectedPartsFields)
+	{
+		TEST_START;
+
+		const std::string ohm = "\xCE\xA9";
+
+		PartManager::PartTypeAttribute resistance;
+		resistance.key = "resistance";
+		resistance.label = "Resistance";
+		resistance.unit = ohm;
+		resistance.datatype = PartManager::AttributeDataType::Dimension;
+
+		// Declared by the type, never filled in by this part.
+		PartManager::PartTypeAttribute tolerance;
+		tolerance.key = "tolerance";
+		tolerance.label = "Tolerance";
+		tolerance.datatype = PartManager::AttributeDataType::Text;
+
+		PartManager::Part part;
+		part.id = 42;
+		part.name = "RES-0603-4K7";
+		part.manufacturer = "Yageo";
+		part.mpn = "";                      // deliberately blank
+		part.package = "0603";
+		part.description = "thin film";
+		part.attributes = "{\"resistance\":{\"value\":4700,\"unit\":\"" + ohm + "\"}}";
+		part.stockQty = 12;
+
+		PartManager::Tag smd;
+		smd.id = 1;
+		smd.name = "SMD";
+		smd.color = "#E53935";
+
+		PartManager::PartPreview preview = PartManager::buildPreview(part,
+			PartManager::deriveColumns({ resistance, tolerance }),
+			{ smd },
+			PartManager::datasheetState("rc0603.pdf", true));
+
+		TEST_COMPARE(preview.partId, 42);
+		TEST_COMPARE(preview.name.toStdString(), std::string("RES-0603-4K7"));
+		TEST_COMPARE(preview.description.toStdString(), std::string("thin film"));
+		TEST_COMPARE(preview.tags.size(), static_cast<size_t>(1));
+
+		// The name is the panel title rather than a field; the blank MPN and the unfilled
+		// attribute are dropped, so what is left is Manufacturer, Package, Resistance, Stock,
+		// Datasheet — and the datasheet line is always last.
+		TEST_COMPARE(preview.fields.size(), static_cast<size_t>(5));
+		TEST_COMPARE(preview.fields[0].value.toStdString(), std::string("Yageo"));
+		TEST_COMPARE(preview.fields[1].value.toStdString(), std::string("0603"));
+		TEST_COMPARE(preview.fields[2].label.toStdString(), std::string("Resistance"));
+		// §2a formatting is the table's own, not a second implementation for the panel.
+		TEST_COMPARE(preview.fields[2].value.toStdString(), std::string("4.7 k") + ohm);
+		TEST_COMPARE(preview.fields[3].value.toStdString(), std::string("12"));
+		TEST_COMPARE(preview.fields.back().value.toStdString(), std::string("rc0603.pdf"));
+
+		// A part with no id is the empty state the panel renders instead of a blank form.
+		TEST_COMPARE(PartManager::buildPreview(PartManager::Part(), {}, {}, QString()).partId, 0);
+
+		// The three datasheet states have to be distinguishable: none, present, gone from disk.
+		TEST_ASSERT(!PartManager::datasheetState(QString(), false).isEmpty());
+		TEST_ASSERT(PartManager::datasheetState("rc0603.pdf", false).contains("rc0603.pdf"));
+		TEST_ASSERT(PartManager::datasheetState("rc0603.pdf", false) != QString("rc0603.pdf"));
 	}
 
 };

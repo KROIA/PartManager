@@ -4,7 +4,8 @@
 // Layout lives in PartManager_MainWindow.ui; the ribbon itself is built in code
 // because RibbonWidget's tabs/groups/buttons are not Designer-expressible, and
 // the part table's header is filled in code because it is per-category dynamic
-// (§7b). Everything else — splitter, tree, table, filter boxes — is in the .ui.
+// (§7b) and the preview panel's field list is per-part dynamic (§7c). Everything
+// else — splitter, tree, table, filter boxes, preview chrome — is in the .ui.
 // The window holds no business logic: it asks MainWindowController for nodes and
 // rows and renders them.
 // @see docs/design/ARCHITECTURE.md §7, §7a, §7b
@@ -41,6 +42,8 @@ namespace PartManager
 		void onCategorySelectionChanged();
 		// Opens the part editor for the double-clicked row (§10 autosave, no Save button).
 		void onPartActivated(int row);
+		// Re-renders the §7c preview panel for whatever row is selected now, empty state included.
+		void updatePreview();
 		// Home tab's New Part button — the manual/blank flow (§11).
 		void onNewPart();
 		// Parts tab's Manage Tags button (§2d).

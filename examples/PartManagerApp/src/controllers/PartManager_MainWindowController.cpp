@@ -1,5 +1,7 @@
 #include "controllers/PartManager_MainWindowController.h"
 
+#include "controllers/PartManager_PartEditorController.h"
+#include "controllers/PartManager_StockController.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_TagRepository.h"
@@ -211,6 +213,73 @@ namespace PartManager
 		return QString::number(value, 'g', 10);
 	}
 
+	QString formatCell(const Part& part, const PartColumn& column)
+	{
+		if (column.isAttribute)
+		{
+			return formatAttributeValue(toQt(part.attributes), column);
+		}
+		if (column.key == "name")
+		{
+			return toQt(part.name);
+		}
+		if (column.key == "manufacturer")
+		{
+			return toQt(part.manufacturer);
+		}
+		if (column.key == "mpn")
+		{
+			return toQt(part.mpn);
+		}
+		if (column.key == "package")
+		{
+			return toQt(part.package);
+		}
+		if (column.key == "stock_qty")
+		{
+			return QString::number(part.stockQty);
+		}
+		return QString();
+	}
+
+	QString datasheetState(const QString& fileName, bool onDisk)
+	{
+		if (fileName.isEmpty())
+		{
+			return QObject::tr("None");
+		}
+		// A part_file row whose file is gone has to say so — otherwise the panel advertises a
+		// datasheet that the editor's Open button then silently fails to open.
+		return onDisk ? fileName : QObject::tr("%1 (file missing)").arg(fileName);
+	}
+
+	PartPreview buildPreview(const Part& part, const std::vector<PartColumn>& columns,
+		const std::vector<Tag>& tags, const QString& datasheet)
+	{
+		PartPreview preview;
+		preview.partId = part.id;
+		preview.name = toQt(part.name);
+		preview.description = toQt(part.description);
+		preview.tags = tags;
+
+		for (const PartColumn& column : columns)
+		{
+			if (column.key == "name")
+			{
+				continue; // already the panel's title
+			}
+			// An empty manufacturer or an attribute this part never filled in would be a blank
+			// line in a narrow panel; the table keeps the column, the preview just omits the line.
+			const QString value = formatCell(part, column);
+			if (!value.isEmpty())
+			{
+				preview.fields.push_back({ column.label, value });
+			}
+		}
+		preview.fields.push_back({ QObject::tr("Datasheet"), datasheet });
+		return preview;
+	}
+
 	QString searchError(const QString& filterText)
 	{
 		SearchQuery query = SearchQuery::parse(filterText.toStdString());
@@ -339,34 +408,7 @@ namespace PartManager
 
 				for (const PartColumn& column : columns)
 				{
-					if (column.isAttribute)
-					{
-						row.cells.append(formatAttributeValue(toQt(part.attributes), column));
-					}
-					else if (column.key == "name")
-					{
-						row.cells.append(toQt(part.name));
-					}
-					else if (column.key == "manufacturer")
-					{
-						row.cells.append(toQt(part.manufacturer));
-					}
-					else if (column.key == "mpn")
-					{
-						row.cells.append(toQt(part.mpn));
-					}
-					else if (column.key == "package")
-					{
-						row.cells.append(toQt(part.package));
-					}
-					else if (column.key == "stock_qty")
-					{
-						row.cells.append(QString::number(part.stockQty));
-					}
-					else
-					{
-						row.cells.append(QString());
-					}
+					row.cells.append(formatCell(part, column));
 				}
 				rows.push_back(row);
 			}
@@ -377,6 +419,37 @@ namespace PartManager
 		Q_UNUSED(filterText);
 #endif
 		return rows;
+	}
+
+	PartPreview MainWindowController::previewFor(int partId) const
+	{
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		if (m_handle && m_handle->isOpen() && partId != 0)
+		{
+			// The editor and stock controllers are non-owning wrappers over this same handle, so
+			// the panel reads the part, its datasheet and its quantity through the paths that
+			// already exist rather than growing a second set of queries here.
+			PartEditorController editor(m_handle.get());
+			Part part;
+			if (editor.loadPart(partId, part))
+			{
+				// part.stock_qty is the cached column; the log's sum is the authoritative one (§3).
+				part.stockQty = StockController(m_handle.get()).quantity(partId);
+
+				PartFile file;
+				const QString fileName = editor.datasheetFile(part, file)
+					? toQt(file.originalFilename)
+					: QString();
+
+				return buildPreview(part, columnsFor(part.partTypeId),
+					TagRepository::listPartTags(m_handle->connection(), partId),
+					datasheetState(fileName, !editor.datasheetPath(part).empty()));
+			}
+		}
+#else
+		Q_UNUSED(partId);
+#endif
+		return PartPreview();
 	}
 
 }
