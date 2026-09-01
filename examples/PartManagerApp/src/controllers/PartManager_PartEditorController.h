@@ -16,12 +16,13 @@
 // stored number is then the same one that goes into the `attr_*` column, so the
 // two can never drift. Number/Text/Bool/Enum store a bare JSON value. A field
 // left empty is omitted from the object entirely rather than stored as null.
-// @see docs/design/ARCHITECTURE.md §2a, §2d, §10, §11, §12b
-// @see PartManager_MainWindowController.h, PartManager_AttributeFormWidget.h
+// @see docs/design/ARCHITECTURE.md §2a, §2d, §3, §6, §10, §11, §12b
+// @see PartManager_MainWindowController.h, PartManager_AttributeFormWidget.h, PartManager_FileStore.h
 #pragma once
 
 #include "database/PartManager_DatabaseHandle.h"
 #include "domain/PartManager_Part.h"
+#include "domain/PartManager_PartFile.h"
 #include "domain/PartManager_PartType.h"
 #include "domain/PartManager_PartTypeAttribute.h"
 #include "domain/PartManager_PartTypeFileSlot.h"
@@ -97,6 +98,22 @@ namespace PartManager
 		// Returns the new part's id, 0 on failure. Default tags are seeded inside
 		// PartRepository::insertPart() (§2d), not here.
 		int createPart(const Part& part) const;
+
+		// §3 datasheet slot. All four only touch `part.datasheetFileId` in memory — writing the
+		// part back is the caller's §10 autosave, so there is still exactly one save path.
+		// Attaching or downloading over an existing datasheet detaches the old one first, so a
+		// part never leaves a `part_file` row behind that nothing points at.
+		// Both return the new part_file id, 0 on failure with the reason in outError.
+		int attachDatasheet(Part& part, const std::string& sourcePath, std::string* outError = nullptr) const;
+		// §6: fetches the Mouser DataSheetUrl. Blocking with a timeout, see FileStore::downloadFile().
+		int downloadDatasheet(Part& part, const std::string& url, std::string* outError = nullptr) const;
+		// Removes the current datasheet. False when the part carried none, or the row was already gone.
+		bool detachDatasheet(Part& part) const;
+		// The part's datasheet `part_file` row. False when it carries none.
+		bool datasheetFile(const Part& part, PartFile& outFile) const;
+		// Absolute path of the stored datasheet — empty when there is none, or the file
+		// is no longer on disk, which is what tells the editor to say so instead of opening nothing.
+		std::string datasheetPath(const Part& part) const;
 
 		std::vector<Tag> allTags() const;
 		std::vector<Tag> partTags(int partId) const;

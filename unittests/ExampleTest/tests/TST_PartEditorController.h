@@ -2,11 +2,17 @@
 
 #include "UnitTest.h"
 #include "controllers/PartManager_PartEditorController.h"
+#include "persistence/PartManager_PartRepository.h"
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
 
 // The part editor's widget-free logic: the §2a `attributes` JSON read/write, §11 required-field
 // validation, the datatype -> widget mapping and the §2d tag set arithmetic. The widgets built
 // on top need a live QApplication and are not exercised here.
+//
+// The §3 datasheet case is the one that needs a real database — it runs against a throwaway
+// one created in %TEMP%, never the user's own.
 class TST_PartEditorController : public UnitTest::Test
 {
 	TEST_CLASS(TST_PartEditorController)
@@ -20,6 +26,9 @@ public:
 		ADD_TEST(TST_PartEditorController::requiredKeysBlockCreation);
 		ADD_TEST(TST_PartEditorController::widgetKindFollowsDatatype);
 		ADD_TEST(TST_PartEditorController::availableTagsExcludeCarriedOnes);
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		ADD_TEST(TST_PartEditorController::datasheetAttachReplaceAndDetach);
+#endif
 	}
 
 private:
@@ -208,6 +217,92 @@ private:
 		TEST_COMPARE(PartManager::availableTagsToAdd(all, { makeTag(1, "renamed") }).size(),
 			static_cast<size_t>(2));
 	}
+
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+	// The §3 datasheet slot end to end on a throwaway database: what the editor's Attach /
+	// Replace / Remove buttons call, minus the widgets. No network — the download path is
+	// exercised only through its "there is no URL" rejection.
+	TEST_FUNCTION(datasheetAttachReplaceAndDetach)
+	{
+		TEST_START;
+
+		std::filesystem::path parent =
+			std::filesystem::temp_directory_path() / "PartManager_TST_PartEditorController_files";
+		std::error_code ec;
+		std::filesystem::remove_all(parent, ec);
+		std::filesystem::create_directories(parent, ec);
+
+		std::string error;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			PartManager::DatabaseHandle::createNew(parent.string(), "Files", error);
+		TEST_ASSERT_M(handle != nullptr, "createNew failed: " + error);
+
+		PartManager::PartEditorController controller(handle.get());
+		std::vector<PartManager::PartType> types = controller.types();
+		TEST_ASSERT_M(!types.empty(), "createNew must seed at least one type template");
+
+		PartManager::Part part;
+		part.partTypeId = types.front().id;
+		part.name = "LM358";
+		part.id = controller.createPart(part);
+		TEST_ASSERT_M(part.id != 0, "the part under test could not be created");
+		TEST_COMPARE(part.datasheetFileId, 0);
+
+		// Attach.
+		const std::filesystem::path source = parent / "lm358.pdf";
+		std::ofstream(source, std::ios::binary) << "%PDF-1.4 first datasheet";
+		const int fileId = controller.attachDatasheet(part, source.string(), &error);
+		TEST_ASSERT_M(fileId != 0, "attachDatasheet failed: " + error);
+		TEST_COMPARE(part.datasheetFileId, fileId);
+
+		PartManager::PartFile row;
+		TEST_ASSERT(controller.datasheetFile(part, row));
+		TEST_COMPARE(row.role, std::string("datasheet"));
+		TEST_COMPARE(row.originalFilename, std::string("lm358.pdf"));
+		TEST_COMPARE(row.mimeType, std::string("application/pdf"));
+
+		const std::string storedPath = controller.datasheetPath(part);
+		TEST_ASSERT_M(!storedPath.empty(), "the attached datasheet must be on disk");
+
+		// The id has to survive the §10 autosave write, or reopening the editor loses the file.
+		TEST_ASSERT(controller.savePart(part));
+		PartManager::Part reloaded;
+		TEST_ASSERT(controller.loadPart(part.id, reloaded));
+		TEST_COMPARE(reloaded.datasheetFileId, fileId);
+
+		// Replace: new row, new file, and the old one is gone rather than orphaned.
+		const std::filesystem::path replacement = parent / "lm358-revB.pdf";
+		std::ofstream(replacement, std::ios::binary) << "%PDF-1.4 second datasheet";
+		const int replacedId = controller.attachDatasheet(reloaded, replacement.string(), &error);
+		TEST_ASSERT_M(replacedId != 0, "replacing the datasheet failed: " + error);
+		TEST_ASSERT_M(replacedId != fileId, "a replacement must be its own part_file row");
+		TEST_ASSERT_M(!std::filesystem::exists(storedPath), "the replaced file must not stay behind");
+		TEST_COMPARE(PartManager::PartRepository::listFiles(handle->connection(), part.id).size(),
+			static_cast<size_t>(1));
+
+		const std::string replacedPath = controller.datasheetPath(reloaded);
+		TEST_ASSERT_M(!replacedPath.empty(), "the replacement must be on disk");
+
+		// An empty URL is the normal Mouser answer (§6): it must fail, and change nothing.
+		TEST_COMPARE(controller.downloadDatasheet(reloaded, "", &error), 0);
+		TEST_ASSERT_M(!error.empty(), "a failed download must carry a reason");
+		TEST_COMPARE(reloaded.datasheetFileId, replacedId);
+
+		// Detach.
+		TEST_ASSERT(controller.detachDatasheet(reloaded));
+		TEST_COMPARE(reloaded.datasheetFileId, 0);
+		TEST_ASSERT_M(!std::filesystem::exists(replacedPath), "the last reference must remove the file");
+		TEST_ASSERT(controller.savePart(reloaded));
+		TEST_ASSERT(controller.loadPart(part.id, reloaded));
+		TEST_COMPARE(reloaded.datasheetFileId, 0);
+		TEST_COMPARE(PartManager::PartRepository::listFiles(handle->connection(), part.id).size(),
+			static_cast<size_t>(0));
+
+		// Nothing attached: detaching again is a no-op, and there is no path to open.
+		TEST_ASSERT(!controller.detachDatasheet(reloaded));
+		TEST_ASSERT(controller.datasheetPath(reloaded).empty());
+	}
+#endif
 
 };
 

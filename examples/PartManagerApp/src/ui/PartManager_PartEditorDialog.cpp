@@ -4,10 +4,18 @@
 #include "widgets/PartManager_AttributeFormWidget.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QColor>
+#include <QDesktopServices>
+#include <QFileDialog>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QLocale>
 #include <QMenu>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QTimer>
+#include <QUrl>
 
 namespace PartManager
 {
@@ -64,7 +72,17 @@ namespace PartManager
 		// The generated form commits on focus-loss, which already is the debounce point.
 		connect(m_attributeForm, &AttributeFormWidget::valueCommitted, this, &PartEditorDialog::autosave);
 
+		connect(m_ui->openDatasheetButton, &QPushButton::clicked, this, &PartEditorDialog::openDatasheet);
+		connect(m_ui->attachDatasheetButton, &QPushButton::clicked, this, &PartEditorDialog::attachDatasheet);
+		connect(m_ui->downloadDatasheetButton, &QPushButton::clicked, this, &PartEditorDialog::downloadDatasheet);
+		connect(m_ui->removeDatasheetButton, &QPushButton::clicked, this, &PartEditorDialog::removeDatasheet);
+
 		connect(m_ui->closeButton, &QPushButton::clicked, this, &PartEditorDialog::accept);
+	}
+
+	void PartEditorDialog::setDatasheetSourceUrl(const QString& url)
+	{
+		m_datasheetSourceUrl = url;
 	}
 
 	PartEditorDialog::~PartEditorDialog()
@@ -80,6 +98,7 @@ namespace PartManager
 			m_ui->headerLabel->setText(tr("This part no longer exists."));
 			m_ui->scrollArea->setEnabled(false);
 			m_ui->addTagButton->setEnabled(false);
+			m_ui->datasheetGroup->setEnabled(false);
 			m_loading = false;
 			return;
 		}
@@ -100,7 +119,117 @@ namespace PartManager
 		m_attributeForm->setValuesJson(toQt(m_part.attributes));
 
 		reloadTags();
+		updateDatasheetState();
 		m_loading = false;
+	}
+
+	void PartEditorDialog::updateDatasheetState()
+	{
+		PartFile file;
+		const bool attached = m_controller.datasheetFile(m_part, file);
+		const bool onDisk = attached && !m_controller.datasheetPath(m_part).empty();
+
+		if (!attached)
+		{
+			m_ui->datasheetLabel->setText(tr("No datasheet attached yet."));
+		}
+		else
+		{
+			// The file name is the user's own data; only the size and the frame are translated.
+			const QString name = toQt(file.originalFilename);
+			m_ui->datasheetLabel->setText(onDisk
+				? tr("%1 (%2)").arg(name, QLocale().formattedDataSize(file.sizeBytes))
+				: tr("%1 — the stored file is missing from this database's file store.").arg(name));
+		}
+
+		m_ui->openDatasheetButton->setEnabled(onDisk);
+		m_ui->removeDatasheetButton->setEnabled(attached);
+		m_ui->attachDatasheetButton->setText(attached ? tr("Replace file…") : tr("Attach file…"));
+		m_ui->downloadDatasheetButton->setText(attached ? tr("Replace from URL…") : tr("Download…"));
+	}
+
+	void PartEditorDialog::openDatasheet()
+	{
+		const std::string path = m_controller.datasheetPath(m_part);
+		if (path.empty())
+		{
+			QMessageBox::warning(this, tr("Datasheet unavailable"),
+				tr("The stored file is no longer in this database's file store."));
+			updateDatasheetState();
+			return;
+		}
+		QDesktopServices::openUrl(QUrl::fromLocalFile(toQt(path)));
+	}
+
+	void PartEditorDialog::attachDatasheet()
+	{
+		// PDF-biased, not PDF-only: plenty of real datasheets arrive as a scan or a zip.
+		const QString path = QFileDialog::getOpenFileName(this, tr("Choose a datasheet"), QString(),
+			tr("Datasheets (*.pdf);;All files (*)"));
+		if (path.isEmpty())
+		{
+			return;
+		}
+
+		std::string error;
+		if (m_controller.attachDatasheet(m_part, path.toStdString(), &error) == 0)
+		{
+			QMessageBox::warning(this, tr("Could not attach the datasheet"), toQt(error));
+			return;
+		}
+		autosave();
+		updateDatasheetState();
+	}
+
+	void PartEditorDialog::downloadDatasheet()
+	{
+		bool accepted = false;
+		const QString url = QInputDialog::getText(this, tr("Download a datasheet"), tr("Datasheet URL"),
+			QLineEdit::Normal, m_datasheetSourceUrl, &accepted).trimmed();
+		if (!accepted || url.isEmpty())
+		{
+			return;
+		}
+
+		// FileStore::downloadFile() is synchronous with a timeout, so the window really does stop
+		// responding for up to that long — say so rather than just freezing.
+		m_ui->statusLabel->setText(tr("Downloading the datasheet…"));
+		QApplication::setOverrideCursor(Qt::WaitCursor);
+		std::string error;
+		const int fileId = m_controller.downloadDatasheet(m_part, url.toStdString(), &error);
+		QApplication::restoreOverrideCursor();
+
+		if (fileId == 0)
+		{
+			// A failed download changes nothing about the part — §6 explicitly must not block saving.
+			m_ui->statusLabel->setText(tr("Changes are saved automatically."));
+			QMessageBox::warning(this, tr("Could not download the datasheet"),
+				tr("%1\n\nThe part itself is unaffected — you can attach a file by hand instead.")
+					.arg(toQt(error)));
+			return;
+		}
+		autosave();
+		updateDatasheetState();
+	}
+
+	void PartEditorDialog::removeDatasheet()
+	{
+		PartFile file;
+		if (!m_controller.datasheetFile(m_part, file))
+		{
+			return;
+		}
+		// The file store may hold the only copy left, so this one asks first.
+		if (QMessageBox::question(this, tr("Remove the datasheet"),
+			tr("Remove \"%1\" from this part?").arg(toQt(file.originalFilename)))
+			!= QMessageBox::Yes)
+		{
+			return;
+		}
+
+		m_controller.detachDatasheet(m_part);
+		autosave();
+		updateDatasheetState();
 	}
 
 	void PartEditorDialog::scheduleSave()

@@ -195,6 +195,82 @@
         </widget>
        </item>
        <item>
+        <widget class="QGroupBox" name="datasheetGroup">
+         <property name="title">
+          <string>Datasheet</string>
+         </property>
+         <layout class="QVBoxLayout" name="datasheetLayout">
+          <item>
+           <widget class="QLabel" name="datasheetLabel">
+            <property name="text">
+             <string>No datasheet attached yet.</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="datasheetButtonLayout">
+            <item>
+             <widget class="QPushButton" name="openDatasheetButton">
+              <property name="text">
+               <string>Open</string>
+              </property>
+              <property name="toolTip">
+               <string>Open the stored datasheet in the system's default viewer.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="attachDatasheetButton">
+              <property name="text">
+               <string>Attach file…</string>
+              </property>
+              <property name="toolTip">
+               <string>Copy a file from this computer into the database's file store.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="downloadDatasheetButton">
+              <property name="text">
+               <string>Download…</string>
+              </property>
+              <property name="toolTip">
+               <string>Fetch the datasheet from a URL. Mouser leaves this empty for most parts.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="removeDatasheetButton">
+              <property name="text">
+               <string>Remove</string>
+              </property>
+              <property name="toolTip">
+               <string>Detach the datasheet from this part.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="datasheetSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
         <widget class="QGroupBox" name="attributeGroup">
          <property name="title">
           <string>Type attributes</string>

@@ -1,5 +1,6 @@
 #include "controllers/PartManager_PartEditorController.h"
 
+#include "filestore/PartManager_FileStore.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_TagRepository.h"
@@ -215,6 +216,118 @@ namespace PartManager
 		return db ? PartRepository::insertPart(*db, part) : 0;
 	}
 
+	namespace
+	{
+		// FileStore is a root path plus a timeout — cheap enough to build per call, and building
+		// it fresh means a database switch can never leave a store pointing at the old folder.
+		FileStore storeOf(DatabaseHandle* handle)
+		{
+			return FileStore(handle ? handle->filestorePath() : std::string());
+		}
+	}
+
+	int PartEditorController::attachDatasheet(Part& part, const std::string& sourcePath, std::string* outError) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || part.id == 0)
+		{
+			if (outError)
+			{
+				*outError = "No open database.";
+			}
+			return 0;
+		}
+
+		FileStore store = storeOf(m_handle);
+		// Import first, detach second: a failed import then leaves the old datasheet in place.
+		const int fileId = store.attachFile(*db, part.id, PartFileRole::Datasheet, sourcePath, outError);
+		if (fileId == 0)
+		{
+			return 0;
+		}
+		detachDatasheet(part);
+		part.datasheetFileId = fileId;
+		return fileId;
+	}
+
+	int PartEditorController::downloadDatasheet(Part& part, const std::string& url, std::string* outError) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || part.id == 0)
+		{
+			if (outError)
+			{
+				*outError = "No open database.";
+			}
+			return 0;
+		}
+
+		FileStore store = storeOf(m_handle);
+		const FileStoreResult downloaded = store.downloadFile(url);
+		if (!downloaded.ok)
+		{
+			if (outError)
+			{
+				*outError = downloaded.errorMessage;
+			}
+			return 0;
+		}
+
+		// FileStore::attachFile() only takes a local source path, so the row for downloaded
+		// content is written here from the same fields it would have used.
+		PartFile file;
+		file.partId = part.id;
+		file.role = toString(PartFileRole::Datasheet);
+		file.relativePath = downloaded.relativePath;
+		file.contentHash = downloaded.contentHash;
+		file.sizeBytes = downloaded.sizeBytes;
+		file.mimeType = downloaded.mimeType;
+		file.originalFilename = downloaded.originalFilename;
+
+		const int fileId = PartRepository::insertFile(*db, file);
+		if (fileId == 0)
+		{
+			if (outError)
+			{
+				*outError = "Could not insert the part_file row for " + downloaded.originalFilename + ".";
+			}
+			return 0;
+		}
+		detachDatasheet(part);
+		part.datasheetFileId = fileId;
+		return fileId;
+	}
+
+	bool PartEditorController::detachDatasheet(Part& part) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || part.datasheetFileId == 0)
+		{
+			return false;
+		}
+		FileStore store = storeOf(m_handle);
+		const bool removed = store.detachFile(*db, part.datasheetFileId);
+		// The pointer is cleared either way: a row that is already gone must not stay referenced.
+		part.datasheetFileId = 0;
+		return removed;
+	}
+
+	bool PartEditorController::datasheetFile(const Part& part, PartFile& outFile) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db && part.datasheetFileId != 0 && PartRepository::findFile(*db, part.datasheetFileId, outFile);
+	}
+
+	std::string PartEditorController::datasheetPath(const Part& part) const
+	{
+		PartFile file;
+		if (!datasheetFile(part, file))
+		{
+			return std::string();
+		}
+		return storeOf(m_handle).absolutePath(file.relativePath);
+	}
+
 	std::vector<Tag> PartEditorController::allTags() const
 	{
 		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
@@ -265,6 +378,11 @@ namespace PartManager
 	bool PartEditorController::loadPart(int, Part&) const { return false; }
 	bool PartEditorController::savePart(const Part&) const { return false; }
 	int PartEditorController::createPart(const Part&) const { return 0; }
+	int PartEditorController::attachDatasheet(Part&, const std::string&, std::string*) const { return 0; }
+	int PartEditorController::downloadDatasheet(Part&, const std::string&, std::string*) const { return 0; }
+	bool PartEditorController::detachDatasheet(Part&) const { return false; }
+	bool PartEditorController::datasheetFile(const Part&, PartFile&) const { return false; }
+	std::string PartEditorController::datasheetPath(const Part&) const { return std::string(); }
 	std::vector<Tag> PartEditorController::allTags() const { return std::vector<Tag>(); }
 	std::vector<Tag> PartEditorController::partTags(int) const { return std::vector<Tag>(); }
 	bool PartEditorController::addPartTag(int, int) const { return false; }
