@@ -53,6 +53,12 @@
      </item>
      <item>
       <widget class="QToolButton" name="addTagButton">
+       <property name="minimumSize">
+        <size>
+         <width>66</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="text">
         <string>+ Tag</string>
        </property>
