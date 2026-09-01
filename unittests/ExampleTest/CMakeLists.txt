@@ -22,6 +22,11 @@ set(GUI_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../GuiTest")
 include_directories(${GUI_TEST_DIR})
 list(APPEND ADDITONAL_SOURCES "${GUI_TEST_DIR}/UnitTest_Gui.cpp")
 
+## One real app dialog is compiled in as well, so the GUI driver is proven against a screen the
+## user actually sees and not only against synthetic widgets. AUTOUIC turns its .ui into the
+## ui_*.h the dialog includes.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_StockDialog.cpp")
+
 ## USER_SECTION_END
 
 ## Override the QT_MODULES if you want to use other modules. 
@@ -63,6 +68,9 @@ list(APPEND ADDITIONAL_LIBRARIES UnitTest_static)
 ##             Do not change      Do not change      
 ##                 V                  V
 exampleMaster(${LIBRARY_NAME} ${LIB_PROFILE_DEFINE} ${QT_ENABLE} ${QT_DEPLOY} "${QT_MODULES}" "${ADDITONAL_SOURCES}" "${ADDITIONAL_LIBRARIES}" "${INSTALL_BIN_PATH}")
+
+## The app's .ui files live in the app tree, not here, so AUTOUIC has to be told where to look.
+set_target_properties(ExampleTest PROPERTIES AUTOUIC ON AUTOUIC_SEARCH_PATHS "${APP_SRC_DIR}/ui")
 
 ## USER_SECTION_START 5
 
