@@ -416,7 +416,14 @@ Grounded against the real spec, `.claude/MouserAPI/MouserAPI_V1.json` (Swagger/O
 
 ## 7. UI shell
 
-Ribbon (`RibbonWidget`: `addTab(icon, label)` then `addButton(tab, group, QToolButton*)` — groups created implicitly per first use). Proposed tabs/groups:
+Ribbon (`RibbonWidget`). **Corrected 2026-09-01 against the real library** — the string-keyed `addTab(icon, label)` / `addButton(tab, group, QToolButton*)` API this section originally described does not exist (those overloads are commented out in `Ribbon.h`), and there is no implicit group creation. The real API is object-tree based:
+
+- `Ribbon(QToolBar* parent)` — a `QObject`, not a widget; it injects a `QTabWidget` into the toolbar you hand it, so the hosting `.ui` must contain a `QToolBar`.
+- `RibbonTab(title, iconPath, Ribbon* parent)`, `RibbonButtonGroup(title, RibbonTab* parent)`, `RibbonButton(text, tooltip, iconPath, enabled, RibbonButtonGroup* parent)`.
+
+Two traps: every constructor **already registers itself with its parent**, so calling `addTab`/`addGroup`/`addButton` afterwards adds the same object twice (the library's own `RibbonWidgetSandbox` example double-adds both its tabs), and `RibbonTab`'s constructor dereferences `parent` unconditionally despite defaulting it to `nullptr`. Construct with parents and never call the add methods. `examples/PartManagerApp/src/ui/PartManager_MainWindow.cpp` is the working reference.
+
+Proposed tabs/groups:
 
 - **Home** — groups: *New* (New Part, New Partlist), *Stock* (Restock, Take Out), *View* (List/Grid toggle, 3D Viewer).
 - **Parts** — groups: *Manage* (Edit Type Templates, Import from Mouser), *Files* (Attach File, Open Datasheet).
