@@ -134,6 +134,16 @@ private:
 		TEST_COMPARE(history[0].note, std::string("order 4711 arrived"));
 		TEST_COMPARE(history[1].deltaQty, -30);
 		TEST_COMPARE(history[1].note, std::string("amplifier build"));
+		// No reason given: a take-out still defaults to the partlist checkout.
+		TEST_COMPARE(history[1].reason, std::string(PartManager::StockReason::CheckoutPartlist));
+
+		// A broken part is a loss, not a checkout - the reason the dialog picks has to reach the log,
+		// otherwise the history says the parts went into a build they never went into.
+		TEST_ASSERT(controller.takeOut(partId, 2, "dropped on the floor", PartManager::StockReason::Loss));
+		history = controller.history(partId);
+		TEST_COMPARE(history.back().reason, std::string(PartManager::StockReason::Loss));
+		TEST_COMPARE(history.back().deltaQty, -2);
+		TEST_COMPARE(controller.quantity(partId), 68);
 
 		// Oldest first, so the running total the editor's table shows is in shelf order.
 		std::vector<int> running = PartManager::runningQuantities(history);
@@ -142,7 +152,7 @@ private:
 		// A zero or negative quantity is not an event; it must not reach the log either way.
 		TEST_ASSERT(!controller.restock(partId, 0));
 		TEST_ASSERT(!controller.takeOut(partId, -5));
-		TEST_COMPARE(controller.history(partId).size(), static_cast<size_t>(2));
+		TEST_COMPARE(controller.history(partId).size(), static_cast<size_t>(3));
 	}
 
 	// The part editor's quantity field: an absolute target, logged as a correction rather than

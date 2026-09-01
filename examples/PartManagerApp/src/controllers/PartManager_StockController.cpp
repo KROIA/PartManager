@@ -69,16 +69,17 @@ namespace PartManager
 		return false;
 	}
 
-	bool StockController::takeOut(int partId, int quantity, const QString& note) const
+	bool StockController::takeOut(int partId, int quantity, const QString& note,
+		const std::string& reason) const
 	{
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		if (m_handle && m_handle->isOpen())
 		{
 			return StockRepository::takeOut(m_handle->connection(), partId, quantity,
-				note.toStdString()) != NoStockTransactionId;
+				note.toStdString(), reason) != NoStockTransactionId;
 		}
 #else
-		Q_UNUSED(partId); Q_UNUSED(quantity); Q_UNUSED(note);
+		Q_UNUSED(partId); Q_UNUSED(quantity); Q_UNUSED(note); Q_UNUSED(reason);
 #endif
 		return false;
 	}

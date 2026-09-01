@@ -278,7 +278,7 @@ namespace PartManager
 
 		const bool written = restocking
 			? m_stock.restock(partId, dialog.quantity(), dialog.note())
-			: m_stock.takeOut(partId, dialog.quantity(), dialog.note());
+			: m_stock.takeOut(partId, dialog.quantity(), dialog.note(), dialog.reason());
 		if (!written)
 		{
 			QMessageBox::warning(this, tr("Stock unchanged"),

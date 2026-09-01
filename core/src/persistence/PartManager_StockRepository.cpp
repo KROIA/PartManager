@@ -114,7 +114,8 @@ namespace PartManager
 		return recordTransaction(db, transaction);
 	}
 
-	int StockRepository::takeOut(SQLiteWrapper::SQLite& db, int partId, int quantity, const std::string& note)
+	int StockRepository::takeOut(SQLiteWrapper::SQLite& db, int partId, int quantity,
+		const std::string& note, const std::string& reason)
 	{
 		if (quantity <= 0)
 		{
@@ -124,7 +125,7 @@ namespace PartManager
 		StockTransaction transaction;
 		transaction.partId = partId;
 		transaction.deltaQty = -quantity;
-		transaction.reason = StockReason::CheckoutPartlist;
+		transaction.reason = reason.empty() ? StockReason::CheckoutPartlist : reason;
 		transaction.note = note;
 		return recordTransaction(db, transaction);
 	}

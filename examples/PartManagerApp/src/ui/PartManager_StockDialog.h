@@ -13,6 +13,7 @@
 #pragma once
 
 #include <QDialog>
+#include <string>
 
 namespace Ui { class StockDialog; }
 
@@ -36,6 +37,8 @@ namespace PartManager
 		int quantity() const;
 		// The user's own text — never tr()'d, it goes straight into the transaction's note.
 		QString note() const;
+		// The picked StockReason constant. Restocking has only one, so the row is hidden there.
+		std::string reason() const;
 
 	private:
 		// Restates the quantity this will leave on the shelf, red when that is negative.

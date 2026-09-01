@@ -18,6 +18,7 @@
 #include "database/PartManager_DatabaseHandle.h"
 #include "domain/PartManager_StockTransaction.h"
 #include <QString>
+#include <string>
 #include <vector>
 
 namespace PartManager
@@ -44,7 +45,9 @@ namespace PartManager
 		// +quantity / -quantity with the user's own note (never tr()'d — it is their text).
 		// False when nothing was written: a non-positive quantity, or no open database.
 		bool restock(int partId, int quantity, const QString& note = QString()) const;
-		bool takeOut(int partId, int quantity, const QString& note = QString()) const;
+		// `reason` takes a StockReason constant; empty keeps the partlist-checkout default.
+		bool takeOut(int partId, int quantity, const QString& note = QString(),
+			const std::string& reason = std::string()) const;
 
 		// "The shelf actually holds newQuantity": logs the difference as `manual_adjust`.
 		// True when the quantity now matches, including the no-op case where it already did.

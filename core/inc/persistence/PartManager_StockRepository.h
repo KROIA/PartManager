@@ -49,8 +49,12 @@ namespace PartManager
 
 		// +quantity, reason 'restock'. quantity must be > 0.
 		static int restock(SQLiteWrapper::SQLite& db, int partId, int quantity, const std::string& note = std::string());
-		// -quantity, reason 'checkout_partlist'. quantity must be > 0; may drive stock negative (see header note).
-		static int takeOut(SQLiteWrapper::SQLite& db, int partId, int quantity, const std::string& note = std::string());
+		// -quantity. quantity must be > 0; may drive stock negative (see header note). `reason` takes a
+		// StockReason constant — a manual take-out is usually a build, but 'loss' is just as real, and
+		// logging a broken part as a checkout makes the history lie. Empty keeps the partlist default.
+		static int takeOut(SQLiteWrapper::SQLite& db, int partId, int quantity,
+			const std::string& note = std::string(),
+			const std::string& reason = std::string());
 		// "I counted the shelf, it is actually newQuantity": writes the delta as 'manual_adjust'.
 		// Returns NoStockTransactionId and writes nothing when the count already matches.
 		static int correct(SQLiteWrapper::SQLite& db, int partId, int newQuantity, const std::string& note = std::string());

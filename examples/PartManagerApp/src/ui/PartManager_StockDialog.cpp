@@ -1,6 +1,9 @@
 #include "ui/PartManager_StockDialog.h"
 #include "ui_PartManager_StockDialog.h"
 
+#include "domain/PartManager_StockTransaction.h"
+
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QSpinBox>
 
@@ -27,6 +30,20 @@ namespace PartManager
 			? tr("Add to \"%1\" — %2 on the shelf now.").arg(partName).arg(currentQuantity)
 			: tr("Take out of \"%1\" — %2 on the shelf now.").arg(partName).arg(currentQuantity));
 
+		// A manual take-out is usually a build, but a broken part is just as real — logging that as a
+		// checkout makes the history lie about where the parts went.
+		if (restocking)
+		{
+			m_ui->reasonLabel->hide();
+			m_ui->reasonCombo->hide();
+		}
+		else
+		{
+			m_ui->reasonCombo->addItem(tr("Used in a build"),
+				QString::fromLatin1(StockReason::CheckoutPartlist));
+			m_ui->reasonCombo->addItem(tr("Lost or broken"), QString::fromLatin1(StockReason::Loss));
+		}
+
 		connect(m_ui->quantitySpin, QOverload<int>::of(&QSpinBox::valueChanged),
 			this, [this](int) { updatePreview(); });
 		connect(m_ui->buttonBox, &QDialogButtonBox::accepted, this, &StockDialog::accept);
@@ -49,6 +66,15 @@ namespace PartManager
 	QString StockDialog::note() const
 	{
 		return m_ui->noteEdit->text().trimmed();
+	}
+
+	std::string StockDialog::reason() const
+	{
+		if (m_mode == Mode::Restock)
+		{
+			return StockReason::Restock;
+		}
+		return m_ui->reasonCombo->currentData().toString().toStdString();
 	}
 
 	void StockDialog::updatePreview()
