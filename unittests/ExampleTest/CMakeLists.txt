@@ -16,12 +16,12 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_PartEditor
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_StockController.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_DatabaseSelectorController.cpp")
 
-## The GUI driver. Identical to core/inc/gui + core/src/gui in the UnitTest library repository, and
-## behind the same UNITTEST_GUI_ENABLED guard, so this copy can be dropped the moment this project
-## consumes a UnitTest version that ships it.
-set(GUI_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../GuiTest")
-include_directories(${GUI_TEST_DIR})
-list(APPEND ADDITONAL_SOURCES "${GUI_TEST_DIR}/UnitTest_Gui.cpp")
+## The GUI driver ships with the UnitTest library, but stays out of its build behind
+## UNITTEST_GUI_ENABLED so the library itself needs no Qt. A target that wants it defines the macro
+## and compiles the one .cpp in, which is what happens here.
+FetchContent_GetProperties(UnitTest)    # gives us unittest_SOURCE_DIR in this scope
+include_directories("${unittest_SOURCE_DIR}/core/inc/gui")
+list(APPEND ADDITONAL_SOURCES "${unittest_SOURCE_DIR}/core/src/gui/UnitTest_Gui.cpp")
 add_definitions(-DUNITTEST_GUI_ENABLED)
 
 ## One real app dialog is compiled in as well, so the GUI driver is proven against a screen the
