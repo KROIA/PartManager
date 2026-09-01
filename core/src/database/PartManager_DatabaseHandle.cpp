@@ -1,11 +1,16 @@
 #include "database/PartManager_DatabaseHandle.h"
 #include "database/PartManager_DatabaseMetadata.h"
 #include "database/PartManager_SchemaMigrator.h"
+// createNew() seeds the default type templates, which is the one place core/database reaches
+// into core/persistence (§1b says a new database ships with them). Kept to this .cpp so the
+// public header stays free of the reverse dependency.
+#include "persistence/PartManager_PartTypeRepository.h"
 #include "PartManager_info.h"
 #include "PartManager_debug.h"
 
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 	#include "SQLite.h"
@@ -41,6 +46,72 @@ namespace PartManager
 	DatabaseHandle::~DatabaseHandle()
 	{
 		close();
+	}
+
+	std::unique_ptr<DatabaseHandle> DatabaseHandle::createNew(const std::string& parentFolder,
+		const std::string& name, std::string& outErrorMessage)
+	{
+		outErrorMessage.clear();
+
+		if (name.empty() || name.find('/') != std::string::npos || name.find('\\') != std::string::npos
+			|| name == "." || name == "..")
+		{
+			outErrorMessage = "Invalid database name: \"" + name + "\"";
+			return nullptr;
+		}
+
+		std::error_code errorCode;
+		fs::path folder = fs::path(parentFolder) / name;
+		if (fs::exists(folder) && !fs::is_empty(folder, errorCode))
+		{
+			outErrorMessage = "Folder already exists and is not empty: " + folder.string();
+			return nullptr;
+		}
+
+		// create_directories() reports false both for "already there" and for a real failure,
+		// so the error_code is what actually distinguishes them.
+		fs::create_directories(folder, errorCode);
+		if (errorCode)
+		{
+			outErrorMessage = "Cannot create " + folder.string() + ": " + errorCode.message();
+			return nullptr;
+		}
+		for (const char* subFolder : { "filestore", "kicad_libs", "backups" })
+		{
+			fs::create_directory(folder / subFolder, errorCode);
+			if (errorCode)
+			{
+				outErrorMessage = "Cannot create " + (folder / subFolder).string() + ": " + errorCode.message();
+				return nullptr;
+			}
+		}
+
+		// §1b: free-text description file, editable outside the app too.
+		{
+			std::ofstream readme((folder / "README.md").string());
+			if (!readme)
+			{
+				outErrorMessage = "Cannot write " + (folder / "README.md").string();
+				return nullptr;
+			}
+			readme << "# " << name << "\n";
+		}
+
+		auto handle = std::make_unique<DatabaseHandle>((folder / (name + ".pmdb")).string());
+		if (!handle->open())
+		{
+			outErrorMessage = handle->errorMessage();
+			return nullptr;
+		}
+
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		if (!PartTypeRepository::seedDefaultTypes(handle->connection()))
+		{
+			outErrorMessage = "Failed to seed the default type templates";
+			return nullptr;
+		}
+#endif
+		return handle;
 	}
 
 	std::string DatabaseHandle::siblingPath(const char* name) const

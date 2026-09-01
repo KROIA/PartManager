@@ -28,6 +28,16 @@ namespace PartManager
 		explicit DatabaseHandle(const std::string& pmdbPath);
 		~DatabaseHandle();
 
+		// Creates a brand-new database folder `parentFolder/name` with the §1 layout
+		// (filestore/, kicad_libs/, backups/, README.md), then open()s it — which lays
+		// down the schema (§1c) and writes `<name>.pmdb` — and seeds the default type
+		// templates. Returns nullptr with outErrorMessage set on failure: `name` empty
+		// or containing a path separator, target folder already exists and is non-empty,
+		// parent folder not writable. Registering the result in DatabaseRegistry is the
+		// caller's job — creating and remembering are separate concerns (§1b).
+		static std::unique_ptr<DatabaseHandle> createNew(const std::string& parentFolder,
+			const std::string& name, std::string& outErrorMessage);
+
 		DatabaseHandle(const DatabaseHandle&) = delete;
 		DatabaseHandle& operator=(const DatabaseHandle&) = delete;
 

@@ -6,6 +6,11 @@
 
 ## USER_SECTION_START 1
 
+## The app's sources live in src/ with the §12b module subfolders (ui/, controllers/, widgets/),
+## not in the template's default inc/ — put src/ on the include path so includes like
+## "ui/PartManager_MainWindow.h" resolve from anywhere in the tree.
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 ## USER_SECTION_END
 
 ## Override the QT_MODULES if you want to use other modules. 

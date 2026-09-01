@@ -52,3 +52,7 @@ LICENSE.MIT
 .claude/
 CLAUDE.md
 graphify-out/
+
+# AppSettings writes this next to the working directory the app was launched
+# from — see ISSUES.md, it belongs in an AppData location instead.
+PartManager.json
