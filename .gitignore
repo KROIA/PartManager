@@ -56,3 +56,6 @@ graphify-out/
 # AppSettings writes this next to the working directory the app was launched
 # from — see ISSUES.md, it belongs in an AppData location instead.
 PartManager.json
+
+# Icon generator lives in .claude/tools/ — agent artefact, not project source.
+/tools/
