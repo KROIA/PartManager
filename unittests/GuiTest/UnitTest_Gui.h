@@ -1,9 +1,10 @@
 // @file UnitTest_Gui.h
 // @brief Widget-level GUI driving for the KROIA UnitTest framework — click and type without pixels.
 //
-// PROTOTYPE, meant to move to C:\Users\KRIA\Documents\Visual Studio 2022\Projects\UnitTest.
-// It depends on nothing but QtWidgets (plus user32 on Windows for the real-input layer), so
-// dropping it into that repository adds no new dependency to it.
+// This folder is NOT part of the UnitTest library target. The library is deliberately Qt-free,
+// and this module needs QtWidgets — so a project that wants GUI testing compiles
+// UnitTest_Gui.cpp into its own test target (two lines of CMake, see examples/GuiExample)
+// and every other consumer of UnitTest pays nothing for it.
 //
 // TWO LAYERS, and the difference matters:
 //
@@ -54,6 +55,23 @@ namespace UnitTest
 {
 	namespace Gui
 	{
+		// ---------------------------------------------------------------- watching a run
+
+		// Slow motion. 0 (the default) runs at full speed, which is what CI wants. A non-zero delay
+		// makes every action pause afterwards so a human can follow what the test is doing — the
+		// difference between "47 assertions passed" and watching the form being filled in.
+		void setStepDelay(int milliseconds);
+		int stepDelay();
+
+		// Paints a translucent marker over whatever is about to be clicked or typed into, for the
+		// duration of the step delay. Ignored while the delay is 0, since nobody could see it.
+		void setHighlightEnabled(bool enabled);
+		bool highlightEnabled();
+
+		// Prints a line and pauses for the step delay — for narrating a demo run. Silent when the
+		// delay is 0, so the same test stays quiet in CI.
+		void narrate(const QString& message);
+
 		// ---------------------------------------------------------------- session
 
 		// Creates the QApplication if the test binary does not have one yet. Safe to call repeatedly.

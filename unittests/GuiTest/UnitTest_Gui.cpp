@@ -21,6 +21,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMetaObject>
+#include <QPalette>
 #include <QMouseEvent>
 #include <QPointer>
 #include <QPushButton>
@@ -37,6 +38,8 @@
 #include <QTreeWidget>
 #include <QWheelEvent>
 
+#include <iostream>
+
 #ifdef Q_OS_WIN
 	#include <windows.h>
 #endif
@@ -51,6 +54,35 @@ namespace UnitTest
 			int g_argc = 1;
 			char g_arg0[] = "unittest";
 			char* g_argv[] = { g_arg0, nullptr };
+
+			int g_stepDelayMs = 0;
+			bool g_highlightEnabled = true;
+
+			// A translucent frameless window laid over the widget about to be driven. An overlay, not
+			// a stylesheet on the target: the widget under test may use its own stylesheet to mean
+			// something (a red "negative stock" label, say), and a test must never overwrite that.
+			void showMarker(QWidget* target, const QRect& localRect, int milliseconds)
+			{
+				if (!target || milliseconds <= 0 || !g_highlightEnabled)
+				{
+					return;
+				}
+				QWidget* marker = new QWidget(nullptr,
+					Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+				marker->setAttribute(Qt::WA_TransparentForMouseEvents);
+				marker->setAttribute(Qt::WA_ShowWithoutActivating);
+				marker->setAttribute(Qt::WA_DeleteOnClose);
+				marker->setAutoFillBackground(true);
+				QPalette palette = marker->palette();
+				palette.setColor(QPalette::Window, QColor(255, 96, 0));
+				marker->setPalette(palette);
+				marker->setWindowOpacity(0.35);
+
+				const QRect rect = localRect.isValid() ? localRect : target->rect();
+				marker->setGeometry(QRect(target->mapToGlobal(rect.topLeft()), rect.size()));
+				marker->show();
+				QTimer::singleShot(milliseconds, marker, &QWidget::close);
+			}
 
 			QString withoutAccelerator(const QString& text)
 			{
@@ -111,6 +143,19 @@ namespace UnitTest
 			bool isUsable(QWidget* target)
 			{
 				return target && target->isVisible() && target->isEnabled();
+			}
+
+			// Called by every action. Free when the delay is 0, which is the CI default.
+			void step(QWidget* target, const QRect& localRect)
+			{
+				if (g_stepDelayMs <= 0)
+				{
+					return;
+				}
+				showMarker(target, localRect, g_stepDelayMs);
+				// waitFor keeps pumping the event loop, so the marker paints and the widget under
+				// test stays alive. A sleep here would freeze both.
+				waitFor([]() { return false; }, g_stepDelayMs);
 			}
 
 			void sendMouse(QWidget* target, QEvent::Type type, const QPoint& local,
@@ -211,6 +256,36 @@ namespace UnitTest
 				}
 				return view->model()->index(row, column, view->rootIndex());
 			}
+		}
+
+		void setStepDelay(int milliseconds)
+		{
+			g_stepDelayMs = milliseconds > 0 ? milliseconds : 0;
+		}
+
+		int stepDelay()
+		{
+			return g_stepDelayMs;
+		}
+
+		void setHighlightEnabled(bool enabled)
+		{
+			g_highlightEnabled = enabled;
+		}
+
+		bool highlightEnabled()
+		{
+			return g_highlightEnabled;
+		}
+
+		void narrate(const QString& message)
+		{
+			if (g_stepDelayMs <= 0)
+			{
+				return;
+			}
+			std::cout << "  ~ " << message.toStdString() << std::endl;
+			waitFor([]() { return false; }, g_stepDelayMs);
 		}
 
 		bool ensureApplication()
@@ -351,6 +426,7 @@ namespace UnitTest
 			{
 				return false;
 			}
+			step(target, QRect(localPos - QPoint(12, 10), QSize(24, 20)));
 			sendMouse(target, QEvent::MouseButtonPress, localPos, button, button);
 			sendMouse(target, QEvent::MouseButtonRelease, localPos, button, Qt::NoButton);
 			QApplication::processEvents();
@@ -460,6 +536,7 @@ namespace UnitTest
 				return false;
 			}
 			target->setFocus(Qt::OtherFocusReason);
+			step(target, target->rect());
 			for (const QChar character : text)
 			{
 				const int key = keyForCharacter(character);
@@ -467,6 +544,13 @@ namespace UnitTest
 				QKeyEvent release(QEvent::KeyRelease, key, Qt::NoModifier, QString(character));
 				QApplication::sendEvent(target, &press);
 				QApplication::sendEvent(target, &release);
+				if (g_stepDelayMs > 0)
+				{
+					// Letter by letter in slow motion, so the field is seen filling in rather than
+					// blinking from empty to full.
+					QApplication::processEvents();
+					waitFor([]() { return false; }, g_stepDelayMs / 6 + 20);
+				}
 			}
 			QApplication::processEvents();
 			return true;
