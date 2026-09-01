@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="1000" height="600" fill="#f5f6f8"/>
+  <rect x="0" y="0" width="1000" height="28" fill="#2f6fed"/>
+  <text x="12" y="19" font-size="12" fill="#ffffff">PartManager — Search Mouser</text>
+  <rect x="0" y="28" width="1000" height="26" fill="#e3e8ef"/>
+  <text x="20" y="46" font-size="12" fill="#57606a">Home</text>
+  <text x="90" y="46" font-size="12" font-weight="bold" fill="#2f6fed">Parts</text>
+  <rect x="85" y="52" width="45" height="2" fill="#2f6fed"/>
+  <text x="150" y="46" font-size="12" fill="#57606a">Partlists</text>
+  <text x="230" y="46" font-size="12" fill="#57606a">Orders</text>
+  <text x="300" y="46" font-size="12" fill="#57606a">KiCad</text>
+  <rect x="0" y="54" width="1000" height="70" fill="#f0f3f7" stroke="#d7dbe0"/>
+  <rect x="12" y="62" width="150" height="54" rx="4" fill="#ffffff" stroke="#2f6fed" stroke-width="1.5"/>
+  <text x="30" y="82" font-size="10" fill="#24292f">Edit Type Templates</text>
+  <text x="30" y="98" font-size="10" font-weight="bold" fill="#2f6fed">Import from Mouser ◂ (here)</text>
+  <text x="87" y="112" font-size="9" fill="#8a929c" text-anchor="middle">Manage</text>
+
+  <rect x="16" y="140" width="968" height="440" fill="#ffffff" stroke="#d7dbe0" rx="6"/>
+  <text x="32" y="164" font-size="14" font-weight="bold" fill="#24292f">Search Mouser</text>
+  <text x="32" y="182" font-size="10" fill="#8a929c">Built into PartManager via the Mouser Search API — no browser tab-switching needed to find a part.</text>
+
+  <rect x="32" y="196" width="90" height="22" rx="3" fill="#f0f3f7" stroke="#d7dbe0"/>
+  <text x="40" y="211" font-size="10" fill="#24292f">Keyword ▾</text>
+  <rect x="128" y="196" width="480" height="22" rx="3" fill="#f0f3f7" stroke="#d7dbe0"/>
+  <text x="136" y="211" font-size="10" fill="#24292f">4.7k resistor 0603 1%</text>
+  <rect x="616" y="196" width="80" height="22" rx="4" fill="#2f6fed"/>
+  <text x="656" y="211" font-size="10" fill="#ffffff" text-anchor="middle">Search</text>
+  <text x="710" y="211" font-size="9" fill="#8a929c">38 results</text>
+
+  <rect x="32" y="230" width="936" height="20" fill="#f0f3f7"/>
+  <text x="40" y="244" font-size="9" font-weight="bold" fill="#57606a">Mfr</text>
+  <text x="140" y="244" font-size="9" font-weight="bold" fill="#57606a">Mouser P/N</text>
+  <text x="280" y="244" font-size="9" font-weight="bold" fill="#57606a">Description</text>
+  <text x="560" y="244" font-size="9" font-weight="bold" fill="#57606a">Price (1x)</text>
+  <text x="640" y="244" font-size="9" font-weight="bold" fill="#57606a">Stock</text>
+  <text x="700" y="244" font-size="9" font-weight="bold" fill="#57606a">Actions</text>
+
+  <g font-size="10" fill="#24292f">
+    <rect x="32" y="252" width="936" height="26" fill="#eef4ff"/>
+    <text x="40" y="269">Yageo</text><text x="140" y="269">603-RC0603FR-074K7L</text>
+    <text x="280" y="269">RES SMD 4.7K OHM 1% 1/10W 0603</text>
+    <text x="560" y="269">0.006€</text><text x="640" y="269">184,320</text>
+    <rect x="700" y="257" width="86" height="16" rx="3" fill="#2f6fed"/><text x="743" y="269" fill="#ffffff" text-anchor="middle" font-size="9">Use this part</text>
+    <rect x="792" y="257" width="70" height="16" rx="3" fill="#eef2f7" stroke="#d7dbe0"/><text x="827" y="269" text-anchor="middle" font-size="9">🌐 Mouser</text>
+
+    <rect x="32" y="278" width="936" height="26" fill="#fbfcfd"/>
+    <text x="40" y="295">Vishay</text><text x="140" y="295">71-CRCW06034K70FKEA</text>
+    <text x="280" y="295">RES SMD 4.7K OHM 1% 1/10W 0603</text>
+    <text x="560" y="295">0.008€</text><text x="640" y="295">92,110</text>
+    <rect x="700" y="283" width="86" height="16" rx="3" fill="#2f6fed"/><text x="743" y="295" fill="#ffffff" text-anchor="middle" font-size="9">Use this part</text>
+    <rect x="792" y="283" width="70" height="16" rx="3" fill="#eef2f7" stroke="#d7dbe0"/><text x="827" y="295" text-anchor="middle" font-size="9">🌐 Mouser</text>
+
+    <text x="40" y="321">Panasonic</text><text x="140" y="321">667-ERJ-PA3F4701V</text>
+    <text x="280" y="321">RES SMD 4.7K OHM 1% 1/10W 0603 AEC-Q200</text>
+    <text x="560" y="321">0.011€</text><text x="640" y="321">12,050</text>
+    <rect x="700" y="309" width="86" height="16" rx="3" fill="#2f6fed"/><text x="743" y="321" fill="#ffffff" text-anchor="middle" font-size="9">Use this part</text>
+    <rect x="792" y="309" width="70" height="16" rx="3" fill="#eef2f7" stroke="#d7dbe0"/><text x="827" y="321" text-anchor="middle" font-size="9">🌐 Mouser</text>
+  </g>
+
+  <text x="32" y="500" font-size="9" fill="#8a929c">"Use this part" → prefills the New Part review form (same as pasting a link/MPN directly). "🌐 Mouser" opens that part's ProductDetailUrl in your default browser — full datasheet, images, alternates, everything Mouser's own page shows.</text>
+  <text x="32" y="522" font-size="9" fill="#8a929c">Search runs against the Mouser Search API (SearchByKeyword / SearchByPartNumber) using the MOUSER_SEARCH_API key — separate from the Cart API key used later when staging an order.</text>
+</svg>

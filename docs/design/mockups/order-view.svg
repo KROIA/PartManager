@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 600" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="950" height="600" fill="#f5f6f8"/>
+  <rect x="0" y="0" width="950" height="44" fill="#ffffff" stroke="#d7dbe0"/>
+  <text x="16" y="28" font-size="15" font-weight="bold" fill="#24292f">Order #2026-014 — from Partlist "PSU Rev C" ×5</text>
+
+  <rect x="16" y="60" width="918" height="26" fill="#eef2f7" stroke="#d7dbe0"/>
+  <g font-size="11" font-weight="bold" fill="#57606a">
+    <text x="26" y="77">Part</text>
+    <text x="330" y="77">Need</text>
+    <text x="400" y="77">In stock</text>
+    <text x="480" y="77">Order qty</text>
+    <text x="590" y="77">Unit price</text>
+    <text x="690" y="77">Line total</text>
+    <text x="800" y="77">Status</text>
+  </g>
+
+  <!-- rows -->
+  <g font-size="11" fill="#24292f">
+    <text x="26" y="104">RES-0603-4K7</text><text x="330" y="104">90</text><text x="400" y="104">12</text>
+    <rect x="480" y="92" width="60" height="18" fill="#ffffff" stroke="#d7dbe0"/><text x="488" y="105">78</text>
+    <text x="590" y="104">0.006€</text><text x="690" y="104">0.47€</text>
+    <rect x="800" y="93" width="60" height="16" rx="8" fill="#fdeadb"/><text x="830" y="105" text-anchor="middle" font-size="9" fill="#8a4b00">pending</text>
+
+    <rect x="16" y="112" width="918" height="24" fill="#fbfcfd"/>
+    <text x="26" y="128">CAP-0805-100n</text><text x="330" y="128">45</text><text x="400" y="128">45</text>
+    <rect x="480" y="116" width="60" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="488" y="129">0</text>
+    <text x="590" y="128">—</text><text x="690" y="128">—</text>
+    <rect x="800" y="117" width="72" height="16" rx="8" fill="#eef2f7"/><text x="836" y="129" text-anchor="middle" font-size="9" fill="#57606a">not needed</text>
+
+    <text x="26" y="152">IND-1210-10uH</text><text x="330" y="152">10</text><text x="400" y="152">2</text>
+    <rect x="480" y="140" width="60" height="18" fill="#ffffff" stroke="#d7dbe0"/><text x="488" y="153">8</text>
+    <text x="590" y="152">0.18€</text><text x="690" y="152">1.44€</text>
+    <rect x="800" y="141" width="60" height="16" rx="8" fill="#dbf5e3"/><text x="830" y="153" text-anchor="middle" font-size="9" fill="#186a3a">arrived</text>
+
+    <rect x="16" y="160" width="918" height="24" fill="#fbfcfd"/>
+    <text x="26" y="176">REG-LDO-3V3-SOT23</text><text x="330" y="176">5</text><text x="400" y="176">0</text>
+    <rect x="480" y="164" width="60" height="18" fill="#ffffff" stroke="#d7dbe0"/><text x="488" y="177">5</text>
+    <text x="590" y="176">0.32€</text><text x="690" y="176">1.60€</text>
+    <rect x="800" y="165" width="72" height="16" rx="8" fill="#fdeadb"/><text x="836" y="177" text-anchor="middle" font-size="9" fill="#8a4b00">backordered</text>
+  </g>
+
+  <line x1="16" y1="192" x2="934" y2="192" stroke="#d7dbe0"/>
+  <text x="590" y="212" font-size="11" font-weight="bold" fill="#57606a">Order total:</text>
+  <text x="690" y="212" font-size="11" font-weight="bold" fill="#24292f">3.51€</text>
+
+  <!-- action bar -->
+  <rect x="16" y="234" width="918" height="46" fill="#ffffff" stroke="#d7dbe0" rx="6"/>
+  <rect x="30" y="246" width="150" height="24" rx="4" fill="#2f6fed"/><text x="105" y="262" font-size="11" text-anchor="middle" fill="#ffffff">Stage to Mouser Cart</text>
+  <rect x="190" y="246" width="150" height="24" rx="4" fill="#eef2f7" stroke="#d7dbe0"/><text x="265" y="262" font-size="11" text-anchor="middle" fill="#24292f">Mark as Submitted</text>
+  <rect x="350" y="246" width="150" height="24" rx="4" fill="#eef2f7" stroke="#d7dbe0"/><text x="425" y="262" font-size="11" text-anchor="middle" fill="#24292f">Confirm Arrivals</text>
+  <rect x="510" y="246" width="130" height="24" rx="4" fill="#f0f3f7" stroke="#d7dbe0"/><text x="575" y="262" font-size="11" text-anchor="middle" fill="#8a929c">Close Order</text>
+  <text x="880" y="262" font-size="10" fill="#8a929c" text-anchor="end">status: staged_in_cart</text>
+
+  <text x="16" y="308" font-size="10" fill="#8a929c">Legend:</text>
+  <rect x="70" y="298" width="60" height="16" rx="8" fill="#fdeadb"/><text x="100" y="310" font-size="9" text-anchor="middle" fill="#8a4b00">pending</text>
+  <rect x="140" y="298" width="60" height="16" rx="8" fill="#dbf5e3"/><text x="170" y="310" font-size="9" text-anchor="middle" fill="#186a3a">arrived</text>
+  <rect x="210" y="298" width="72" height="16" rx="8" fill="#fdeadb"/><text x="246" y="310" font-size="9" text-anchor="middle" fill="#8a4b00">backordered</text>
+  <text x="16" y="332" font-size="10" fill="#8a929c">Order can only "Close" once every non-cancelled line is arrived or explicitly marked backordered/cancelled.</text>
+</svg>

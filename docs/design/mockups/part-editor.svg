@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="900" height="650" fill="#f5f6f8"/>
+  <rect x="0" y="0" width="900" height="40" fill="#ffffff" stroke="#d7dbe0"/>
+  <text x="16" y="26" font-size="15" font-weight="bold" fill="#24292f">RES-0603-4K7 — Resistor</text>
+  <text x="780" y="26" font-size="11" fill="#2f6fed" text-anchor="end">Rebuild KiCad Library</text>
+
+  <!-- Left: identity + attributes -->
+  <rect x="16" y="56" width="430" height="300" fill="#ffffff" stroke="#d7dbe0" rx="6"/>
+  <text x="30" y="78" font-size="11" font-weight="bold" fill="#57606a">IDENTITY</text>
+  <g font-size="11" fill="#24292f">
+    <text x="30" y="100">Name</text><rect x="140" y="88" width="290" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="146" y="101">RES-0603-4K7</text>
+    <text x="30" y="124">Manufacturer</text><rect x="140" y="112" width="290" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="146" y="125">Yageo</text>
+    <text x="30" y="148">MPN</text><rect x="140" y="136" width="290" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="146" y="149">RC0603FR-074K7L</text>
+    <text x="30" y="172">Package</text><rect x="140" y="160" width="290" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="146" y="173">0603</text>
+  </g>
+  <line x1="30" y1="188" x2="446" y2="188" stroke="#eceef1"/>
+  <text x="30" y="208" font-size="11" font-weight="bold" fill="#57606a">TYPE ATTRIBUTES (Resistor template)</text>
+  <g font-size="11" fill="#24292f">
+    <text x="30" y="230">Resistance (Ω)</text><rect x="180" y="218" width="120" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="186" y="231">4700</text>
+    <text x="30" y="254">Tolerance (%)</text><rect x="180" y="242" width="120" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="186" y="255">1</text>
+    <text x="30" y="278">Power (W)</text><rect x="180" y="266" width="120" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="186" y="279">0.1</text>
+    <text x="30" y="302">+ add attribute (from type template)</text>
+  </g>
+  <text x="30" y="332" font-size="10" fill="#8a929c">Editing "Resistor" template adds/removes fields for all 412 resistors.</text>
+
+  <!-- Right: files + sellers -->
+  <rect x="454" y="56" width="430" height="300" fill="#ffffff" stroke="#d7dbe0" rx="6"/>
+  <text x="468" y="78" font-size="11" font-weight="bold" fill="#57606a">FILES</text>
+  <g font-size="11" fill="#24292f">
+    <rect x="468" y="88" width="16" height="16" fill="#dbe6ff"/><text x="492" y="100">Datasheet.pdf</text><text x="820" y="100" text-anchor="end" fill="#8a929c" font-size="9">auto</text>
+    <rect x="468" y="110" width="16" height="16" fill="#dbf5e3"/><text x="492" y="122">RES.kicad_sym</text><text x="820" y="122" text-anchor="end" fill="#8a929c" font-size="9">generated</text>
+    <rect x="468" y="132" width="16" height="16" fill="#dbf5e3"/><text x="492" y="144">RES_0603.kicad_mod</text><text x="820" y="144" text-anchor="end" fill="#8a929c" font-size="9">generated</text>
+    <rect x="468" y="154" width="16" height="16" fill="#f5e6c8"/><text x="492" y="166">chip_0603.step</text><text x="820" y="166" text-anchor="end" fill="#8a929c" font-size="9">shared</text>
+    <text x="468" y="188" font-size="10" fill="#2f6fed">+ Attach file...</text>
+  </g>
+  <line x1="468" y1="200" x2="870" y2="200" stroke="#eceef1"/>
+  <text x="468" y="220" font-size="11" font-weight="bold" fill="#57606a">SELLERS</text>
+  <g font-size="11" fill="#24292f">
+    <text x="468" y="242">★ Mouser</text><text x="600" y="242">603-RC0603FR-074K7L</text>
+    <text x="770" y="242" fill="#57606a" font-size="10">0.006€</text>
+    <text x="820" y="242" fill="#2f6fed" font-size="9">🌐 Open</text>
+    <text x="468" y="264" font-size="10" fill="#2f6fed">+ Add seller link</text>
+  </g>
+  <line x1="468" y1="278" x2="870" y2="278" stroke="#eceef1"/>
+  <text x="468" y="298" font-size="11" font-weight="bold" fill="#57606a">PRICE HISTORY</text>
+  <polyline points="468,340 520,332 570,335 620,320 670,322 720,310 770,312 820,300" fill="none" stroke="#2f6fed" stroke-width="1.5"/>
+  <text x="468" y="352" font-size="9" fill="#8a929c">last 8 restocks</text>
+
+  <!-- Bottom: stock -->
+  <rect x="16" y="368" width="868" height="90" fill="#ffffff" stroke="#d7dbe0" rx="6"/>
+  <text x="30" y="392" font-size="11" font-weight="bold" fill="#57606a">STOCK</text>
+  <text x="30" y="416" font-size="20" font-weight="bold" fill="#24292f">12</text>
+  <text x="60" y="416" font-size="11" fill="#57606a">in stock  (min. 20 — below threshold)</text>
+  <rect x="330" y="398" width="110" height="26" rx="4" fill="#dbf5e3"/><text x="385" y="415" font-size="11" text-anchor="middle" fill="#186a3a">Restock...</text>
+  <rect x="450" y="398" width="110" height="26" rx="4" fill="#fdeadb"/><text x="505" y="415" font-size="11" text-anchor="middle" fill="#8a4b00">Take Out...</text>
+  <rect x="570" y="398" width="150" height="26" rx="4" fill="#eef2f7" stroke="#d7dbe0"/><text x="645" y="415" font-size="11" text-anchor="middle" fill="#24292f">View Transactions</text>
+
+  <rect x="16" y="474" width="868" height="160" fill="#ffffff" stroke="#d7dbe0" rx="6"/>
+  <text x="30" y="496" font-size="11" font-weight="bold" fill="#57606a">RECENT STOCK TRANSACTIONS</text>
+  <g font-size="10" fill="#24292f">
+    <text x="30" y="518">2026-08-12</text><text x="140" y="518">restock +100</text><text x="280" y="518">paid 0.005€/pc</text><text x="450" y="518">partlist: —</text>
+    <text x="30" y="538">2026-07-30</text><text x="140" y="538">checkout -18</text><text x="280" y="538">partlist: "PSU Rev C"</text>
+    <text x="30" y="558">2026-06-02</text><text x="140" y="558">manual adjust -2</text><text x="280" y="558">note: dropped/lost</text>
+  </g>
+</svg>

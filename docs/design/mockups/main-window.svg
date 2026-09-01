@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 640" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="1000" height="640" fill="#f5f6f8"/>
+
+  <!-- Title bar -->
+  <rect x="0" y="0" width="1000" height="28" fill="#2f6fed"/>
+  <text x="12" y="19" font-size="12" fill="#ffffff">PartManager — MyStock.pmdb</text>
+  <text x="980" y="19" font-size="13" fill="#ffffff" text-anchor="end">⚙</text>
+
+  <!-- Ribbon tabs -->
+  <rect x="0" y="28" width="1000" height="26" fill="#e3e8ef"/>
+  <text x="20" y="46" font-size="12" font-weight="bold" fill="#2f6fed">Home</text>
+  <text x="90" y="46" font-size="12" fill="#57606a">Parts</text>
+  <text x="150" y="46" font-size="12" fill="#57606a">Partlists</text>
+  <text x="230" y="46" font-size="12" fill="#57606a">Orders</text>
+  <text x="300" y="46" font-size="12" fill="#57606a">KiCad</text>
+  <rect x="15" y="52" width="45" height="2" fill="#2f6fed"/>
+
+  <!-- Ribbon groups -->
+  <rect x="0" y="54" width="1000" height="70" fill="#f0f3f7" stroke="#d7dbe0" stroke-width="1"/>
+  <!-- group: New -->
+  <rect x="12" y="62" width="130" height="54" rx="4" fill="#ffffff" stroke="#d7dbe0"/>
+  <rect x="20" y="70" width="26" height="26" rx="3" fill="#dbe6ff"/>
+  <text x="52" y="80" font-size="10" fill="#24292f">New Part</text>
+  <rect x="20" y="98" width="26" height="0" fill="none"/>
+  <text x="52" y="94" font-size="10" fill="#24292f">New Partlist</text>
+  <text x="60" y="112" font-size="9" fill="#8a929c" text-anchor="middle">New</text>
+
+  <!-- group: Stock -->
+  <rect x="150" y="62" width="130" height="54" rx="4" fill="#ffffff" stroke="#d7dbe0"/>
+  <rect x="158" y="70" width="26" height="26" rx="3" fill="#dbf5e3"/>
+  <text x="190" y="80" font-size="10" fill="#24292f">Restock</text>
+  <text x="190" y="94" font-size="10" fill="#24292f">Take Out</text>
+  <text x="198" y="112" font-size="9" fill="#8a929c" text-anchor="middle">Stock</text>
+
+  <!-- group: View -->
+  <rect x="288" y="62" width="130" height="54" rx="4" fill="#ffffff" stroke="#d7dbe0"/>
+  <rect x="296" y="70" width="26" height="26" rx="3" fill="#f5e6c8"/>
+  <text x="328" y="80" font-size="10" fill="#24292f">List / Grid</text>
+  <text x="328" y="94" font-size="10" fill="#24292f">3D Viewer</text>
+  <text x="336" y="112" font-size="9" fill="#8a929c" text-anchor="middle">View</text>
+
+  <!-- Body: left tree -->
+  <rect x="0" y="124" width="220" height="516" fill="#ffffff" stroke="#d7dbe0"/>
+  <rect x="10" y="134" width="200" height="22" rx="3" fill="#f0f3f7" stroke="#d7dbe0"/>
+  <text x="18" y="149" font-size="11" fill="#24292f">100</text>
+  <text x="196" y="149" font-size="11" fill="#8a929c">⌕</text>
+  <text x="12" y="174" font-size="11" font-weight="bold" fill="#57606a">CATEGORIES</text>
+  <text x="20" y="196" font-size="11" fill="#24292f">▾ Electronic</text>
+  <text x="34" y="216" font-size="11" fill="#2f6fed">● Resistors (412 : 1)</text>
+  <text x="34" y="234" font-size="11" fill="#24292f">Capacitors (188 : 1)</text>
+  <text x="34" y="252" font-size="11" fill="#c7cbd1">Inductors (34 : 0)</text>
+  <text x="34" y="270" font-size="11" fill="#c7cbd1">Power Regulators (21 : 0)</text>
+  <text x="34" y="288" font-size="11" fill="#c7cbd1">MOSFETs (19 : 0)</text>
+  <text x="34" y="306" font-size="11" fill="#c7cbd1">Transistors (27 : 0)</text>
+  <text x="20" y="328" font-size="11" fill="#24292f">▾ Mechanical</text>
+  <text x="34" y="348" font-size="11" fill="#c7cbd1">Screws (0 : 0)</text>
+  <text x="34" y="366" font-size="11" fill="#c7cbd1">Wood Sheets (0 : 0)</text>
+  <text x="12" y="392" font-size="10" fill="#8a929c">+ New Type Template</text>
+  <text x="12" y="410" font-size="9" fill="#8a929c">"100" → bare number: matches</text>
+  <text x="12" y="422" font-size="9" fill="#8a929c">100Ω resistors &amp; 100µF caps</text>
+
+  <!-- Body: center table -->
+  <rect x="220" y="124" width="560" height="516" fill="#ffffff" stroke="#d7dbe0"/>
+  <text x="234" y="144" font-size="11" font-weight="bold" fill="#57606a">RESISTORS — 412 parts</text>
+  <rect x="470" y="130" width="150" height="18" rx="3" fill="#f0f3f7" stroke="#d7dbe0"/>
+  <text x="478" y="143" font-size="10" fill="#8a929c">Filter this table...</text>
+  <text x="770" y="144" font-size="10" fill="#2f6fed" text-anchor="end">⚙ Customize columns</text>
+
+  <rect x="230" y="156" width="540" height="22" fill="#f0f3f7"/>
+  <text x="238" y="171" font-size="10" font-weight="bold" fill="#57606a">Name</text>
+  <text x="360" y="171" font-size="10" font-weight="bold" fill="#57606a">Package</text>
+  <text x="450" y="171" font-size="10" font-weight="bold" fill="#57606a">Resistance</text>
+  <text x="560" y="171" font-size="10" font-weight="bold" fill="#57606a">Stock</text>
+  <text x="640" y="171" font-size="10" font-weight="bold" fill="#57606a">Price (1x)</text>
+  <text x="720" y="171" font-size="10" font-weight="bold" fill="#57606a">Loc.</text>
+
+  <g font-size="10" fill="#24292f">
+    <text x="238" y="196">RES-0603-10K</text><text x="360" y="196">0603</text><text x="450" y="196">10 kΩ</text><text x="560" y="196">248</text><text x="640" y="196">0.004€</text><text x="720" y="196">B2</text>
+    <rect x="230" y="184" width="540" height="20" fill="#eef4ff"/>
+    <text x="238" y="216">RES-0603-1K</text><text x="360" y="216">0603</text><text x="450" y="216">1 kΩ</text><text x="560" y="216">180</text><text x="640" y="216">0.004€</text><text x="720" y="216">B2</text>
+    <text x="238" y="236">RES-0805-4K7</text><text x="360" y="236">0805</text><text x="450" y="236">4.7 kΩ</text><text x="560" y="236">12</text><text x="640" y="236">0.006€</text><text x="720" y="236">B3</text>
+    <text x="238" y="256">RES-1206-100R</text><text x="360" y="256">1206</text><text x="450" y="256">100 Ω</text><text x="560" y="256">3</text><text x="640" y="256">0.007€</text><text x="720" y="256">B3</text>
+  </g>
+  <circle cx="562" cy="252" r="4" fill="#e8a33d"/>
+  <text x="572" y="256" font-size="9" fill="#8a929c">low stock</text>
+
+  <!-- Body: right preview -->
+  <rect x="780" y="124" width="220" height="516" fill="#ffffff" stroke="#d7dbe0"/>
+  <text x="792" y="144" font-size="11" font-weight="bold" fill="#57606a">PREVIEW</text>
+  <rect x="792" y="156" width="196" height="120" fill="#f0f3f7" stroke="#d7dbe0"/>
+  <text x="890" y="220" font-size="10" fill="#8a929c" text-anchor="middle">[ footprint / 3D preview ]</text>
+  <text x="792" y="296" font-size="11" font-weight="bold" fill="#24292f">RES-0603-4K7</text>
+  <text x="792" y="314" font-size="10" fill="#57606a">4.7 kΩ · 1% · 0603 · 1/10W</text>
+  <text x="792" y="332" font-size="10" fill="#57606a">Stock: 12  ·  Min: 20</text>
+  <text x="792" y="350" font-size="10" fill="#57606a">Mouser: 603-RC0603...</text>
+  <rect x="792" y="366" width="90" height="22" rx="3" fill="#2f6fed"/>
+  <text x="837" y="381" font-size="10" fill="#ffffff" text-anchor="middle">Open Part</text>
+  <rect x="892" y="366" width="96" height="22" rx="3" fill="#eef2f7" stroke="#d7dbe0"/>
+  <text x="940" y="381" font-size="10" fill="#24292f" text-anchor="middle">Take Out</text>
+
+  <!-- Status bar -->
+  <rect x="0" y="620" width="1000" height="20" fill="#e3e8ef"/>
+  <text x="10" y="634" font-size="10" fill="#57606a">1,240 parts · 3 low-stock · KiCad libraries up to date</text>
+</svg>

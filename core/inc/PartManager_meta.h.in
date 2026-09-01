@@ -1,0 +1,12 @@
+// @file PartManager_meta.h
+// @brief Auto-generated version constants — do not edit manually.
+//
+// CMake populates these defines from the LIBRARY_NAME and LIBRARY_VERSION
+// variables in the root CMakeLists.txt during the configure step.
+// To change the version, edit LIBRARY_VERSION in CMakeLists.txt and
+// reconfigure.
+#pragma once
+#define @LIBRARY_NAME@_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define @LIBRARY_NAME@_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define @LIBRARY_NAME@_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define @LIBRARY_NAME@_LIBRARY_NAME  "@PROJECT_NAME@"

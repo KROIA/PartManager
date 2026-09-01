@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="1000" height="560" fill="#f5f6f8"/>
+  <rect x="0" y="0" width="1000" height="28" fill="#2f6fed"/>
+  <text x="12" y="19" font-size="12" fill="#ffffff">PartManager — New Part</text>
+  <rect x="0" y="28" width="1000" height="26" fill="#e3e8ef"/>
+  <text x="20" y="46" font-size="12" fill="#57606a">Home</text>
+  <text x="90" y="46" font-size="12" font-weight="bold" fill="#2f6fed">Parts</text>
+  <rect x="85" y="52" width="45" height="2" fill="#2f6fed"/>
+  <text x="150" y="46" font-size="12" fill="#57606a">Partlists</text>
+  <text x="230" y="46" font-size="12" fill="#57606a">Orders</text>
+  <text x="300" y="46" font-size="12" fill="#57606a">KiCad</text>
+  <rect x="0" y="54" width="1000" height="70" fill="#f0f3f7" stroke="#d7dbe0"/>
+  <rect x="12" y="62" width="150" height="54" rx="4" fill="#ffffff" stroke="#2f6fed" stroke-width="1.5"/>
+  <text x="30" y="82" font-size="10" fill="#24292f">Edit Type Templates</text>
+  <text x="30" y="98" font-size="10" font-weight="bold" fill="#2f6fed">Import from Mouser ◂ (here)</text>
+  <text x="87" y="112" font-size="9" fill="#8a929c" text-anchor="middle">Manage</text>
+
+  <rect x="16" y="140" width="968" height="404" fill="#ffffff" stroke="#d7dbe0" rx="6"/>
+  <text x="32" y="166" font-size="14" font-weight="bold" fill="#24292f">Step 1 — paste a Mouser link or part number</text>
+  <text x="700" y="166" font-size="10" fill="#2f6fed" text-anchor="end">or search Mouser by keyword →</text>
+  <rect x="32" y="180" width="560" height="26" rx="4" fill="#f0f3f7" stroke="#d7dbe0"/>
+  <text x="42" y="197" font-size="11" fill="#24292f">https://www.mouser.com/ProductDetail/Yageo/RC0603FR-074K7L</text>
+  <rect x="602" y="180" width="90" height="26" rx="4" fill="#2f6fed"/>
+  <text x="647" y="197" font-size="11" fill="#ffffff" text-anchor="middle">Fetch</text>
+  <text x="32" y="222" font-size="10" fill="#3aa76d">✓ Match found on Mouser Search API — Yageo RC0603FR-074K7L</text>
+
+  <line x1="32" y1="236" x2="952" y2="236" stroke="#eceef1"/>
+  <text x="32" y="258" font-size="12" font-weight="bold" fill="#57606a">Step 2 — review auto-filled fields</text>
+  <text x="32" y="280" font-size="10" fill="#8a929c">Component type</text>
+  <rect x="150" y="268" width="180" height="20" rx="3" fill="#f0f3f7" stroke="#d7dbe0"/>
+  <text x="158" y="282" font-size="10" fill="#24292f">Resistor ▾</text>
+
+  <g font-size="10" fill="#24292f">
+    <text x="32" y="308">Name</text><rect x="150" y="296" width="300" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="156" y="309">RC0603FR-074K7L</text><text x="460" y="309" fill="#3aa76d" font-size="9">auto</text>
+    <text x="32" y="332">Manufacturer</text><rect x="150" y="320" width="300" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="156" y="333">Yageo</text><text x="460" y="333" fill="#3aa76d" font-size="9">auto</text>
+    <text x="32" y="356">Package</text><rect x="150" y="344" width="300" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="156" y="357">0603</text><text x="460" y="357" fill="#3aa76d" font-size="9">auto</text>
+    <text x="32" y="380">Resistance (Ω)</text><rect x="150" y="368" width="300" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="156" y="381">4700</text><text x="460" y="381" fill="#3aa76d" font-size="9">auto</text>
+    <text x="32" y="404">Tolerance (%)</text><rect x="150" y="392" width="300" height="18" fill="#fdf6e3" stroke="#e8a33d"/><text x="156" y="405">1</text><text x="460" y="405" fill="#8a4b00" font-size="9">check — unmapped, verify</text>
+    <text x="32" y="428">Power (W)</text><rect x="150" y="416" width="300" height="18" fill="#fdf6e3" stroke="#e8a33d"/><text x="156" y="429"></text><text x="460" y="429" fill="#8a4b00" font-size="9">not found — fill manually</text>
+  </g>
+
+  <text x="520" y="280" font-size="10" fill="#8a929c">Datasheet</text>
+  <text x="600" y="280" font-size="10" fill="#3aa76d">✓ downloaded (auto)</text>
+  <text x="520" y="300" font-size="10" fill="#8a929c">KiCad symbol/footprint/3D</text>
+  <text x="520" y="316" font-size="9" fill="#8a929c">not from Mouser — add manually or</text>
+  <text x="520" y="330" font-size="9" fill="#8a929c">pick from an existing template later.</text>
+
+  <rect x="32" y="460" width="130" height="28" rx="4" fill="#2f6fed"/>
+  <text x="97" y="478" font-size="11" fill="#ffffff" text-anchor="middle">Create Part</text>
+  <rect x="172" y="460" width="90" height="28" rx="4" fill="#eef2f7" stroke="#d7dbe0"/>
+  <text x="217" y="478" font-size="11" fill="#24292f" text-anchor="middle">Cancel</text>
+  <text x="32" y="512" font-size="9" fill="#8a929c">Fields marked "unmapped/not found" stay editable here and later in the part editor — nothing blocks part creation.</text>
+  <text x="280" y="478" font-size="10" fill="#2f6fed">or create manually →</text>
+</svg>

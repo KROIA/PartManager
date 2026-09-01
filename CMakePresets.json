@@ -1,0 +1,83 @@
+{
+    "buildPresets": [
+        {
+            "configurePreset": "x64-Debug",
+            "name": "x64-Debug"
+        },
+        {
+            "configurePreset": "x64-Release",
+            "name": "x64-Release"
+        },
+        {
+            "configurePreset": "x64-Debug-Profile",
+            "name": "x64-Debug-Profile"
+        },
+        {
+            "configurePreset": "x64-Release-Profile",
+            "name": "x64-Release-Profile"
+        }
+    ],
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 20,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "architecture": {
+                "strategy": "external",
+                "value": "x64"
+            },
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_CXX_FLAGS": "/EHsc",
+                "CMAKE_C_FLAGS": "/EHsc",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/installation",
+                "CMAKE_POLICY_VERSION_MINIMUM": "3.5",
+                "QT_DEPLOY": "ON"
+            },
+            "generator": "Ninja",
+            "hidden": true,
+            "name": "base",
+            "toolset": {
+                "strategy": "external",
+                "value": "host=x64"
+            }
+        },
+        {
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            },
+            "displayName": "x64 Debug",
+            "inherits": "base",
+            "name": "x64-Debug"
+        },
+        {
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            },
+            "displayName": "x64 Release",
+            "inherits": "base",
+            "name": "x64-Release"
+        },
+        {
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "PM_PROFILING": "1"
+            },
+            "displayName": "x64 Debug (Profiling)",
+            "inherits": "base",
+            "name": "x64-Debug-Profile"
+        },
+        {
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "PM_PROFILING": "1"
+            },
+            "displayName": "x64 Release (Profiling)",
+            "inherits": "base",
+            "name": "x64-Release-Profile"
+        }
+    ],
+    "version": 3
+}

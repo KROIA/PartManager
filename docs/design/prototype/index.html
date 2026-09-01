@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PartManager — Clickable Prototype</title>
+<style>
+  :root {
+    --accent: #2f6fed;
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --border: #d7dbe0;
+    --text: #24292f;
+    --muted: #57606a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); }
+  #shell { display: flex; height: 100vh; }
+
+  /* left sidebar: all frames + flows */
+  #sidebar { width: 260px; flex: none; background: var(--panel); border-right: 1px solid var(--border); overflow-y: auto; padding: 12px; }
+  #sidebar h2 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+  #sidebar h2:first-child { margin-top: 0; }
+  .frame-link, .flow-link { display: block; width: 100%; text-align: left; padding: 7px 8px; margin-bottom: 3px; border: none; background: none; border-radius: 4px; cursor: pointer; font-size: 12px; color: var(--text); }
+  .frame-link:hover, .flow-link:hover { background: #eef2f7; }
+  .frame-link.active { background: #e6efff; color: var(--accent); font-weight: bold; }
+  .flow-link { color: var(--accent); }
+
+  /* main stage */
+  #stage-wrap { flex: 1; display: flex; flex-direction: column; }
+  #topbar { height: 44px; flex: none; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 10px; }
+  #topbar button { border: 1px solid var(--border); background: #eef2f7; border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  #topbar button:disabled { opacity: 0.4; cursor: default; }
+  #flow-banner { font-size: 12px; color: var(--muted); }
+  #flow-banner b { color: var(--accent); }
+
+  #stage { flex: 1; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 30px; }
+  #frame-holder { position: relative; box-shadow: 0 2px 16px rgba(0,0,0,0.12); background: #fff; }
+  #frame-holder img { display: block; width: 900px; height: auto; }
+  .hotspot { position: absolute; cursor: pointer; }
+  .hotspot:hover { outline: 2px solid var(--accent); outline-offset: 1px; background: rgba(47,111,237,0.08); }
+  .hotspot .tip {
+    position: absolute; bottom: 100%; left: 0; margin-bottom: 4px;
+    background: #24292f; color: #fff; font-size: 10px; padding: 3px 6px; border-radius: 3px;
+    white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .1s;
+  }
+  .hotspot:hover .tip { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="shell">
+  <div id="sidebar">
+    <h2>Use-case flows</h2>
+    <div id="flow-list"></div>
+    <h2>All screens</h2>
+    <div id="frame-list"></div>
+  </div>
+  <div id="stage-wrap">
+    <div id="topbar">
+      <button id="btn-back">&larr; Back</button>
+      <button id="btn-restart">&#8635; Restart flow</button>
+      <div id="flow-banner">Free navigation — click a screen on the left, or start a flow.</div>
+    </div>
+    <div id="stage">
+      <div id="frame-holder">
+        <img id="frame-img" src="" alt="">
+        <div id="hotspot-layer"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- frame registry: id -> {file, w, h, hotspots:[{x,y,w,h,target,label}]} ----
+// Coordinates are in the SVG's own viewBox units; converted to % for overlay positioning.
+const RIBBON_TABS = (targets) => ([
+  {x:15,  y:36, w:45,  h:16, target: targets.home,      label: "Home tab"},
+  {x:85,  y:36, w:55,  h:16, target: targets.parts,     label: "Parts tab"},
+  {x:145, y:36, w:70,  h:16, target: targets.partlists, label: "Partlists tab"},
+  {x:225, y:36, w:55,  h:16, target: targets.orders,    label: "Orders tab"},
+  {x:295, y:36, w:45,  h:16, target: targets.kicad,     label: "KiCad tab"},
+]);
+const TABS = {home:"home", parts:"type-template-editor", partlists:"partlist-manager", orders:"orders-overview", kicad:"kicad-tab"};
+
+const FRAMES = {
+  "database-selector": {
+    title: "Database selector (startup / Switch / Manage)",
+    file: "../mockups/database-selector.svg", w: 1000, h: 600,
+    hotspots: [
+      {x:32,  y:524, w:180, h:30, target:"home", label:"Open \"HomeLab\""},
+      {x:222, y:524, w:180, h:30, target:"home", label:"Browse for existing..."},
+      {x:412, y:524, w:150, h:30, target:"home", label:"New Database..."},
+    ]
+  },
+  "home": {
+    title: "Home — stock overview",
+    file: "../mockups/main-window.svg", w: 1000, h: 640,
+    hotspots: [
+      ...RIBBON_TABS(TABS),
+      {x:20, y:70,  w:80,  h:26, target:"new-part-mouser", label:"New Part"},
+      {x:230,y:184, w:540, h:20, target:"part-editor",     label:"Open row (part editor)"},
+      {x:792,y:366, w:90,  h:22, target:"part-editor",     label:"Open Part"},
+      {x:892,y:366, w:96,  h:22, target:"part-editor",     label:"Take Out"},
+      {x:965,y:6,   w:25,  h:18, target:"settings-dialog", label:"Settings (context menu)"},
+    ]
+  },
+  "part-editor": {
+    title: "Part editor",
+    file: "../mockups/part-editor.svg", w: 900, h: 650,
+    hotspots: [
+      {x:780, y:14,  w:110, h:16, target:"kicad-tab", label:"Rebuild KiCad Library"},
+      {x:330, y:398, w:110, h:26, target:"home",      label:"Restock..."},
+      {x:450, y:398, w:110, h:26, target:"home",      label:"Take Out..."},
+    ]
+  },
+  "new-part-mouser": {
+    title: "New Part — from Mouser",
+    file: "../mockups/new-part-mouser.svg", w: 1000, h: 560,
+    hotspots: [
+      ...RIBBON_TABS(TABS),
+      {x:32,  y:460, w:130, h:28, target:"part-editor",       label:"Create Part"},
+      {x:172, y:460, w:90,  h:28, target:"home",              label:"Cancel"},
+      {x:280, y:470, w:150, h:18, target:"create-part-manual", label:"or create manually"},
+      {x:700, y:156, w:230, h:14, target:"mouser-search",     label:"or search Mouser by keyword"},
+    ]
+  },
+  "mouser-search": {
+    title: "Embedded Mouser search",
+    file: "../mockups/mouser-search.svg", w: 1000, h: 600,
+    hotspots: [
+      ...RIBBON_TABS(TABS),
+      {x:700, y:257, w:86, h:16, target:"new-part-mouser", label:"Use this part (row 1)"},
+      {x:700, y:283, w:86, h:16, target:"new-part-mouser", label:"Use this part (row 2)"},
+      {x:700, y:309, w:86, h:16, target:"new-part-mouser", label:"Use this part (row 3)"},
+    ]
+  },
+  "create-part-manual": {
+    title: "New Part — manual/blank",
+    file: "../mockups/create-part-manual.svg", w: 1000, h: 620,
+    hotspots: [
+      ...RIBBON_TABS(TABS),
+      {x:32,  y:540, w:130, h:28, target:"part-editor", label:"Create Part"},
+      {x:172, y:540, w:90,  h:28, target:"home",         label:"Cancel"},
+    ]
+  },
+  "type-template-editor": {
+    title: "Parts tab — Type templates",
+    file: "../mockups/type-template-editor.svg", w: 1000, h: 780,
+    hotspots: [
+      ...RIBBON_TABS(TABS),
+      {x:284, y:700, w:90,  h:26, target:"home", label:"Done"},
+      {x:384, y:700, w:120, h:26, target:"home", label:"Discard changes"},
+    ]
+  },
+  "settings-dialog": {
+    title: "Settings dialog",
+    file: "../mockups/settings-dialog.svg", w: 900, h: 600,
+    hotspots: [
+      {x:694, y:500, w:86, h:22, target:"home", label:"Close"},
+      {x:20,  y:114, w:210, h:20, target:"database-selector", label:"Switch Database"},
+      {x:20,  y:136, w:210, h:20, target:"database-selector", label:"Manage Databases..."},
+    ]
+  },
+  "partlist-manager": {
+    title: "Partlists tab — all partlists",
+    file: "../mockups/partlist-manager.svg", w: 1000, h: 520,
+    hotspots: [
+      ...RIBBON_TABS(TABS),
+      {x:20,  y:72,  w:130, h:20, target:"partlist-editor",   label:"New Partlist"},
+      {x:32,  y:198, w:760, h:24, target:"partlist-editor",   label:"Open 'PSU Rev C'"},
+      {x:800, y:203, w:60,  h:14, target:"orders-overview",   label:"Open orders"},
+    ]
+  },
+  "partlist-editor": {
+    title: "Partlist editor — PSU Rev C",
+    file: "../mockups/partlist-editor.svg", w: 1000, h: 600,
+    hotspots: [
+      ...RIBBON_TABS(TABS),
+      {x:32,  y:536, w:130, h:28, target:"orders-overview",  label:"Check Stock"},
+      {x:172, y:536, w:150, h:28, target:"home",             label:"Take Out Parts"},
+      {x:332, y:536, w:90,  h:28, target:"partlist-manager", label:"Save"},
+    ]
+  },
+  "orders-overview": {
+    title: "Orders tab — all orders",
+    file: "../mockups/orders-overview.svg", w: 1000, h: 480,
+    hotspots: [
+      ...RIBBON_TABS(TABS),
+      {x:32, y:198, w:936, h:24, target:"order-view", label:"Open order #2026-014"},
+    ]
+  },
+  "order-view": {
+    title: "Order detail — #2026-014",
+    file: "../mockups/order-view.svg", w: 950, h: 600,
+    hotspots: [
+      {x:30,  y:246, w:150, h:24, target:"orders-overview", label:"Stage to Mouser Cart"},
+      {x:190, y:246, w:150, h:24, target:"orders-overview", label:"Mark as Submitted"},
+      {x:350, y:246, w:150, h:24, target:"orders-overview", label:"Confirm Arrivals"},
+      {x:510, y:246, w:130, h:24, target:"orders-overview", label:"Close Order"},
+    ]
+  },
+  "kicad-tab": {
+    title: "KiCad tab",
+    file: "../mockups/kicad-tab.svg", w: 1000, h: 520,
+    hotspots: [ ...RIBBON_TABS(TABS) ]
+  },
+  "architecture-overview": {
+    title: "(reference) System architecture diagram",
+    file: "../mockups/architecture-overview.svg", w: 1000, h: 700,
+    hotspots: []
+  }
+};
+
+const FLOWS = {
+  "new-part": {
+    label: "① New part from a Mouser link",
+    steps: ["home", "new-part-mouser", "part-editor"]
+  },
+  "search-mouser": {
+    label: "① b. Search Mouser, then create the part",
+    steps: ["home", "new-part-mouser", "mouser-search", "new-part-mouser", "part-editor"]
+  },
+  "partlist-order": {
+    label: "② Build a partlist → order the shortfall",
+    steps: ["partlist-manager", "partlist-editor", "orders-overview", "order-view"]
+  },
+  "quick-takeout": {
+    label: "③ Quick take-out from Home stock",
+    steps: ["home", "part-editor"]
+  },
+  "define-type": {
+    label: "④ Define a component type, then create one manually",
+    steps: ["type-template-editor", "create-part-manual", "part-editor"]
+  },
+  "settings": {
+    label: "⑤ Open Settings from the context menu",
+    steps: ["home", "settings-dialog"]
+  },
+  "switch-db": {
+    label: "⑥ Switch to a different database",
+    steps: ["database-selector", "home", "settings-dialog", "database-selector", "home"]
+  }
+};
+
+// ---- runtime state ----
+let history = [];
+let currentFlow = null;
+let flowStepIndex = 0;
+
+const els = {
+  frameImg: document.getElementById("frame-img"),
+  hotspotLayer: document.getElementById("hotspot-layer"),
+  frameHolder: document.getElementById("frame-holder"),
+  frameList: document.getElementById("frame-list"),
+  flowList: document.getElementById("flow-list"),
+  flowBanner: document.getElementById("flow-banner"),
+  btnBack: document.getElementById("btn-back"),
+  btnRestart: document.getElementById("btn-restart"),
+};
+
+function renderSidebar() {
+  els.flowList.innerHTML = "";
+  Object.entries(FLOWS).forEach(([id, flow]) => {
+    const b = document.createElement("button");
+    b.className = "flow-link";
+    b.textContent = flow.label;
+    b.onclick = () => startFlow(id);
+    els.flowList.appendChild(b);
+  });
+  els.frameList.innerHTML = "";
+  Object.entries(FRAMES).forEach(([id, frame]) => {
+    const b = document.createElement("button");
+    b.className = "frame-link";
+    b.id = "flink-" + id;
+    b.textContent = frame.title;
+    b.onclick = () => goTo(id, true);
+    els.frameList.appendChild(b);
+  });
+}
+
+function goTo(id, userInitiated) {
+  const frame = FRAMES[id];
+  if (!frame) return;
+  if (userInitiated) { currentFlow = null; }
+  history.push(id);
+  els.frameImg.src = frame.file;
+  els.frameHolder.style.width = frame.w + "px";
+  els.frameImg.style.width = frame.w + "px";
+  els.hotspotLayer.innerHTML = "";
+  frame.hotspots.forEach(hs => {
+    const div = document.createElement("div");
+    div.className = "hotspot";
+    div.style.left = (hs.x / frame.w * 100) + "%";
+    div.style.top = (hs.y / frame.h * 100) + "%";
+    div.style.width = (hs.w / frame.w * 100) + "%";
+    div.style.height = (hs.h / frame.h * 100) + "%";
+    const tip = document.createElement("div");
+    tip.className = "tip";
+    tip.textContent = "→ " + hs.label;
+    div.appendChild(tip);
+    div.onclick = () => onHotspotClick(hs.target);
+    els.hotspotLayer.appendChild(div);
+  });
+  document.querySelectorAll(".frame-link").forEach(b => b.classList.remove("active"));
+  const active = document.getElementById("flink-" + id);
+  if (active) active.classList.add("active");
+  els.btnBack.disabled = history.length < 2;
+  updateFlowBanner();
+}
+
+function onHotspotClick(targetId) {
+  if (currentFlow) {
+    const flow = FLOWS[currentFlow];
+    const expected = flow.steps[flowStepIndex + 1];
+    if (targetId === expected) {
+      flowStepIndex++;
+    } else {
+      // user diverged from the scripted flow — drop back to free navigation
+      currentFlow = null;
+    }
+  }
+  goTo(targetId, false);
+}
+
+function startFlow(id) {
+  currentFlow = id;
+  flowStepIndex = 0;
+  history = [];
+  goTo(FLOWS[id].steps[0], false);
+}
+
+function updateFlowBanner() {
+  if (!currentFlow) {
+    els.flowBanner.innerHTML = "Free navigation — click a screen on the left, or start a flow.";
+    return;
+  }
+  const flow = FLOWS[currentFlow];
+  const stepLabels = flow.steps.map((s, i) =>
+    i === flowStepIndex ? `<b>${FRAMES[s].title}</b>` : FRAMES[s].title
+  ).join(" &rarr; ");
+  els.flowBanner.innerHTML = `<b>${flow.label}</b> &nbsp; step ${flowStepIndex+1}/${flow.steps.length}: ${stepLabels}`;
+}
+
+els.btnBack.onclick = () => {
+  if (history.length < 2) return;
+  history.pop();
+  const prev = history.pop();
+  goTo(prev, false);
+};
+els.btnRestart.onclick = () => {
+  if (currentFlow) startFlow(currentFlow);
+  else goTo("home", true);
+};
+
+renderSidebar();
+goTo("database-selector", true);
+</script>
+</body>
+</html>

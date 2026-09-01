@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="1000" height="600" fill="#f5f6f8"/>
+  <rect x="0" y="0" width="1000" height="28" fill="#2f6fed"/>
+  <text x="12" y="19" font-size="12" fill="#ffffff">PartManager — Partlist: PSU Rev C</text>
+  <rect x="0" y="28" width="1000" height="26" fill="#e3e8ef"/>
+  <text x="20" y="46" font-size="12" fill="#57606a">Home</text>
+  <text x="90" y="46" font-size="12" fill="#57606a">Parts</text>
+  <text x="150" y="46" font-size="12" font-weight="bold" fill="#2f6fed">Partlists</text>
+  <rect x="145" y="52" width="70" height="2" fill="#2f6fed"/>
+  <text x="230" y="46" font-size="12" fill="#57606a">Orders</text>
+  <text x="300" y="46" font-size="12" fill="#57606a">KiCad</text>
+  <rect x="0" y="54" width="1000" height="70" fill="#f0f3f7" stroke="#d7dbe0"/>
+  <rect x="180" y="62" width="150" height="54" rx="4" fill="#ffffff" stroke="#2f6fed" stroke-width="1.5"/>
+  <text x="198" y="82" font-size="10" font-weight="bold" fill="#2f6fed">Check Stock</text>
+  <text x="198" y="98" font-size="10" fill="#24292f">Take Out Parts</text>
+  <text x="255" y="112" font-size="9" fill="#8a929c" text-anchor="middle">Checkout</text>
+
+  <rect x="16" y="140" width="968" height="50" fill="#ffffff" stroke="#d7dbe0" rx="6"/>
+  <text x="30" y="160" font-size="10" fill="#8a929c">Name</text><rect x="70" y="150" width="180" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="76" y="163" font-size="10">PSU Rev C</text>
+  <text x="270" y="160" font-size="10" fill="#8a929c">Project link</text><rect x="330" y="150" width="260" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="336" y="163" font-size="10">github.com/alex/psu-revc</text>
+  <text x="610" y="160" font-size="10" fill="#8a929c">Multiplier (PCB count)</text><rect x="740" y="150" width="40" height="18" fill="#f0f3f7" stroke="#d7dbe0"/><text x="754" y="163" font-size="10">5</text>
+
+  <rect x="16" y="200" width="968" height="300" fill="#ffffff" stroke="#d7dbe0" rx="6"/>
+  <rect x="24" y="208" width="952" height="20" fill="#f0f3f7"/>
+  <text x="32" y="222" font-size="10" font-weight="bold" fill="#57606a">Designators</text>
+  <text x="200" y="222" font-size="10" font-weight="bold" fill="#57606a">Part</text>
+  <text x="470" y="222" font-size="10" font-weight="bold" fill="#57606a">Qty/unit</text>
+  <text x="560" y="222" font-size="10" font-weight="bold" fill="#57606a">Qty total (×5)</text>
+  <text x="700" y="222" font-size="10" font-weight="bold" fill="#57606a">In stock</text>
+  <text x="800" y="222" font-size="10" font-weight="bold" fill="#57606a">Shortfall</text>
+
+  <g font-size="10" fill="#24292f">
+    <text x="32" y="246">R1,R2,R5</text><text x="200" y="246">RES-0603-4K7</text><text x="470" y="246">3</text><text x="560" y="246">15</text><text x="700" y="246">12</text>
+    <text x="800" y="246" fill="#8a4b00">3</text>
+
+    <rect x="24" y="254" width="952" height="24" fill="#fbfcfd"/>
+    <text x="32" y="270">C1,C2</text><text x="200" y="270">CAP-0805-100n</text><text x="470" y="270">2</text><text x="560" y="270">10</text><text x="700" y="270">45</text>
+    <text x="800" y="270" fill="#3aa76d">0</text>
+
+    <text x="32" y="294">U1</text>
+    <rect x="200" y="282" width="220" height="16" rx="3" fill="#fdf6e3" stroke="#e8a33d"/>
+    <text x="206" y="294" fill="#8a4b00">⚠ "LM317-SOT23" — match part...</text>
+    <text x="470" y="294">1</text><text x="560" y="294">5</text><text x="700" y="294">—</text><text x="800" y="294">—</text>
+
+    <rect x="24" y="302" width="952" height="24" fill="#fbfcfd"/>
+    <text x="32" y="318">L1</text><text x="200" y="318">IND-1210-10uH</text><text x="470" y="318">1</text><text x="560" y="318">5</text><text x="700" y="318">2</text>
+    <text x="800" y="318" fill="#8a4b00">3</text>
+  </g>
+
+  <text x="32" y="470" font-size="9" fill="#8a929c">Rows in orange are unresolved imports (raw_import_data kept) or below the needed quantity — "Check Stock" pushes shortfall rows into a draft order.</text>
+
+  <rect x="16" y="520" width="968" height="60" fill="#ffffff" stroke="#d7dbe0" rx="6"/>
+  <rect x="32" y="536" width="130" height="28" rx="4" fill="#2f6fed"/>
+  <text x="97" y="554" font-size="11" fill="#ffffff" text-anchor="middle">Check Stock</text>
+  <rect x="172" y="536" width="150" height="28" rx="4" fill="#eef2f7" stroke="#d7dbe0"/>
+  <text x="247" y="554" font-size="11" fill="#24292f" text-anchor="middle">Take Out Parts</text>
+  <rect x="332" y="536" width="90" height="28" rx="4" fill="#eef2f7" stroke="#d7dbe0"/>
+  <text x="377" y="554" font-size="11" fill="#24292f" text-anchor="middle">Save</text>
+</svg>
