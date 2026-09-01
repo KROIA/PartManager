@@ -37,8 +37,17 @@ namespace PartManager
 		void reloadCategories();
 		// Fills the table with the newly selected category's parts (§7b).
 		void onCategorySelectionChanged();
+		// Opens the part editor for the double-clicked row (§10 autosave, no Save button).
+		void onPartActivated(int row);
+		// Home tab's New Part button — the manual/blank flow (§11).
+		void onNewPart();
+		// Parts tab's Manage Tags button (§2d).
+		void onManageTags();
 
 	private:
+		// Re-renders the currently selected category, after an edit changed what it shows.
+		void refreshCurrentCategory();
+
 		// Builds the Home/Parts tabs of §7 into the .ui file's ribbonToolBar.
 		void buildRibbon();
 		// Adds one CategoryNode and its children under `parent` (nullptr = a tree root).
@@ -49,6 +58,9 @@ namespace PartManager
 		Ui::MainWindow* m_ui;
 		MainWindowController m_controller;
 		RibbonWidget::Ribbon* m_ribbon = nullptr;
+		// Which category the table currently shows, so an edit can re-render it in place.
+		int m_currentTypeId = NoParentType;
+		QString m_currentTypeName;
 	};
 
 }

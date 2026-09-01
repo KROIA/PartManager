@@ -1,6 +1,9 @@
 #include "ui/PartManager_MainWindow.h"
 #include "ui_PartManager_MainWindow.h"
 
+#include "ui/PartManager_ManageTagsDialog.h"
+#include "ui/PartManager_NewPartDialog.h"
+#include "ui/PartManager_PartEditorDialog.h"
 #include "widgets/PartManager_TagChipDelegate.h"
 
 #include <QHeaderView>
@@ -41,6 +44,9 @@ namespace PartManager
 
 		connect(m_ui->categoryTree, &QTreeWidget::itemSelectionChanged,
 			this, &MainWindow::onCategorySelectionChanged);
+		// Double-clicking a row is the only way into the part editor (§12b's "part link").
+		connect(m_ui->partTable, &QTableWidget::cellDoubleClicked,
+			this, [this](int row, int) { onPartActivated(row); });
 
 		reloadCategories();
 	}
@@ -104,7 +110,62 @@ namespace PartManager
 		}
 
 		// The label carries the raw type name, not the "(count)" text the tree item shows.
-		showParts(item->data(0, TypeIdRole).toInt(), item->data(0, TypeNameRole).toString());
+		m_currentTypeId = item->data(0, TypeIdRole).toInt();
+		m_currentTypeName = item->data(0, TypeNameRole).toString();
+		showParts(m_currentTypeId, m_currentTypeName);
+	}
+
+	void MainWindow::refreshCurrentCategory()
+	{
+		if (m_currentTypeId != NoParentType)
+		{
+			showParts(m_currentTypeId, m_currentTypeName);
+		}
+	}
+
+	void MainWindow::onPartActivated(int row)
+	{
+		// The part id rides on the first cell, the same one the chips are attached to.
+		QTableWidgetItem* item = m_ui->partTable->item(row, 0);
+		if (!item)
+		{
+			return;
+		}
+		const int partId = item->data(Qt::UserRole).toInt();
+		if (partId == 0)
+		{
+			return;
+		}
+
+		PartEditorDialog editor(m_controller.handle(), partId, this);
+		editor.exec();
+		// The editor autosaved as it went (§10), so the table is stale by the time it closes.
+		refreshCurrentCategory();
+	}
+
+	void MainWindow::onNewPart()
+	{
+		NewPartDialog dialog(m_controller.handle(), this);
+		if (dialog.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+
+		// §2d seeded the new part's tags inside insertPart(); opening the editor is what
+		// shows the user that happened, and is where everything else about it gets filled in.
+		PartEditorDialog editor(m_controller.handle(), dialog.createdPartId(), this);
+		editor.exec();
+
+		// A new part changes the tree's in-stock counts as well as the table.
+		reloadCategories();
+	}
+
+	void MainWindow::onManageTags()
+	{
+		ManageTagsDialog dialog(m_controller.handle(), this);
+		dialog.exec();
+		// A renamed/recoloured/deleted tag changes the chips painted in the table.
+		refreshCurrentCategory();
 	}
 
 	void MainWindow::showParts(int typeId, const QString& typeName)
@@ -176,7 +237,7 @@ namespace PartManager
 			connect(button, &QToolButton::clicked, this, slot);
 		};
 
-		addButton(newGroup, tr("New Part"), &MainWindow::onNotImplemented);
+		addButton(newGroup, tr("New Part"), &MainWindow::onNewPart);
 		addButton(newGroup, tr("New Partlist"), &MainWindow::onNotImplemented);
 		addButton(stockGroup, tr("Restock"), &MainWindow::onNotImplemented);
 		addButton(stockGroup, tr("Take Out"), &MainWindow::onNotImplemented);
@@ -185,6 +246,7 @@ namespace PartManager
 		addButton(viewGroup, tr("List / Grid"), &MainWindow::onNotImplemented);
 		addButton(viewGroup, tr("3D Viewer"), &MainWindow::onNotImplemented);
 		addButton(manageGroup, tr("Edit Type Templates"), &MainWindow::onNotImplemented);
+		addButton(manageGroup, tr("Manage Tags"), &MainWindow::onManageTags);
 		addButton(manageGroup, tr("Import from Mouser"), &MainWindow::onNotImplemented);
 		addButton(filesGroup, tr("Attach File"), &MainWindow::onNotImplemented);
 		addButton(filesGroup, tr("Open Datasheet"), &MainWindow::onNotImplemented);

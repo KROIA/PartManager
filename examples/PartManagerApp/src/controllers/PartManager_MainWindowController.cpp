@@ -210,6 +210,11 @@ namespace PartManager
 	{
 	}
 
+	DatabaseHandle* MainWindowController::handle() const
+	{
+		return m_handle.get();
+	}
+
 	QString MainWindowController::databaseName() const
 	{
 		return QFileInfo(pmdbPath()).absoluteDir().dirName();

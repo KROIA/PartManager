@@ -84,6 +84,10 @@ namespace PartManager
 	public:
 		explicit MainWindowController(std::unique_ptr<DatabaseHandle> handle);
 
+		// The open database, still owned here — the editor/New Part/Manage Tags dialogs
+		// take a non-owning pointer so they read and write the same connection.
+		DatabaseHandle* handle() const;
+
 		// Display name of the open database — its folder name (§1, no stored name field).
 		QString databaseName() const;
 		// Path of the open database's .pmdb entry file.
