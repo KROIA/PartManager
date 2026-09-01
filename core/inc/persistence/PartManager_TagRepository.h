@@ -66,6 +66,12 @@ namespace PartManager
 		// §2d one-time seed: copies effectiveTypeDefaultTags(partTypeId) into part_tag for partId.
 		// No-op (returns true) if the part already has any part_tag rows.
 		static bool seedTagsForNewPart(SQLiteWrapper::SQLite& db, int partId, int partTypeId);
+
+		// Seeds the starting tag vocabulary (SMD, THT, Favourite, Obsolete, Do not use,
+		// Needs datasheet) on a fresh database. No-op (returns true) if `tag` already has rows.
+		// No type default tags are attached: a default lands on every new part of that type, and a
+		// wrong one is then on every part before anyone notices.
+		static bool seedDefaultTags(SQLiteWrapper::SQLite& db);
 #endif
 
 	};

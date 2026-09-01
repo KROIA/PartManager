@@ -5,6 +5,7 @@
 // into core/persistence (§1b says a new database ships with them). Kept to this .cpp so the
 // public header stays free of the reverse dependency.
 #include "persistence/PartManager_PartTypeRepository.h"
+#include "persistence/PartManager_TagRepository.h"
 #include "PartManager_info.h"
 #include "PartManager_debug.h"
 
@@ -108,6 +109,11 @@ namespace PartManager
 		if (!PartTypeRepository::seedDefaultTypes(handle->connection()))
 		{
 			outErrorMessage = "Failed to seed the default type templates";
+			return nullptr;
+		}
+		if (!TagRepository::seedDefaultTags(handle->connection()))
+		{
+			outErrorMessage = "Failed to seed the default tags";
 			return nullptr;
 		}
 #endif

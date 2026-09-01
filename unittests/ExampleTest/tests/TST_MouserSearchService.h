@@ -20,6 +20,7 @@ public:
 		ADD_TEST(TST_MouserSearchService::malformedBodyIsRejected);
 		ADD_TEST(TST_MouserSearchService::attributeValuesBecomeBaseSi);
 		ADD_TEST(TST_MouserSearchService::categoryMappingRefusesToGuess);
+		ADD_TEST(TST_MouserSearchService::closestMatchIsRankedFirst);
 	}
 
 private:
@@ -200,12 +201,54 @@ private:
 		TEST_COMPARE(Service::suggestedTypeName("MOSFET"), std::string("MOSFET"));
 		TEST_COMPARE(Service::suggestedTypeName("Transistors - MOSFET"), std::string("MOSFET"));
 
-		// The .claude/DefaultParts.csv categories we have no template for: no type beats a wrong type.
-		TEST_COMPARE(Service::suggestedTypeName("Schottky Diodes & Rectifiers"), std::string());
-		TEST_COMPARE(Service::suggestedTypeName("Diodes - General Purpose, Power, Switching"), std::string());
-		TEST_COMPARE(Service::suggestedTypeName("Standard LEDs - SMD"), std::string());
-		TEST_COMPARE(Service::suggestedTypeName("Board Mount Hall Effect / Magnetic Sensors"), std::string());
+		// The .claude/DefaultParts.csv categories, now that Diode/LED/Sensor are seeded types.
+		TEST_COMPARE(Service::suggestedTypeName("Schottky Diodes & Rectifiers"), std::string("Diode"));
+		TEST_COMPARE(Service::suggestedTypeName("Small Signal Switching Diodes"), std::string("Diode"));
+		TEST_COMPARE(Service::suggestedTypeName("Single Colour LEDs"), std::string("LED"));
+		TEST_COMPARE(Service::suggestedTypeName("Standard LEDs - SMD"), std::string("LED"));
+		TEST_COMPARE(Service::suggestedTypeName("Board Mount Hall Effect/Magnetic Sensors"), std::string("Sensor"));
+		// "led" as three letters inside another word must not make an LED out of an inductor.
+		TEST_COMPARE(Service::suggestedTypeName("Shielded Inductors"), std::string("Inductor"));
+		TEST_COMPARE(Service::suggestedTypeName("Coupled Chokes"), std::string());
+
+		// Still no template: no type beats a wrong type.
+		TEST_COMPARE(Service::suggestedTypeName("Rectangular Connectors - Headers"), std::string());
 		TEST_COMPARE(Service::suggestedTypeName(""), std::string());
+	}
+
+	// The live 595-LM358DR case: the part itself and its packaging variant come back together.
+	TEST_FUNCTION(closestMatchIsRankedFirst)
+	{
+		TEST_START;
+
+		auto part = [](const char* mouser, const char* mpn)
+		{
+			PartManager::MouserPartDto dto;
+			dto.mouserPartNumber = mouser;
+			dto.manufacturerPartNumber = mpn;
+			return dto;
+		};
+
+		std::vector<PartManager::MouserPartDto> parts = {
+			part("595-LM358DRE4", "LM358DRE4"),
+			part("511-LM358APT",  "LM358APT"),
+			part("595-LM358DR",   "LM358DR"),
+		};
+		PartManager::MouserSearchService::rankByMatch(parts, "595-LM358DR");
+		TEST_COMPARE(parts[0].mouserPartNumber, std::string("595-LM358DR"));
+		TEST_COMPARE(parts[1].mouserPartNumber, std::string("595-LM358DRE4"));
+
+		// Same set searched by manufacturer part number ranks off the MPN field instead.
+		PartManager::MouserSearchService::rankByMatch(parts, "lm358dr");
+		TEST_COMPARE(parts[0].manufacturerPartNumber, std::string("LM358DR"));
+		TEST_COMPARE(parts[1].manufacturerPartNumber, std::string("LM358DRE4"));
+
+		// Nothing matches, or nothing to match on: order is left exactly as Mouser sent it.
+		const std::string firstBefore = parts[0].mouserPartNumber;
+		PartManager::MouserSearchService::rankByMatch(parts, "");
+		TEST_COMPARE(parts[0].mouserPartNumber, firstBefore);
+		PartManager::MouserSearchService::rankByMatch(parts, "BC547");
+		TEST_COMPARE(parts[0].mouserPartNumber, firstBefore);
 	}
 };
 

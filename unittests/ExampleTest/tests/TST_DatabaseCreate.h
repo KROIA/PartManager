@@ -64,7 +64,7 @@ private:
 
 		// Fresh database is usable, not empty (§1b seeds the default type templates).
 		TEST_COMPARE(PartManager::PartTypeRepository::listTypes(handle->connection()).size(),
-			static_cast<size_t>(7));
+			static_cast<size_t>(18));
 	}
 
 	TEST_FUNCTION(reopenIsIdempotent)
@@ -83,7 +83,7 @@ private:
 		TEST_ASSERT_M(reopened.open(), "reopen failed: " + reopened.errorMessage());
 		// No second migration, no duplicated seed rows.
 		TEST_COMPARE(PartManager::PartTypeRepository::listTypes(reopened.connection()).size(),
-			static_cast<size_t>(7));
+			static_cast<size_t>(18));
 	}
 
 	TEST_FUNCTION(rejectsBadNamesAndNonEmptyFolders)

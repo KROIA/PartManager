@@ -1,0 +1,274 @@
+// One-shot importer for a `Stockcount;MouserNR;Link` CSV (the shape of .claude/DefaultParts.csv):
+// each Mouser part number is looked up on the live Search API, mapped through MouserSearchService,
+// and inserted into a .pmdb database. Re-runnable — a part whose MPN is already in the database is
+// skipped, not duplicated.
+//
+// Usage: PartImport <database.pmdb> <parts.csv> [--dry-run]
+// A .pmdb path that does not exist yet is created (folder layout + schema + seeded templates).
+//
+// Needs MOUSER_SEARCH_API in the environment. Console target on purpose: this is a scripted
+// migration step, not part of the GUI.
+#include "database/PartManager_DatabaseHandle.h"
+#include "database/PartManager_DatabaseRegistry.h"
+#include "mouser/PartManager_MouserClient.h"
+#include "mouser/PartManager_MouserSearchService.h"
+#include "persistence/PartManager_PartRepository.h"
+#include "persistence/PartManager_PartTypeRepository.h"
+#include "persistence/PartManager_TagRepository.h"
+
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
+
+#include "SQLite.h"
+
+#include <cstdio>
+#include <fstream>
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace
+{
+	struct CsvRow
+	{
+		int stockCount = 0;
+		std::string mouserPartNumber;
+	};
+
+	std::string trimQuotes(const std::string& text)
+	{
+		std::string out = text;
+		while (!out.empty() && (out.back() == '\r' || out.back() == '"' || out.back() == ' '))
+		{
+			out.pop_back();
+		}
+		size_t start = 0;
+		while (start < out.size() && (out[start] == '"' || out[start] == ' '))
+		{
+			++start;
+		}
+		return out.substr(start);
+	}
+
+	// Only the first two columns matter; Link is the Mouser product page, which the API hands us
+	// back anyway. Rows whose Stockcount is not a number are reported and skipped, never guessed at.
+	bool parseRows(const std::string& csvPath, std::vector<CsvRow>& outRows, std::string& outError)
+	{
+		std::ifstream file(csvPath);
+		if (!file.is_open())
+		{
+			outError = "cannot open " + csvPath;
+			return false;
+		}
+		std::string line;
+		bool firstLine = true;
+		while (std::getline(file, line))
+		{
+			if (firstLine)
+			{
+				firstLine = false;   // header
+				continue;
+			}
+			const size_t firstSemicolon = line.find(';');
+			if (firstSemicolon == std::string::npos)
+			{
+				continue;            // blank or trailing line
+			}
+			const size_t secondSemicolon = line.find(';', firstSemicolon + 1);
+			CsvRow row;
+			try
+			{
+				row.stockCount = std::stoi(trimQuotes(line.substr(0, firstSemicolon)));
+			}
+			catch (const std::exception&)
+			{
+				std::printf("  skipped (bad Stockcount): %s\n", line.c_str());
+				continue;
+			}
+			row.mouserPartNumber = trimQuotes(secondSemicolon == std::string::npos
+				? line.substr(firstSemicolon + 1)
+				: line.substr(firstSemicolon + 1, secondSemicolon - firstSemicolon - 1));
+			if (!row.mouserPartNumber.empty())
+			{
+				outRows.push_back(row);
+			}
+		}
+		return true;
+	}
+
+	int findTypeIdByName(SQLiteWrapper::SQLite& db, const std::string& name)
+	{
+		if (name.empty())
+		{
+			return 0;
+		}
+		for (const PartManager::PartType& type : PartManager::PartTypeRepository::listTypes(db))
+		{
+			if (type.name == name)
+			{
+				return type.id;
+			}
+		}
+		return 0;
+	}
+}
+
+int main(int argc, char* argv[])
+{
+	// Unbuffered: redirected to a file or a pipe the CRT block-buffers stdout, and progress written
+	// during a run this long has to be visible while it runs, not after it ends.
+	setvbuf(stdout, nullptr, _IONBF, 0);
+
+	QCoreApplication app(argc, argv);   // QNetworkAccessManager needs one
+	QCoreApplication::setOrganizationName("KROIA");
+	QCoreApplication::setApplicationName("PartManager");
+
+	std::vector<std::string> positional;
+	bool dryRun = false;
+	for (int i = 1; i < argc; ++i)
+	{
+		const std::string argument = argv[i];
+		if (argument == "--dry-run")
+		{
+			dryRun = true;
+		}
+		else
+		{
+			positional.push_back(argument);
+		}
+	}
+	if (positional.size() != 2)
+	{
+		std::printf("Usage: PartImport <database.pmdb> <parts.csv> [--dry-run]\n");
+		return 2;
+	}
+	const std::string pmdbPath = positional[0];
+	const std::string csvPath = positional[1];
+
+	if (!PartManager::MouserClient::hasApiKey())
+	{
+		std::printf("MOUSER_SEARCH_API is not set in this process's environment - nothing imported.\n");
+		return 1;
+	}
+
+	std::vector<CsvRow> rows;
+	std::string error;
+	if (!parseRows(csvPath, rows, error))
+	{
+		std::printf("CSV error: %s\n", error.c_str());
+		return 1;
+	}
+	std::printf("%zu rows in %s\n", rows.size(), csvPath.c_str());
+
+	std::unique_ptr<PartManager::DatabaseHandle> handle;
+	const QFileInfo pmdbInfo(QString::fromStdString(pmdbPath));
+	if (pmdbInfo.exists())
+	{
+		handle.reset(new PartManager::DatabaseHandle(pmdbPath));
+		if (!handle->open())
+		{
+			std::printf("Cannot open database: %s\n", handle->errorMessage().c_str());
+			return 1;
+		}
+	}
+	else
+	{
+		// The .pmdb lives inside the folder it names, so create <parent-of-folder>/<folder-name>.
+		const QDir databaseFolder = pmdbInfo.absoluteDir();
+		handle = PartManager::DatabaseHandle::createNew(
+			databaseFolder.absolutePath().section('/', 0, -2).toStdString(),
+			databaseFolder.dirName().toStdString(), error);
+		if (!handle)
+		{
+			std::printf("Cannot create database: %s\n", error.c_str());
+			return 1;
+		}
+		std::printf("Created database %s\n", handle->pmdbPath().c_str());
+	}
+
+	// §1b: creating and remembering are separate concerns, so DatabaseHandle does not do this itself.
+	// Without it an imported-into database never shows up in the selector's known-databases list.
+	PartManager::DatabaseRegistry::add(handle->pmdbPath());
+
+	SQLiteWrapper::SQLite& db = handle->connection();
+
+	// Both seeds only add what is missing, so this backfills built-in categories and tags that were
+	// added after an older database was created. Nothing existing is overwritten.
+	PartManager::PartTypeRepository::seedDefaultTypes(db);
+	PartManager::TagRepository::seedDefaultTags(db);
+	const std::vector<PartManager::Part> existing = PartManager::PartRepository::listParts(db);
+
+	PartManager::MouserClient client;
+	int imported = 0;
+	int skipped = 0;
+	int failed = 0;
+	for (const CsvRow& row : rows)
+	{
+		PartManager::MouserSearchResult result = client.searchByPartNumber(row.mouserPartNumber);
+		if (!result.ok)
+		{
+			std::printf("FAIL %-22s %s\n", row.mouserPartNumber.c_str(), result.errorMessage.c_str());
+			++failed;
+			continue;
+		}
+		if (result.parts.empty())
+		{
+			std::printf("FAIL %-22s no results\n", row.mouserPartNumber.c_str());
+			++failed;
+			continue;
+		}
+		PartManager::MouserSearchService::rankByMatch(result.parts, row.mouserPartNumber);
+		const PartManager::MouserPartPrefill prefill =
+			PartManager::MouserSearchService::toPrefill(result.parts.front());
+
+		bool alreadyPresent = false;
+		for (const PartManager::Part& part : existing)
+		{
+			if (!prefill.part.mpn.empty() && part.mpn == prefill.part.mpn)
+			{
+				alreadyPresent = true;
+				break;
+			}
+		}
+		if (alreadyPresent)
+		{
+			std::printf("SKIP %-22s already in database\n", row.mouserPartNumber.c_str());
+			++skipped;
+			continue;
+		}
+
+		PartManager::Part part = prefill.part;
+		part.partTypeId = findTypeIdByName(db, prefill.suggestedTypeName);
+		// ponytail: stock_qty written directly - StockRepository (TASKS.md item 5) does not exist
+		// yet, so there is no stock_transaction to log this against. Backfill when it lands.
+		part.stockQty = row.stockCount;
+
+		std::printf("%s %-22s type=%-14s qty=%-5d %s\n",
+			dryRun ? "DRY " : "OK  ",
+			row.mouserPartNumber.c_str(),
+			prefill.suggestedTypeName.empty() ? "(none)" : prefill.suggestedTypeName.c_str(),
+			part.stockQty,
+			part.mpn.c_str());
+		if (!prefill.unmappedAttributes.empty())
+		{
+			std::printf("       unmapped attributes: %zu (left for manual entry)\n",
+				prefill.unmappedAttributes.size());
+		}
+		if (dryRun)
+		{
+			continue;
+		}
+		if (PartManager::PartRepository::insertPart(db, part) == 0)
+		{
+			std::printf("FAIL %-22s insert failed\n", row.mouserPartNumber.c_str());
+			++failed;
+			continue;
+		}
+		++imported;
+	}
+
+	std::printf("\nimported=%d skipped=%d failed=%d%s\n", imported, skipped, failed,
+		dryRun ? " (dry run, nothing written)" : "");
+	return failed == 0 ? 0 : 1;
+}

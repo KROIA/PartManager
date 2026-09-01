@@ -2,6 +2,7 @@
 #include "units/PartManager_UnitTable.h"
 #include "units/PartManager_ValueParser.h"
 
+#include <algorithm>
 #include <cstdio>
 
 namespace PartManager
@@ -164,6 +165,47 @@ namespace PartManager
 			return false;
 		}
 
+		// Lower rank = closer match. `extra` breaks ties by how much the candidate carries
+		// beyond the query, which is exactly what separates 595-LM358DR from 595-LM358DRE4.
+		struct MatchScore
+		{
+			int rank = 3;        // 0 exact, 1 prefix, 2 substring, 3 no match
+			size_t extra = 0;
+
+			bool operator<(const MatchScore& other) const
+			{
+				return rank != other.rank ? rank < other.rank : extra < other.extra;
+			}
+		};
+
+		MatchScore scoreCandidate(const std::string& candidate, const std::string& queryLower)
+		{
+			MatchScore score;
+			if (candidate.empty() || queryLower.empty())
+			{
+				return score;
+			}
+			const std::string lower = toLower(candidate);
+			if (lower == queryLower)
+			{
+				score.rank = 0;
+			}
+			else if (lower.compare(0, queryLower.size(), queryLower) == 0)
+			{
+				score.rank = 1;
+			}
+			else if (lower.find(queryLower) != std::string::npos)
+			{
+				score.rank = 2;
+			}
+			else
+			{
+				return score;
+			}
+			score.extra = lower.size() - queryLower.size();
+			return score;
+		}
+
 		std::string jsonEscape(const std::string& text)
 		{
 			std::string out;
@@ -243,6 +285,24 @@ namespace PartManager
 		return out;
 	}
 
+	void MouserSearchService::rankByMatch(std::vector<MouserPartDto>& parts, const std::string& query)
+	{
+		const std::string queryLower = toLower(query);
+		if (queryLower.empty() || parts.size() < 2)
+		{
+			return;
+		}
+		std::stable_sort(parts.begin(), parts.end(),
+			[&queryLower](const MouserPartDto& left, const MouserPartDto& right)
+			{
+				const MatchScore leftScore = std::min(scoreCandidate(left.mouserPartNumber, queryLower),
+					scoreCandidate(left.manufacturerPartNumber, queryLower));
+				const MatchScore rightScore = std::min(scoreCandidate(right.mouserPartNumber, queryLower),
+					scoreCandidate(right.manufacturerPartNumber, queryLower));
+				return leftScore < rightScore;
+			});
+	}
+
 	std::string MouserSearchService::suggestedTypeName(const std::string& category)
 	{
 		const std::string lower = toLower(category);
@@ -275,7 +335,20 @@ namespace PartManager
 		{
 			return "Transistor";
 		}
-		// Everything else — diodes, LEDs, hall sensors, connectors — has no template yet.
+		// "leds", never "led": "Shielded"/"Coupled"/"Sealed" all contain the three letters.
+		if (contains(lower, "leds"))
+		{
+			return "LED";
+		}
+		if (contains(lower, "diode"))
+		{
+			return "Diode";
+		}
+		if (contains(lower, "sensor"))
+		{
+			return "Sensor";
+		}
+		// Everything else — connectors, crystals, MCUs — has no template yet.
 		// Returning "" is the point: a wrong template is worse than none (§6).
 		return std::string();
 	}

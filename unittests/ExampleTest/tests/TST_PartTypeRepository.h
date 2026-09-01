@@ -122,8 +122,10 @@ private:
 
 		TEST_ASSERT_M(PartManager::PartTypeRepository::seedDefaultTypes(*db), "seedDefaultTypes failed");
 		std::vector<PartManager::PartType> types = PartManager::PartTypeRepository::listTypes(*db);
-		// Resistor, Capacitor, Ceramic Capacitor, Inductor, Power Regulator, Transistor, MOSFET
-		TEST_COMPARE(types.size(), static_cast<size_t>(7));
+		// Resistor, Capacitor, Ceramic Capacitor, Inductor, Power Regulator, Transistor, MOSFET,
+		// Diode, LED, Connector, Crystal / Oscillator, Microcontroller, Op-Amp, Logic IC, Switch,
+		// Relay, Fuse, Sensor
+		TEST_COMPARE(types.size(), static_cast<size_t>(18));
 
 		int mosfetId = 0;
 		for (const PartManager::PartType& type : types)
@@ -137,7 +139,7 @@ private:
 
 		// Idempotent: calling again on an already-seeded db must not duplicate rows.
 		TEST_ASSERT_M(PartManager::PartTypeRepository::seedDefaultTypes(*db), "second seedDefaultTypes call failed");
-		TEST_COMPARE(PartManager::PartTypeRepository::listTypes(*db).size(), static_cast<size_t>(7));
+		TEST_COMPARE(PartManager::PartTypeRepository::listTypes(*db).size(), static_cast<size_t>(18));
 	}
 #endif
 

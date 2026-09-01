@@ -71,8 +71,9 @@ namespace PartManager
 		// Nearest ancestor (starting at typeId itself) with a non-empty domain.
 		static std::string effectiveDomain(SQLiteWrapper::SQLite& db, int typeId);
 
-		// Seeds the built-in type templates (Resistor, Capacitor, Inductor, Power Regulator,
-		// MOSFET, Transistor) on a fresh database. No-op (returns true) if part_type already has rows.
+		// Seeds the 18 built-in type templates (Resistor, Capacitor, Ceramic Capacitor, Inductor,
+		// Power Regulator, Transistor, MOSFET, Diode, LED, Connector, Crystal / Oscillator,
+		// Microcontroller, Op-Amp, Logic IC, Switch, Relay, Fuse, Sensor) on a fresh database. No-op (returns true) if part_type already has rows.
 		static bool seedDefaultTypes(SQLiteWrapper::SQLite& db);
 #endif
 

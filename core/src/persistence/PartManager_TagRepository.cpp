@@ -228,6 +228,51 @@ namespace PartManager
 		return ok;
 	}
 
+	bool TagRepository::seedDefaultTags(SQLiteWrapper::SQLite& db)
+	{
+		// A starting vocabulary, not a taxonomy: mounting style, lifecycle, and the two flags every
+		// bench ends up wanting. Tags are cross-cutting (§2d), so these deliberately say nothing about
+		// what a part *is* — that is what the type template is for.
+		struct SeedTag
+		{
+			const char* name;
+			const char* color;
+		};
+		static const SeedTag seedTags[] = {
+			{ "SMD",             "#1E88E5" },
+			{ "THT",             "#43A047" },
+			{ "Favourite",       "#FDD835" },
+			{ "Obsolete",        "#E53935" },
+			{ "Do not use",      "#8E24AA" },
+			{ "Needs datasheet", "#6D4C41" },
+		};
+
+		// Per-name, so this is safe to re-run on a database created before a tag was added — the only
+		// way an existing database ever gets one. Renamed or deleted tags are the user's, left alone.
+		const std::vector<Tag> present = listTags(db);
+		bool ok = true;
+		int sortOrder = 0;
+		for (const SeedTag& seed : seedTags)
+		{
+			const int order = sortOrder++;
+			bool exists = false;
+			for (const Tag& tag : present)
+			{
+				exists = exists || tag.name == seed.name;
+			}
+			if (exists)
+			{
+				continue;
+			}
+			Tag tag;
+			tag.name = seed.name;
+			tag.color = seed.color;
+			tag.sortOrder = order;
+			ok = (insertTag(db, tag) != NoTagId) && ok;
+		}
+		return ok;
+	}
+
 #endif
 
 }

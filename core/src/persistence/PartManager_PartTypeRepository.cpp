@@ -443,15 +443,37 @@ namespace PartManager
 
 	bool PartTypeRepository::seedDefaultTypes(SQLiteWrapper::SQLite& db)
 	{
-		if (!db.fetchAll("SELECT id FROM part_type LIMIT 1;").empty())
+		// Per-name/per-key, not all-or-nothing: that makes this safe to re-run on a database that
+		// was created before a template was added, which is the only way an existing database ever
+		// gets a new built-in category. A type the user deleted stays deleted unless something calls
+		// this again on purpose - open() does not.
+		auto ensureType = [&db](const PartType& type) -> int
 		{
-			return true; // already seeded / has data, don't touch it
-		}
+			for (const PartType& existing : listTypes(db))
+			{
+				if (existing.name == type.name)
+				{
+					return existing.id;
+				}
+			}
+			return insertType(db, type);
+		};
 
 		auto addAttr = [&db](int typeId, const std::string& key, const std::string& label,
 			const std::string& unit, AttributeDataType datatype, bool searchable,
 			const std::vector<std::string>& enumOptions = {})
 		{
+			if (typeId == NoParentType)
+			{
+				return;
+			}
+			for (const PartTypeAttribute& existing : listOwnAttributes(db, typeId))
+			{
+				if (existing.key == key)
+				{
+					return;   // already there, leave the user's edits to it alone
+				}
+			}
 			PartTypeAttribute attribute;
 			attribute.partTypeId = typeId;
 			attribute.key = key;
@@ -468,7 +490,7 @@ namespace PartManager
 		resistor.domain = "electronic";
 		resistor.kicadRelevant = true;
 		resistor.kicadCategory = "Resistors";
-		int resistorId = insertType(db, resistor);
+		int resistorId = ensureType(resistor);
 		addAttr(resistorId, "resistance", "Resistance", "\xCE\xA9", AttributeDataType::Dimension, true);
 		addAttr(resistorId, "tolerance", "Tolerance", "%", AttributeDataType::Dimension, false);
 		addAttr(resistorId, "power", "Power", "W", AttributeDataType::Dimension, false);
@@ -478,7 +500,7 @@ namespace PartManager
 		capacitor.domain = "electronic";
 		capacitor.kicadRelevant = true;
 		capacitor.kicadCategory = "Capacitors";
-		int capacitorId = insertType(db, capacitor);
+		int capacitorId = ensureType(capacitor);
 		addAttr(capacitorId, "capacitance", "Capacitance", "F", AttributeDataType::Dimension, true);
 		addAttr(capacitorId, "voltage", "Voltage", "V", AttributeDataType::Dimension, false);
 		addAttr(capacitorId, "tolerance", "Tolerance", "%", AttributeDataType::Dimension, false);
@@ -490,7 +512,7 @@ namespace PartManager
 		ceramicCapacitor.domain = "electronic";
 		ceramicCapacitor.kicadRelevant = true;
 		ceramicCapacitor.parentTypeId = capacitorId;
-		int ceramicCapacitorId = insertType(db, ceramicCapacitor);
+		int ceramicCapacitorId = ensureType(ceramicCapacitor);
 		addAttr(ceramicCapacitorId, "dielectric", "Dielectric", "", AttributeDataType::Text, false);
 
 		PartType inductor;
@@ -498,7 +520,7 @@ namespace PartManager
 		inductor.domain = "electronic";
 		inductor.kicadRelevant = true;
 		inductor.kicadCategory = "Inductors";
-		int inductorId = insertType(db, inductor);
+		int inductorId = ensureType(inductor);
 		addAttr(inductorId, "inductance", "Inductance", "H", AttributeDataType::Dimension, true);
 		addAttr(inductorId, "current_rating", "Current rating", "A", AttributeDataType::Dimension, false);
 
@@ -507,7 +529,7 @@ namespace PartManager
 		powerRegulator.domain = "electronic";
 		powerRegulator.kicadRelevant = true;
 		powerRegulator.kicadCategory = "ICs";
-		int powerRegulatorId = insertType(db, powerRegulator);
+		int powerRegulatorId = ensureType(powerRegulator);
 		addAttr(powerRegulatorId, "output_voltage", "Output Voltage", "V", AttributeDataType::Dimension, false);
 		addAttr(powerRegulatorId, "max_current", "Max Current", "A", AttributeDataType::Dimension, false);
 		addAttr(powerRegulatorId, "regulator_type", "Regulator Type", "", AttributeDataType::Enum, false,
@@ -518,7 +540,7 @@ namespace PartManager
 		transistor.domain = "electronic";
 		transistor.kicadRelevant = true;
 		transistor.kicadCategory = "Transistors";
-		int transistorId = insertType(db, transistor);
+		int transistorId = ensureType(transistor);
 
 		PartType mosfet;
 		mosfet.name = "MOSFET";
@@ -526,11 +548,139 @@ namespace PartManager
 		mosfet.kicadRelevant = true;
 		mosfet.kicadCategory = "Transistors";
 		mosfet.parentTypeId = transistorId;
-		int mosfetId = insertType(db, mosfet);
+		int mosfetId = ensureType(mosfet);
 		addAttr(mosfetId, "vds_max", "Vds Max", "V", AttributeDataType::Dimension, false);
 		addAttr(mosfetId, "id_max", "Id Max", "A", AttributeDataType::Dimension, false);
 		addAttr(mosfetId, "channel_type", "Channel Type", "", AttributeDataType::Enum, false,
 			{ "N-Channel", "P-Channel" });
+
+		// The three templates the user's real stock (.claude/DefaultParts.csv) needs and the six
+		// above do not cover. Mouser returns no parametric attributes at all for these parts (only
+		// Packaging/Standard Pack Qty), so the attribute sets come from the datasheets' headline
+		// ratings, not from the API — deliberately short; a missing attribute is cheap to add later,
+		// a wrong one is already in every part row by then.
+		PartType diode;
+		diode.name = "Diode";
+		diode.domain = "electronic";
+		diode.kicadRelevant = true;
+		diode.kicadCategory = "Diodes";
+		int diodeId = ensureType(diode);
+		addAttr(diodeId, "forward_voltage", "Forward Voltage", "V", AttributeDataType::Dimension, false);
+		addAttr(diodeId, "reverse_voltage", "Reverse Voltage", "V", AttributeDataType::Dimension, true);
+		addAttr(diodeId, "forward_current", "Forward Current", "A", AttributeDataType::Dimension, true);
+		addAttr(diodeId, "diode_type", "Diode Type", "", AttributeDataType::Enum, false,
+			{ "Schottky", "Switching", "Rectifier", "Zener", "TVS" });
+
+		// Not a child of Diode on purpose: it would inherit `diode_type`, which is meaningless for
+		// an LED, and §2b has no way to drop an inherited attribute.
+		PartType led;
+		led.name = "LED";
+		led.domain = "electronic";
+		led.kicadRelevant = true;
+		led.kicadCategory = "LEDs";
+		int ledId = ensureType(led);
+		addAttr(ledId, "color", "Colour", "", AttributeDataType::Enum, true,
+			{ "Red", "Green", "Blue", "Yellow", "White", "Orange", "Infrared", "UV" });
+		addAttr(ledId, "forward_voltage", "Forward Voltage", "V", AttributeDataType::Dimension, false);
+		addAttr(ledId, "forward_current", "Forward Current", "A", AttributeDataType::Dimension, false);
+
+		// The rest of the everyday bench vocabulary. Same rule as above: two or three attributes each,
+		// only the ones you would actually filter or order by. Anything rarer belongs in a template the
+		// user adds themselves.
+		PartType connector;
+		connector.name = "Connector";
+		connector.domain = "electronic";
+		connector.kicadRelevant = true;
+		connector.kicadCategory = "Connectors";
+		int connectorId = ensureType(connector);
+		addAttr(connectorId, "pin_count", "Pin Count", "", AttributeDataType::Number, true);
+		addAttr(connectorId, "pitch", "Pitch", "mm", AttributeDataType::Dimension, true);
+		addAttr(connectorId, "current_rating", "Current rating", "A", AttributeDataType::Dimension, false);
+
+		PartType crystal;
+		crystal.name = "Crystal / Oscillator";
+		crystal.domain = "electronic";
+		crystal.kicadRelevant = true;
+		crystal.kicadCategory = "Crystals";
+		int crystalId = ensureType(crystal);
+		addAttr(crystalId, "frequency", "Frequency", "Hz", AttributeDataType::Dimension, true);
+		addAttr(crystalId, "load_capacitance", "Load Capacitance", "F", AttributeDataType::Dimension, false);
+		addAttr(crystalId, "tolerance", "Tolerance", "%", AttributeDataType::Dimension, false);
+
+		PartType microcontroller;
+		microcontroller.name = "Microcontroller";
+		microcontroller.domain = "electronic";
+		microcontroller.kicadRelevant = true;
+		microcontroller.kicadCategory = "ICs";
+		int microcontrollerId = ensureType(microcontroller);
+		addAttr(microcontrollerId, "core", "Core", "", AttributeDataType::Text, false);
+		addAttr(microcontrollerId, "flash_size", "Flash Size", "", AttributeDataType::Number, true);
+		addAttr(microcontrollerId, "supply_voltage", "Supply Voltage", "V", AttributeDataType::Dimension, false);
+
+		PartType opAmp;
+		opAmp.name = "Op-Amp";
+		opAmp.domain = "electronic";
+		opAmp.kicadRelevant = true;
+		opAmp.kicadCategory = "ICs";
+		int opAmpId = ensureType(opAmp);
+		addAttr(opAmpId, "channels", "Channels", "", AttributeDataType::Number, true);
+		addAttr(opAmpId, "bandwidth", "Bandwidth", "Hz", AttributeDataType::Dimension, false);
+		addAttr(opAmpId, "supply_voltage", "Supply Voltage", "V", AttributeDataType::Dimension, false);
+
+		PartType logicIc;
+		logicIc.name = "Logic IC";
+		logicIc.domain = "electronic";
+		logicIc.kicadRelevant = true;
+		logicIc.kicadCategory = "ICs";
+		int logicIcId = ensureType(logicIc);
+		addAttr(logicIcId, "logic_family", "Logic Family", "", AttributeDataType::Text, false);
+		addAttr(logicIcId, "channels", "Channels", "", AttributeDataType::Number, true);
+		addAttr(logicIcId, "supply_voltage", "Supply Voltage", "V", AttributeDataType::Dimension, false);
+
+		PartType switchType;
+		switchType.name = "Switch";
+		switchType.domain = "electronic";
+		switchType.kicadRelevant = true;
+		switchType.kicadCategory = "Switches";
+		int switchId = ensureType(switchType);
+		addAttr(switchId, "switch_type", "Switch Type", "", AttributeDataType::Enum, true,
+			{ "Tactile", "Toggle", "Slide", "Rotary", "DIP", "Push-Button" });
+		addAttr(switchId, "current_rating", "Current rating", "A", AttributeDataType::Dimension, false);
+		addAttr(switchId, "voltage", "Voltage", "V", AttributeDataType::Dimension, false);
+
+		PartType relay;
+		relay.name = "Relay";
+		relay.domain = "electronic";
+		relay.kicadRelevant = true;
+		relay.kicadCategory = "Relays";
+		int relayId = ensureType(relay);
+		addAttr(relayId, "coil_voltage", "Coil Voltage", "V", AttributeDataType::Dimension, true);
+		addAttr(relayId, "current_rating", "Contact Current", "A", AttributeDataType::Dimension, false);
+		addAttr(relayId, "relay_type", "Relay Type", "", AttributeDataType::Enum, false,
+			{ "Mechanical", "Solid State", "Reed" });
+
+		PartType fuse;
+		fuse.name = "Fuse";
+		fuse.domain = "electronic";
+		fuse.kicadRelevant = true;
+		fuse.kicadCategory = "Fuses";
+		int fuseId = ensureType(fuse);
+		addAttr(fuseId, "current_rating", "Current rating", "A", AttributeDataType::Dimension, true);
+		addAttr(fuseId, "voltage", "Voltage", "V", AttributeDataType::Dimension, false);
+		addAttr(fuseId, "fuse_type", "Fuse Type", "", AttributeDataType::Enum, false,
+			{ "Fast-Blow", "Slow-Blow", "PTC Resettable" });
+
+		PartType sensor;
+		sensor.name = "Sensor";
+		sensor.domain = "electronic";
+		sensor.kicadRelevant = true;
+		sensor.kicadCategory = "Sensors";
+		int sensorId = ensureType(sensor);
+		addAttr(sensorId, "sensor_type", "Sensor Type", "", AttributeDataType::Enum, true,
+			{ "Hall Effect", "Temperature", "Current", "Pressure", "Optical" });
+		addAttr(sensorId, "supply_voltage", "Supply Voltage", "V", AttributeDataType::Dimension, false);
+		addAttr(sensorId, "output_type", "Output Type", "", AttributeDataType::Enum, false,
+			{ "Analog", "Digital", "PWM", "I2C", "SPI" });
 
 		return true;
 	}

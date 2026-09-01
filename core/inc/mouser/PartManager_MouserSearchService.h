@@ -45,6 +45,14 @@ namespace PartManager
 		// Full DTO -> prefill mapping. Never fails; unmappable pieces are simply left empty.
 		static MouserPartPrefill toPrefill(const MouserPartDto& dto);
 
+		// Reorders a result set so the closest match to what the user typed comes first.
+		// Mouser answers "595-LM358DR" with the part itself *and* its packaging variants
+		// ("595-LM358DRE4"): exact beats prefix beats substring, and among equals the
+		// candidate carrying the fewest extra characters wins. Stable, so Mouser's own
+		// relevance order survives inside a tier. Both the Mouser and the manufacturer
+		// part number are scored; the better of the two counts.
+		static void rankByMatch(std::vector<MouserPartDto>& parts, const std::string& query);
+
 		// Mouser's `Category` -> one of the seeded type template names, or "" when ambiguous.
 		static std::string suggestedTypeName(const std::string& category);
 

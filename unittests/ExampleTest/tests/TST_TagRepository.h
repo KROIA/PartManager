@@ -23,6 +23,7 @@ public:
 		ADD_TEST(TST_TagRepository::effectiveTypeDefaultTagsUnionsChain);
 		ADD_TEST(TST_TagRepository::seedTagsForNewPartCopiesDefaults);
 		ADD_TEST(TST_TagRepository::seedIsOneTimeNotALiveLink);
+		ADD_TEST(TST_TagRepository::seedDefaultTagsIsPopulatedAndIdempotent);
 #endif
 	}
 
@@ -251,6 +252,26 @@ private:
 		TEST_COMPARE(PartManager::TagRepository::listPartTags(*db, partId).size(), static_cast<size_t>(1));
 		TEST_COMPARE(PartManager::TagRepository::effectiveTypeDefaultTags(*db, resistorId).size(),
 			static_cast<size_t>(2));
+	}
+
+	TEST_FUNCTION(seedDefaultTagsIsPopulatedAndIdempotent)
+	{
+		TEST_START;
+
+		auto db = freshDb("PartManager_TST_TagRepository_defaults.db");
+
+		TEST_ASSERT_M(PartManager::TagRepository::seedDefaultTags(*db), "seedDefaultTags failed");
+		std::vector<PartManager::Tag> tags = PartManager::TagRepository::listTags(*db);
+		// SMD, THT, Favourite, Obsolete, Do not use, Needs datasheet
+		TEST_COMPARE(tags.size(), static_cast<size_t>(6));
+		for (const PartManager::Tag& tag : tags)
+		{
+			TEST_ASSERT_M(!tag.color.empty(), "every seeded tag needs a chip colour: " + tag.name);
+		}
+
+		// Idempotent: a second call on a non-empty tag table must not duplicate or reset anything.
+		TEST_ASSERT_M(PartManager::TagRepository::seedDefaultTags(*db), "second seedDefaultTags call failed");
+		TEST_COMPARE(PartManager::TagRepository::listTags(*db).size(), static_cast<size_t>(6));
 	}
 #endif
 
