@@ -29,6 +29,12 @@ add_definitions(-DUNITTEST_GUI_ENABLED)
 ## ui_*.h the dialog includes.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_StockDialog.cpp")
 
+## The §6 Mouser prefill lands on New Part's runtime-generated attribute rows, so that whole
+## widget stack has to come along -- the dialog alone would link but render an empty form.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_NewPartDialog.cpp")
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttributeFormWidget.cpp")
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_DimensionLineEdit.cpp")
+
 ## USER_SECTION_END
 
 ## Override the QT_MODULES if you want to use other modules. 

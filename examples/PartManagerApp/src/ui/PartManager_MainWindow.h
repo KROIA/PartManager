@@ -46,6 +46,8 @@ namespace PartManager
 		void updatePreview();
 		// Home tab's New Part button — the manual/blank flow (§11).
 		void onNewPart();
+		// Parts tab's Import from Mouser button — search, prefill, create, fetch the datasheet (§6).
+		void onNewPartFromMouser();
 		// Parts tab's Manage Tags button (§2d).
 		void onManageTags();
 		// Home tab's Stock group (§7): both write one stock_transaction for the selected part (§3).
@@ -57,6 +59,9 @@ namespace PartManager
 		void onColumnResized(int logicalIndex, int oldSize, int newSize);
 
 	private:
+		// Shared tail of both New Part flows: open the editor on the fresh part, then reload.
+		// `datasheetUrl` is the §6 Mouser DataSheetUrl, empty for the manual flow.
+		void openNewPart(int partId, const QString& datasheetUrl);
 		// Shared body of the two Stock buttons — prompt, then one transaction through the controller.
 		void changeStock(bool restocking);
 		// part id of the selected table row, 0 when nothing is selected; outName gets its name.

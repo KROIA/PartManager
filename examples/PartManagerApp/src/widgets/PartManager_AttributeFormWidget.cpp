@@ -54,8 +54,11 @@ namespace PartManager
 		// Deleting the widgets is what empties the layout — takeAt() alone leaves them
 		// parented here and still painted. Each row is one label plus one field container,
 		// so deleting those two takes the editor and hint inside them with it.
-		while (QLayoutItem* item = m_layout->takeAt(0))
+		// Counted rather than looped until takeAt() returns null: QFormLayout warns on the
+		// out-of-range call instead of quietly answering nullptr the way QLayout does.
+		while (m_layout->count() > 0)
 		{
+			QLayoutItem* item = m_layout->takeAt(0);
 			delete item->widget();
 			delete item;
 		}

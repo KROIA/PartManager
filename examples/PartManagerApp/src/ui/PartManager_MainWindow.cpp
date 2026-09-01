@@ -1,13 +1,16 @@
 #include "ui/PartManager_MainWindow.h"
 #include "ui_PartManager_MainWindow.h"
 
+#include "controllers/PartManager_PartEditorController.h"
 #include "ui/PartManager_ColumnsDialog.h"
 #include "ui/PartManager_ManageTagsDialog.h"
+#include "ui/PartManager_MouserSearchDialog.h"
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
 #include "ui/PartManager_StockDialog.h"
 #include "widgets/PartManager_TagChipDelegate.h"
 
+#include <QApplication>
 #include <QBrush>
 #include <QColor>
 #include <QFormLayout>
@@ -231,10 +234,60 @@ namespace PartManager
 		{
 			return;
 		}
+		openNewPart(dialog.createdPartId(), QString());
+	}
+
+	void MainWindow::onNewPartFromMouser()
+	{
+		MouserSearchDialog search(this);
+		if (search.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+
+		// Same form as the manual flow, only pre-populated — §6 is "auto-fill what's possible,
+		// correct the rest", so the user still confirms every field and presses Create.
+		const MouserPartPrefill& prefill = search.selectedPrefill();
+		NewPartDialog dialog(m_controller.handle(), this);
+		dialog.setPrefill(prefill);
+		if (dialog.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+		openNewPart(dialog.createdPartId(), QString::fromStdString(prefill.datasheetUrl));
+	}
+
+	void MainWindow::openNewPart(int partId, const QString& datasheetUrl)
+	{
+		if (partId == 0)
+		{
+			return;
+		}
+
+		// §6 datasheet auto-download. Silent on failure on purpose: Mouser publishes an empty
+		// or dead DataSheetUrl often enough that a modal per miss would be noise, and the part
+		// itself is unaffected either way. The URL is handed to the editor regardless, so the
+		// Download button opens already holding it and a retry costs one click.
+		if (!datasheetUrl.isEmpty())
+		{
+			PartEditorController controller(m_controller.handle());
+			Part part;
+			if (controller.loadPart(partId, part))
+			{
+				QApplication::setOverrideCursor(Qt::WaitCursor);
+				const bool downloaded = controller.downloadDatasheet(part, datasheetUrl.toStdString()) != 0;
+				QApplication::restoreOverrideCursor();
+				if (downloaded)
+				{
+					controller.savePart(part);
+				}
+			}
+		}
 
 		// §2d seeded the new part's tags inside insertPart(); opening the editor is what
 		// shows the user that happened, and is where everything else about it gets filled in.
-		PartEditorDialog editor(m_controller.handle(), dialog.createdPartId(), this);
+		PartEditorDialog editor(m_controller.handle(), partId, this);
+		editor.setDatasheetSourceUrl(datasheetUrl);
 		editor.exec();
 
 		// A new part changes the tree's in-stock counts as well as the table.
@@ -534,7 +587,7 @@ namespace PartManager
 		addButton(viewGroup, tr("3D Viewer"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onNotImplemented);
 		addButton(manageGroup, tr("Edit Type Templates"), QStringLiteral(":/icons/edit-type-template.png"), &MainWindow::onNotImplemented);
 		addButton(manageGroup, tr("Manage Tags"), QStringLiteral(":/icons/manage-tags.png"), &MainWindow::onManageTags);
-		addButton(manageGroup, tr("Import from Mouser"), QString(), &MainWindow::onNotImplemented);
+		addButton(manageGroup, tr("Import from Mouser"), QStringLiteral(":/icons/mouser-search.png"), &MainWindow::onNewPartFromMouser);
 		addButton(filesGroup, tr("Attach File"), QStringLiteral(":/icons/attach-file.png"), &MainWindow::onNotImplemented);
 		addButton(filesGroup, tr("Open Datasheet"), QStringLiteral(":/icons/open-datasheet.png"), &MainWindow::onNotImplemented);
 #endif

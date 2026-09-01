@@ -56,6 +56,16 @@ namespace PartManager
 		// Mouser's `Category` -> one of the seeded type template names, or "" when ambiguous.
 		static std::string suggestedTypeName(const std::string& category);
 
+		// A pasted Mouser product page URL -> the part number in its path, "" for anything else.
+		// `.../ProductDetail/<Manufacturer>/<PartNumber>?qs=...` on any of Mouser's country
+		// domains; the query string and fragment are dropped. Feeding the result to
+		// searchByPartNumber() is what turns "here is the link" into a filled-in form, which is
+		// the shape the user's own stock list (`.claude/DefaultParts.csv`) is in.
+		// ponytail: the path segment is used verbatim. Mouser writes 'LT1506CR-3.3PBF' for the
+		// part whose real MPN is 'LT1506CR-3.3#PBF', so the lookup relies on the non-exact
+		// part-number search still finding it; upgrade path is falling back to a keyword search.
+		static std::string partNumberFromUrl(const std::string& url);
+
 		// Mouser's ProductAttributes[] -> the §2a attributes JSON, base-SI values only.
 		// Attribute names we have no mapping for, and values ValueParser rejects, are reported
 		// in outUnmapped instead of being guessed at. Returns "{}" when nothing mapped.

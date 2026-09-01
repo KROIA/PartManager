@@ -21,9 +21,42 @@ public:
 		ADD_TEST(TST_MouserSearchService::attributeValuesBecomeBaseSi);
 		ADD_TEST(TST_MouserSearchService::categoryMappingRefusesToGuess);
 		ADD_TEST(TST_MouserSearchService::closestMatchIsRankedFirst);
+		ADD_TEST(TST_MouserSearchService::productLinksYieldTheirPartNumber);
 	}
 
 private:
+
+	TEST_FUNCTION(productLinksYieldTheirPartNumber)
+	{
+		TEST_START;
+
+		// Every link shape in the user's own stock list (`.claude/DefaultParts.csv`): the .ch
+		// domain, the /en/ language segment, and a percent-encoded qs query to be discarded.
+		TEST_COMPARE(PartManager::MouserSearchService::partNumberFromUrl(
+			"https://www.mouser.ch/en/ProductDetail/onsemi/MBRS330T3G?qs=3JMERSakebqQvNYO1akzWA%3D%3D"),
+			std::string("MBRS330T3G"));
+		TEST_COMPARE(PartManager::MouserSearchService::partNumberFromUrl(
+			"https://www.mouser.com/ProductDetail/Texas-Instruments/DRV5053CAQLPGM"),
+			std::string("DRV5053CAQLPGM"));
+		// Casing is Mouser's own business; the path segment is not.
+		TEST_COMPARE(PartManager::MouserSearchService::partNumberFromUrl(
+			"HTTPS://WWW.MOUSER.DE/EN/PRODUCTDETAIL/Wurth-Elektronik/150120YS75000?qs=x"),
+			std::string("150120YS75000"));
+		// A trailing slash and a fragment must not swallow or extend the part number.
+		TEST_COMPARE(PartManager::MouserSearchService::partNumberFromUrl(
+			"https://www.mouser.ch/en/ProductDetail/Diodes-Incorporated/2N7002-7-F/#specs"),
+			std::string("2N7002-7-F"));
+
+		// Anything that is not a Mouser product page has to come back empty, so the caller
+		// searches the text the user actually typed instead of a mangled fragment of a URL.
+		TEST_COMPARE(PartManager::MouserSearchService::partNumberFromUrl("595-LM358DR"), std::string());
+		TEST_COMPARE(PartManager::MouserSearchService::partNumberFromUrl("10k 0603 resistor"), std::string());
+		TEST_COMPARE(PartManager::MouserSearchService::partNumberFromUrl(
+			"https://www.digikey.ch/en/products/detail/onsemi/MBRS330T3G/1234"), std::string());
+		TEST_COMPARE(PartManager::MouserSearchService::partNumberFromUrl(
+			"https://www.mouser.ch/en/c/semiconductors/"), std::string());
+		TEST_COMPARE(PartManager::MouserSearchService::partNumberFromUrl(""), std::string());
+	}
 
 	// One resistor, the shape the real endpoint returns on success (Errors present but empty).
 	static std::string resistorResponse()

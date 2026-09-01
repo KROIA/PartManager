@@ -56,6 +56,52 @@ namespace PartManager
 		return m_createdPartId;
 	}
 
+	void NewPartDialog::setPrefill(const MouserPartPrefill& prefill)
+	{
+		// Type first: switching the combo rebuilds the attribute form from scratch, which would
+		// throw away any values written into it beforehand.
+		bool typeMatched = false;
+		if (!prefill.suggestedTypeName.empty())
+		{
+			const int index = m_ui->typeCombo->findText(toQt(prefill.suggestedTypeName));
+			if (index >= 0)
+			{
+				m_ui->typeCombo->setCurrentIndex(index);
+				typeMatched = true;
+			}
+		}
+
+		m_ui->nameEdit->setText(toQt(prefill.part.name));
+		m_ui->manufacturerEdit->setText(toQt(prefill.part.manufacturer));
+		m_ui->mpnEdit->setText(toQt(prefill.part.mpn));
+		m_ui->packageEdit->setText(toQt(prefill.part.package));
+		m_ui->descriptionEdit->setPlainText(toQt(prefill.part.description));
+		m_attributeForm->setValuesJson(toQt(prefill.part.attributes));
+
+		QStringList notes;
+		notes.append(prefill.mouserPartNumber.empty()
+			? tr("Prefilled from Mouser — check every value before creating the part.")
+			: tr("Prefilled from Mouser %1 — check every value before creating the part.")
+				.arg(toQt(prefill.mouserPartNumber)));
+		if (!typeMatched)
+		{
+			// Better to say nothing than to attach a wrong template silently (§6).
+			notes.append(tr("Mouser's category did not map to a type template — pick one yourself."));
+		}
+		if (!prefill.unmappedAttributes.empty())
+		{
+			QStringList unmapped;
+			for (const std::string& name : prefill.unmappedAttributes)
+			{
+				unmapped.append(toQt(name));
+			}
+			notes.append(tr("Not filled in automatically: %1.").arg(unmapped.join(tr(", "))));
+		}
+		m_ui->headerLabel->setText(notes.join(QStringLiteral("\n")));
+
+		revalidate();
+	}
+
 	void NewPartDialog::onTypeChanged()
 	{
 		const int typeId = m_ui->typeCombo->currentData().toInt();
@@ -103,6 +149,7 @@ namespace PartManager
 		part.manufacturer = m_ui->manufacturerEdit->text().toStdString();
 		part.mpn = m_ui->mpnEdit->text().toStdString();
 		part.package = m_ui->packageEdit->text().toStdString();
+		part.description = m_ui->descriptionEdit->toPlainText().toStdString();
 		part.attributes = m_attributeForm->valuesJson().toStdString();
 
 		m_createdPartId = m_controller.createPart(part);

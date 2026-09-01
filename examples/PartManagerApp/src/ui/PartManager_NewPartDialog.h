@@ -13,6 +13,7 @@
 #pragma once
 
 #include "controllers/PartManager_PartEditorController.h"
+#include "mouser/PartManager_MouserSearchService.h"
 #include <QDialog>
 
 namespace Ui { class NewPartDialog; }
@@ -31,6 +32,13 @@ namespace PartManager
 
 		// The part Create wrote, 0 while the dialog was cancelled or the insert failed.
 		int createdPartId() const;
+
+		// §6: fills the same form from a Mouser row instead of leaving it blank. Nothing is
+		// created here — every prefilled value is still an editable field the user confirms,
+		// which is the whole point of "auto-fill what's possible, correct the rest".
+		// The type is only preselected when the category mapped unambiguously; anything Mouser
+		// published that we could not place is listed under the header for manual entry.
+		void setPrefill(const MouserPartPrefill& prefill);
 
 	private slots:
 		// Rebuilds the generated form for the newly selected type.

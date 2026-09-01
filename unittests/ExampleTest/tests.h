@@ -16,6 +16,7 @@
 #include "tests/TST_ValueParser.h"
 #include "tests/TST_GuiDriver.h"
 #include "tests/TST_StockDialogGui.h"
+#include "tests/TST_NewPartDialogGui.h"
 #include "tests/TST_SearchEngine.h"
 #include "tests/TST_FileStore.h"
 #include "tests/TST_MainWindowController.h"

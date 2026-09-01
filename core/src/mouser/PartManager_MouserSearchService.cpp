@@ -399,6 +399,36 @@ namespace PartManager
 		return json;
 	}
 
+	std::string MouserSearchService::partNumberFromUrl(const std::string& url)
+	{
+		const std::string lowered = toLower(url);
+		// Any Mouser country domain, but it has to be Mouser's — a ProductDetail path on some
+		// other site would not carry a Mouser part number.
+		if (!contains(lowered, "mouser."))
+		{
+			return std::string();
+		}
+
+		static const char* const marker = "/productdetail/";
+		const size_t markerPos = lowered.find(marker);
+		if (markerPos == std::string::npos)
+		{
+			return std::string();
+		}
+
+		std::string path = url.substr(markerPos + std::string(marker).size());
+		path = path.substr(0, path.find_first_of("?#"));
+
+		// `<Manufacturer>/<PartNumber>`, but Mouser occasionally emits just `<PartNumber>` —
+		// the last non-empty segment is the part number in both shapes.
+		while (!path.empty() && path.back() == '/')
+		{
+			path.pop_back();
+		}
+		const size_t lastSlash = path.find_last_of('/');
+		return lastSlash == std::string::npos ? path : path.substr(lastSlash + 1);
+	}
+
 	MouserPartPrefill MouserSearchService::toPrefill(const MouserPartDto& dto)
 	{
 		MouserPartPrefill prefill;
