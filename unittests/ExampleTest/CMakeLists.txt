@@ -16,6 +16,12 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_PartEditor
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_StockController.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_DatabaseSelectorController.cpp")
 
+## The GUI driver (../GuiTest) is a standalone QtWidgets-only module, kept apart from this app so
+## it can move to the UnitTest library repository unchanged.
+set(GUI_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../GuiTest")
+include_directories(${GUI_TEST_DIR})
+list(APPEND ADDITONAL_SOURCES "${GUI_TEST_DIR}/UnitTest_Gui.cpp")
+
 ## USER_SECTION_END
 
 ## Override the QT_MODULES if you want to use other modules. 
