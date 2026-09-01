@@ -82,6 +82,8 @@ namespace PartManager
 		StockController m_stock;
 		RibbonWidget::Ribbon* m_ribbon = nullptr;
 		// Which category the table currently shows, so an edit can re-render it in place.
+		// The part the user last picked, kept across the table refills a stock write causes.
+		int m_selectedPartId = 0;
 		int m_currentTypeId = NoParentType;
 		QString m_currentTypeName;
 		// The columns behind the table's current header — a dragged divider only reports a

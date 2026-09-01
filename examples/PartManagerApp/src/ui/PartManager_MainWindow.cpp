@@ -420,6 +420,23 @@ namespace PartManager
 			header->setStretchLastSection(true);
 		}
 		m_ui->partsHeaderLabel->setText(tr("%1 — %n part(s)", "", static_cast<int>(rows.size())).arg(typeName));
+
+		// Reselect the same part if it is still in the list — it may have been filtered out, or
+		// deleted, in which case the preview correctly falls back to its empty state. The id comes
+		// from m_selectedPartId rather than from the table: a restock rebuilds the category tree,
+		// and clearing the tree empties the table first, so by now the table itself has forgotten.
+		if (m_selectedPartId != 0)
+		{
+			for (int rowIndex = 0; rowIndex < m_ui->partTable->rowCount(); ++rowIndex)
+			{
+				const QTableWidgetItem* cell = m_ui->partTable->item(rowIndex, 0);
+				if (cell && cell->data(Qt::UserRole).toInt() == m_selectedPartId)
+				{
+					m_ui->partTable->selectRow(rowIndex);
+					break;
+				}
+			}
+		}
 		// Refilling the table drops the selection without always emitting the signal, and the
 		// values behind a kept selection may have just changed anyway.
 		updatePreview();
@@ -427,7 +444,14 @@ namespace PartManager
 
 	void MainWindow::updatePreview()
 	{
-		const PartPreview preview = m_controller.previewFor(selectedPartId());
+		const int partId = selectedPartId();
+		if (partId != 0)
+		{
+			// Only ever remember a real pick. A momentarily empty table (the tree is being rebuilt)
+			// must not erase which part the user is looking at.
+			m_selectedPartId = partId;
+		}
+		const PartPreview preview = m_controller.previewFor(partId);
 		const bool hasPart = preview.partId != 0;
 
 		m_ui->previewEmptyLabel->setVisible(!hasPart);
