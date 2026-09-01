@@ -13,6 +13,8 @@
 //   v4: part_type_list_column (§7b), the per-category table layout. Created
 //       empty on purpose — no rows means "columns still derived from the
 //       type's attributes", so a migrated database renders unchanged.
+//   v5: partlist/partlist_item (§4). Also created empty — a database that has
+//       never held a BOM simply has none.
 // @see docs/design/ARCHITECTURE.md §1c
 #pragma once
 
@@ -27,7 +29,7 @@ namespace PartManager
 {
 
 	// The schema (table/column structure) version this build of PartManager understands.
-	constexpr int CurrentSchemaVersion = 4;
+	constexpr int CurrentSchemaVersion = 5;
 
 	// Outcome of comparing a database's stored schema_version against CurrentSchemaVersion.
 	enum class SchemaCompatibility

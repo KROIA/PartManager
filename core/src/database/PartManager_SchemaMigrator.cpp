@@ -5,6 +5,7 @@
 #include "persistence/PartManager_TagRepository.h"
 #include "persistence/PartManager_StockRepository.h"
 #include "persistence/PartManager_ListColumnRepository.h"
+#include "persistence/PartManager_PartlistRepository.h"
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 	#include "SQLite.h"
@@ -68,6 +69,13 @@ namespace PartManager
 			// category still derives its columns from its effective attributes, exactly as before, so
 			// a migrated database looks identical until the user customizes something.
 			ListColumnRepository::createSchema(db);
+		}
+		if (storedSchemaVersion < 5 && db.isOpen())
+		{
+			// v4 -> v5: partlist + partlist_item (§4). Same CREATE TABLE IF NOT EXISTS /
+			// db.isOpen() reasoning as above. Nothing to backfill: a database that predates BOMs
+			// simply has none, and an empty partlist table is the correct starting state.
+			PartlistRepository::createSchema(db);
 		}
 		return SchemaCompatibility::migrated;
 	}

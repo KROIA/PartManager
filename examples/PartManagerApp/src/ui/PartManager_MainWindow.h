@@ -48,6 +48,10 @@ namespace PartManager
 		void onNewPart();
 		// Parts tab's Import from Mouser button — search, prefill, create, fetch the datasheet (§6).
 		void onNewPartFromMouser();
+		// Home tab's New Partlist button — creates an empty BOM and opens the editor on it (§4).
+		void onNewPartlist();
+		// Home tab's Partlists button — the §4 overview.
+		void onManagePartlists();
 		// Parts tab's Manage Tags button (§2d).
 		void onManageTags();
 		// Home tab's Stock group (§7): both write one stock_transaction for the selected part (§3).

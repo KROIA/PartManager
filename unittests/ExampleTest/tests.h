@@ -23,4 +23,7 @@
 #include "tests/TST_PartEditorController.h"
 #include "tests/TST_Settings.h"
 #include "tests/TST_MouserSearchService.h"
+#include "tests/TST_PartlistRepository.h"
+#include "tests/TST_PartlistController.h"
+#include "tests/TST_PartlistEditorGui.h"
 //#include "test_nasted.h"

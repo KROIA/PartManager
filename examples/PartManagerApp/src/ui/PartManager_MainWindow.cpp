@@ -7,6 +7,8 @@
 #include "ui/PartManager_MouserSearchDialog.h"
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
+#include "ui/PartManager_PartlistEditorDialog.h"
+#include "ui/PartManager_PartlistManagerDialog.h"
 #include "ui/PartManager_StockDialog.h"
 #include "widgets/PartManager_TagChipDelegate.h"
 
@@ -294,6 +296,31 @@ namespace PartManager
 		reloadCategories();
 	}
 
+	void MainWindow::onNewPartlist()
+	{
+		// Creating and opening in one step, the same shortcut New Part takes — an empty list
+		// named "New partlist" is nothing anyone wants to look at in the overview first.
+		PartlistController controller(m_controller.handle());
+		Partlist partlist;
+		partlist.name = tr("New partlist").toStdString();
+		partlist.source = PartlistSource::Manual;
+		const int id = controller.create(partlist);
+		if (id == NoPartlistId)
+		{
+			QMessageBox::warning(this, tr("Could not create the partlist"),
+				tr("The database rejected the new partlist."));
+			return;
+		}
+		PartlistEditorDialog editor(controller, id, this);
+		editor.exec();
+	}
+
+	void MainWindow::onManagePartlists()
+	{
+		PartlistManagerDialog dialog(m_controller.handle(), this);
+		dialog.exec();
+	}
+
 	void MainWindow::onManageTags()
 	{
 		ManageTagsDialog dialog(m_controller.handle(), this);
@@ -578,7 +605,8 @@ namespace PartManager
 
 		// Import from Mouser has no icon yet — that one is still on the asset list.
 		addButton(newGroup, tr("New Part"), QStringLiteral(":/icons/new-part.png"), &MainWindow::onNewPart);
-		addButton(newGroup, tr("New Partlist"), QStringLiteral(":/icons/new-partlist.png"), &MainWindow::onNotImplemented);
+		addButton(newGroup, tr("New Partlist"), QStringLiteral(":/icons/new-partlist.png"), &MainWindow::onNewPartlist);
+		addButton(newGroup, tr("Partlists"), QStringLiteral(":/icons/view-list.png"), &MainWindow::onManagePartlists);
 		addButton(stockGroup, tr("Restock"), QStringLiteral(":/icons/restock.png"), &MainWindow::onRestock);
 		addButton(stockGroup, tr("Take Out"), QStringLiteral(":/icons/take-out.png"), &MainWindow::onTakeOut);
 		addButton(viewGroup, tr("Refresh"), QStringLiteral(":/icons/refresh.png"), &MainWindow::reloadCategories);
