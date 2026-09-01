@@ -217,7 +217,22 @@ namespace PartManager
 
 	bool PartRepository::deletePart(SQLiteWrapper::SQLite& db, int partId)
 	{
-		return db.executeWithParams("DELETE FROM part WHERE id=?;", { std::to_string(partId) });
+		// Nothing in this codebase sets PRAGMA foreign_keys=ON, so the REFERENCES part(id)
+		// clauses on part_file, part_tag and stock_transaction enforce nothing — every child row
+		// has to go by hand. Done here rather than at the call site so no caller can forget, and
+		// so the orphans cannot come back through a second delete path later.
+		// The tables belong to other repositories and an older database may predate them; a
+		// DELETE against a table that is not there simply fails and is ignored.
+		// ponytail: the part_file rows go, the files they name stay in filestore/. Deleting those
+		// needs FileStore, which persistence must not depend on (§12a); upgrade path is a sweep
+		// that drops any stored file no part_file row points at. Not transactional either — the
+		// whole codebase runs without explicit transactions, so a crash mid-delete leaves the
+		// part row behind with fewer children, which the next delete finishes off.
+		const std::string id = std::to_string(partId);
+		db.executeWithParams("DELETE FROM part_file WHERE part_id=?;", { id });
+		db.executeWithParams("DELETE FROM part_tag WHERE part_id=?;", { id });
+		db.executeWithParams("DELETE FROM stock_transaction WHERE part_id=?;", { id });
+		return db.executeWithParams("DELETE FROM part WHERE id=?;", { id });
 	}
 
 	bool PartRepository::findPart(SQLiteWrapper::SQLite& db, int partId, Part& outPart)

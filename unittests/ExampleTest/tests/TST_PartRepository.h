@@ -1,8 +1,11 @@
 #pragma once
 
 #include "UnitTest.h"
+#include "domain/PartManager_PartFileRole.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
+#include "persistence/PartManager_StockRepository.h"
+#include "persistence/PartManager_TagRepository.h"
 #include <filesystem>
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
@@ -19,6 +22,7 @@ public:
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_PartRepository::crudRoundTripAndSearchableAttrColumn);
 		ADD_TEST(TST_PartRepository::smallAndLargeAttrValuesKeepPrecision);
+		ADD_TEST(TST_PartRepository::deleteTakesTheChildRowsWithIt);
 #endif
 	}
 
@@ -36,7 +40,75 @@ private:
 		return std::atof(rows.front().front().c_str());
 	}
 
+	static int rowCount(SQLiteWrapper::SQLite& db, const std::string& table, int partId)
+	{
+		std::vector<std::vector<std::string>> rows = db.fetchAll(
+			"SELECT COUNT(*) FROM " + table + " WHERE part_id=" + std::to_string(partId) + ";");
+		if (rows.empty() || rows.front().empty())
+		{
+			return -1;
+		}
+		return std::atoi(rows.front().front().c_str());
+	}
+
 	// Tests
+
+	// Foreign keys are declared but never enforced (no PRAGMA foreign_keys=ON anywhere), so a
+	// plain DELETE FROM part leaves the tag links, the file rows and the whole stock history
+	// behind — and the next part to be handed that id inherits them.
+	TEST_FUNCTION(deleteTakesTheChildRowsWithIt)
+	{
+		TEST_START;
+
+		std::filesystem::path path = std::filesystem::temp_directory_path() / "PartManager_TST_PartRepository_delete.db";
+		std::filesystem::remove(path);
+		SQLiteWrapper::SQLite db(path.string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+		PartManager::TagRepository::createSchema(db);
+		PartManager::StockRepository::createSchema(db);
+
+		PartManager::PartType diode;
+		diode.name = "Diode";
+		diode.domain = "electronic";
+		const int typeId = PartManager::PartTypeRepository::insertType(db, diode);
+
+		PartManager::Part part;
+		part.partTypeId = typeId;
+		part.name = "1N914BWS";
+		const int partId = PartManager::PartRepository::insertPart(db, part);
+		TEST_ASSERT_M(partId != 0, "insertPart failed");
+
+		PartManager::Tag tag;
+		tag.name = "SMD";
+		const int tagId = PartManager::TagRepository::insertTag(db, tag);
+		TEST_ASSERT_M(tagId != 0, "insertTag failed");
+		TEST_ASSERT_M(PartManager::TagRepository::addPartTag(db, partId, tagId), "addPartTag failed");
+
+		PartManager::PartFile file;
+		file.partId = partId;
+		file.role = PartManager::toString(PartManager::PartFileRole::Datasheet);
+		file.relativePath = "ab/cd/1n914bws.pdf";
+		file.originalFilename = "1n914bws.pdf";
+		TEST_ASSERT_M(PartManager::PartRepository::insertFile(db, file) != 0, "insertFile failed");
+
+		TEST_ASSERT_M(PartManager::StockRepository::restock(db, partId, 500, "initial") != 0,
+			"restock failed");
+
+		TEST_COMPARE(rowCount(db, "part_tag", partId), 1);
+		TEST_COMPARE(rowCount(db, "part_file", partId), 1);
+		TEST_COMPARE(rowCount(db, "stock_transaction", partId), 1);
+
+		TEST_ASSERT_M(PartManager::PartRepository::deletePart(db, partId), "deletePart failed");
+
+		PartManager::Part gone;
+		TEST_ASSERT_M(!PartManager::PartRepository::findPart(db, partId, gone), "the part must be gone");
+		TEST_COMPARE(rowCount(db, "part_tag", partId), 0);
+		TEST_COMPARE(rowCount(db, "part_file", partId), 0);
+		TEST_COMPARE(rowCount(db, "stock_transaction", partId), 0);
+	}
+
 	TEST_FUNCTION(crudRoundTripAndSearchableAttrColumn)
 	{
 		TEST_START;

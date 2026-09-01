@@ -40,6 +40,8 @@ namespace PartManager
 		// Returns the new id (0 on failure).
 		static int insertPart(SQLiteWrapper::SQLite& db, const Part& part);
 		static bool updatePart(SQLiteWrapper::SQLite& db, const Part& part);
+		// Also clears the part's part_file, part_tag and stock_transaction rows — foreign keys are
+		// not enforced, so nothing else would. The stored files themselves are left on disk.
 		static bool deletePart(SQLiteWrapper::SQLite& db, int partId);
 		// Looks up a single part by id. Returns false if not found.
 		static bool findPart(SQLiteWrapper::SQLite& db, int partId, Part& outPart);

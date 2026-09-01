@@ -26,5 +26,7 @@ int main(int argc, char* argv[])
 	UnitTest::Test::runAllTests(results);
 	UnitTest::Test::printResults(results);
 
-	return results.getSuccess();
+	// getSuccess() is true when everything passed, which as an exit code means failure —
+	// inverted since the template, and silently wrong for any CI gate or script that checks it.
+	return results.getSuccess() ? 0 : 1;
 }
