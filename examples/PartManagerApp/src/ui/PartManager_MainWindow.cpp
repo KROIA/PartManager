@@ -219,8 +219,10 @@ namespace PartManager
 
 		// Tabs, groups and buttons all register themselves with the parent passed to their
 		// constructor — calling addTab()/addGroup()/addButton() on top of that adds them twice.
-		RibbonWidget::RibbonTab* homeTab = new RibbonWidget::RibbonTab(tr("Home"), QString(), m_ribbon);
-		RibbonWidget::RibbonTab* partsTab = new RibbonWidget::RibbonTab(tr("Parts"), QString(), m_ribbon);
+		RibbonWidget::RibbonTab* homeTab =
+			new RibbonWidget::RibbonTab(tr("Home"), QStringLiteral(":/icons/tab-home.png"), m_ribbon);
+		RibbonWidget::RibbonTab* partsTab =
+			new RibbonWidget::RibbonTab(tr("Parts"), QStringLiteral(":/icons/tab-parts.png"), m_ribbon);
 
 		RibbonWidget::RibbonButtonGroup* newGroup = new RibbonWidget::RibbonButtonGroup(tr("New"), homeTab);
 		RibbonWidget::RibbonButtonGroup* stockGroup = new RibbonWidget::RibbonButtonGroup(tr("Stock"), homeTab);
@@ -229,27 +231,27 @@ namespace PartManager
 		RibbonWidget::RibbonButtonGroup* filesGroup = new RibbonWidget::RibbonButtonGroup(tr("Files"), partsTab);
 
 		auto addButton = [this](RibbonWidget::RibbonButtonGroup* group, const QString& text,
-			void (MainWindow::*slot)())
+			const QString& iconPath, void (MainWindow::*slot)())
 		{
-			// No icon set yet — the ribbon icon assets are a later slice (§12b resources/).
 			RibbonWidget::RibbonButton* button =
-				new RibbonWidget::RibbonButton(text, text, QString(), true, group);
+				new RibbonWidget::RibbonButton(text, text, iconPath, true, group);
 			connect(button, &QToolButton::clicked, this, slot);
 		};
 
-		addButton(newGroup, tr("New Part"), &MainWindow::onNewPart);
-		addButton(newGroup, tr("New Partlist"), &MainWindow::onNotImplemented);
-		addButton(stockGroup, tr("Restock"), &MainWindow::onNotImplemented);
-		addButton(stockGroup, tr("Take Out"), &MainWindow::onNotImplemented);
+		// Import from Mouser has no icon yet — that one is still on the asset list.
+		addButton(newGroup, tr("New Part"), QStringLiteral(":/icons/new-part.png"), &MainWindow::onNewPart);
+		addButton(newGroup, tr("New Partlist"), QStringLiteral(":/icons/new-partlist.png"), &MainWindow::onNotImplemented);
+		addButton(stockGroup, tr("Restock"), QStringLiteral(":/icons/restock.png"), &MainWindow::onNotImplemented);
+		addButton(stockGroup, tr("Take Out"), QStringLiteral(":/icons/take-out.png"), &MainWindow::onNotImplemented);
 		// The only button this slice can actually satisfy — everything it needs already exists.
-		addButton(viewGroup, tr("Refresh"), &MainWindow::reloadCategories);
-		addButton(viewGroup, tr("List / Grid"), &MainWindow::onNotImplemented);
-		addButton(viewGroup, tr("3D Viewer"), &MainWindow::onNotImplemented);
-		addButton(manageGroup, tr("Edit Type Templates"), &MainWindow::onNotImplemented);
-		addButton(manageGroup, tr("Manage Tags"), &MainWindow::onManageTags);
-		addButton(manageGroup, tr("Import from Mouser"), &MainWindow::onNotImplemented);
-		addButton(filesGroup, tr("Attach File"), &MainWindow::onNotImplemented);
-		addButton(filesGroup, tr("Open Datasheet"), &MainWindow::onNotImplemented);
+		addButton(viewGroup, tr("Refresh"), QStringLiteral(":/icons/refresh.png"), &MainWindow::reloadCategories);
+		addButton(viewGroup, tr("List / Grid"), QStringLiteral(":/icons/view-list.png"), &MainWindow::onNotImplemented);
+		addButton(viewGroup, tr("3D Viewer"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onNotImplemented);
+		addButton(manageGroup, tr("Edit Type Templates"), QStringLiteral(":/icons/edit-type-template.png"), &MainWindow::onNotImplemented);
+		addButton(manageGroup, tr("Manage Tags"), QStringLiteral(":/icons/manage-tags.png"), &MainWindow::onManageTags);
+		addButton(manageGroup, tr("Import from Mouser"), QString(), &MainWindow::onNotImplemented);
+		addButton(filesGroup, tr("Attach File"), QStringLiteral(":/icons/attach-file.png"), &MainWindow::onNotImplemented);
+		addButton(filesGroup, tr("Open Datasheet"), QStringLiteral(":/icons/open-datasheet.png"), &MainWindow::onNotImplemented);
 #endif
 	}
 

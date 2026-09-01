@@ -6,6 +6,10 @@
 
 int main(int argc, char* argv[])
 {
+	// The icons live in core's icons.qrc, and the app links the library statically, so the
+	// linker drops the generated resource-init object unless something references it.
+	Q_INIT_RESOURCE(icons);
+
 	QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 	QGuiApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
 	QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);

@@ -1,5 +1,21 @@
 <RCC>
     <qresource prefix="/">
         <file>icons/accept.png</file>
+        <file>icons/plus.png</file>
+        <file>icons/tabelle.png</file>
+        <file>icons/tab-home.png</file>
+        <file>icons/tab-parts.png</file>
+        <file>icons/new-part.png</file>
+        <file>icons/new-partlist.png</file>
+        <file>icons/refresh.png</file>
+        <file>icons/manage-tags.png</file>
+        <file>icons/restock.png</file>
+        <file>icons/take-out.png</file>
+        <file>icons/view-list.png</file>
+        <file>icons/view-grid.png</file>
+        <file>icons/viewer-3d.png</file>
+        <file>icons/edit-type-template.png</file>
+        <file>icons/attach-file.png</file>
+        <file>icons/open-datasheet.png</file>
     </qresource>
 </RCC>
