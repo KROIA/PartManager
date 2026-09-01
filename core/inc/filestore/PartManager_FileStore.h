@@ -1,0 +1,100 @@
+// @file PartManager_FileStore.h
+// @brief Content-addressed file storage under a database folder's `filestore/` (§1, §3).
+//
+// Stores file *content* only; the metadata half lives in `part_file` rows
+// (PartRepository::insertFile()/listFiles()/deleteFile()). Layout is exactly
+// what §1 specifies: `filestore/<hash[0:2]>/<hash>.<ext>` — identical content
+// hashes to the same name, so two parts attaching the same PDF share one file
+// on disk and each still get their own `part_file` row.
+//
+// Deletion is therefore reference-counted, not a plain unlink: detachFile()
+// removes the row and only removes the file once no other row points at it.
+//
+// The manual "attach a local file" path (importFile/attachFile) is the primary
+// one — Mouser returns an empty DataSheetUrl for most real parts (§6), so
+// downloadFile() is a bonus, not the main road. Everything except
+// downloadFile() is plain C++/std::filesystem and works in the non-Qt build;
+// downloadFile() needs QtCore/QtNetwork (never QtWidgets, §12a) and fails
+// cleanly with a message when Qt is absent.
+// @see docs/design/ARCHITECTURE.md §1, §3, §6, §12a
+// @see PartManager_PartFile.h, PartManager_PartRepository.h, PartManager_DatabaseHandle.h
+#pragma once
+
+#include "PartManager_global.h"
+#include "domain/PartManager_PartFile.h"
+#include "domain/PartManager_PartFileRole.h"
+#include <string>
+
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+namespace SQLiteWrapper { class SQLite; }
+#endif
+
+namespace PartManager
+{
+
+	// Outcome of one import/download. On success the fields map 1:1 onto the
+	// matching `part_file` columns, so a caller can hand it straight to insertFile().
+	struct PART_MANAGER_API FileStoreResult
+	{
+		bool ok = false;
+		std::string errorMessage;
+		std::string relativePath;      // e.g. "3f/3fa1c2d4e5f60718.pdf", relative to the filestore root
+		std::string contentHash;
+		int sizeBytes = 0;
+		std::string mimeType;
+		std::string originalFilename;
+	};
+
+	// Content-addressed store rooted at one database folder's filestore/ path.
+	class PART_MANAGER_API FileStore
+	{
+	public:
+		// `filestorePath` is DatabaseHandle::filestorePath(). The folder is created on first write.
+		explicit FileStore(const std::string& filestorePath);
+
+		// The filestore root this store was constructed with.
+		const std::string& rootPath() const;
+
+		// Content hash used for the stored file name, as lowercase hex.
+		// ponytail: FNV-1a 64 rather than SHA-256 — no crypto dependency and no hand-rolled
+		// SHA in core/. Ceiling: 64 bits is fine for dedup but not collision-proof, so every
+		// store/reuse verifies the bytes and falls back to a `_<n>` suffix on a real collision;
+		// swap in QCryptographicHash::Sha256 (Qt build) if the hash ever needs to be a trusted
+		// integrity check rather than a name.
+		static std::string hashBytes(const std::string& bytes);
+
+		// Copies a file into the store. Deduplicates: importing identical content twice
+		// yields the same relativePath and writes nothing the second time.
+		// Fails (ok == false) if the source cannot be read.
+		FileStoreResult importFile(const std::string& sourcePath);
+		// Same, for content already in memory (used by downloadFile()).
+		FileStoreResult importBytes(const std::string& bytes, const std::string& originalFilename);
+
+		// Absolute path of a stored file. Empty string if it is not (or no longer) on disk.
+		std::string absolutePath(const std::string& relativePath) const;
+
+		// Downloads `url` into the store. `originalFilename` may be empty — the URL's last
+		// path segment is used then. Requires the Qt build; fails cleanly otherwise.
+		FileStoreResult downloadFile(const std::string& url, const std::string& originalFilename = std::string());
+
+		// Per-download timeout in milliseconds. Default 15000.
+		void setTimeoutMs(int timeoutMs);
+		int timeoutMs() const;
+
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		// Import + insert the matching `part_file` row in one step, so neither half can be
+		// forgotten. Returns the new part_file id, 0 on failure (reason in outError if given).
+		int attachFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+			const std::string& sourcePath, std::string* outError = nullptr);
+
+		// Removes the `part_file` row and, only when no other row still references the same
+		// relativePath, the stored file. Never leaves an orphan row or an orphan file.
+		bool detachFile(SQLiteWrapper::SQLite& db, int fileId);
+#endif
+
+	private:
+		std::string m_rootPath;
+		int m_timeoutMs = 15000;
+	};
+
+}

@@ -50,6 +50,11 @@ namespace PartManager
 		static int insertFile(SQLiteWrapper::SQLite& db, const PartFile& file);
 		static bool deleteFile(SQLiteWrapper::SQLite& db, int fileId);
 		static std::vector<PartFile> listFiles(SQLiteWrapper::SQLite& db, int partId);
+		// Looks up a single part_file row by id. Returns false if not found.
+		static bool findFile(SQLiteWrapper::SQLite& db, int fileId, PartFile& outFile);
+		// How many part_file rows still reference one stored file — FileStore's reference count,
+		// since the filestore is content-addressed and one file can back several rows (§1).
+		static int countFilesWithPath(SQLiteWrapper::SQLite& db, const std::string& relativePath);
 #endif
 
 	};

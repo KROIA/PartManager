@@ -268,6 +268,41 @@ namespace PartManager
 		return db.executeWithParams("DELETE FROM part_file WHERE id=?;", { std::to_string(fileId) });
 	}
 
+	bool PartRepository::findFile(SQLiteWrapper::SQLite& db, int fileId, PartFile& outFile)
+	{
+		std::vector<std::vector<std::string>> rows = db.fetchAll(
+			"SELECT id,part_id,role,relative_path,content_hash,size_bytes,mime_type,original_filename,added_at "
+			"FROM part_file WHERE id=" + std::to_string(fileId) + ";");
+		if (rows.empty())
+		{
+			return false;
+		}
+		outFile = rowToFile(rows.front());
+		return true;
+	}
+
+	int PartRepository::countFilesWithPath(SQLiteWrapper::SQLite& db, const std::string& relativePath)
+	{
+		// fetchAll() takes no bind parameters (executeWithParams() is write-only), so the one
+		// string that reaches this query gets its quotes doubled by hand.
+		std::string quoted;
+		for (char c : relativePath)
+		{
+			quoted += c;
+			if (c == '\'')
+			{
+				quoted += c;
+			}
+		}
+		std::vector<std::vector<std::string>> rows = db.fetchAll(
+			"SELECT COUNT(*) FROM part_file WHERE relative_path='" + quoted + "';");
+		if (rows.empty() || rows.front().empty())
+		{
+			return 0;
+		}
+		return std::atoi(rows.front().front().c_str());
+	}
+
 	std::vector<PartFile> PartRepository::listFiles(SQLiteWrapper::SQLite& db, int partId)
 	{
 		std::vector<PartFile> result;

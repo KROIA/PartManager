@@ -11,6 +11,8 @@
 #include "tests/TST_StockRepository.h"
 #include "tests/TST_UnitTable.h"
 #include "tests/TST_ValueParser.h"
+#include "tests/TST_SearchEngine.h"
+#include "tests/TST_FileStore.h"
 #include "tests/TST_MainWindowController.h"
 #include "tests/TST_PartEditorController.h"
 #include "tests/TST_Settings.h"
