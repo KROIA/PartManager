@@ -8,6 +8,8 @@
 	#include <QVariant>
 	#include <QVariantMap>
 	#include <QString>
+	#include <QDir>
+	#include <QStandardPaths>
 #endif
 
 namespace PartManager
@@ -35,13 +37,27 @@ namespace PartManager
 			AppSettings::ListSetting knownDatabases;
 		};
 
+		// Per-user application-data folder holding the settings file. Without this the settings
+		// file would land in the process' working directory, so the known-databases list would
+		// silently be per-launch-directory. GenericDataLocation is the same root Qt's
+		// AppDataLocation is built on, but doesn't vary with QCoreApplication's
+		// organization/application name — which the app sets and a unit test doesn't, and both
+		// have to reach the same file.
+		QString settingsDirectory()
+		{
+			QString directory = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+				+ QStringLiteral("/PartManager");
+			QDir().mkpath(directory);
+			return directory;
+		}
+
 		// ApplicationSettings subclass owning the group above — protected addGroup() access
 		// works the same way, through ordinary inheritance.
 		class PartManagerAppSettings : public AppSettings::ApplicationSettings
 		{
 		public:
 			PartManagerAppSettings()
-				: AppSettings::ApplicationSettings("PartManager")
+				: AppSettings::ApplicationSettings(settingsDirectory(), "PartManager")
 			{
 				addGroup(m_databaseGroup);
 			}
@@ -57,6 +73,15 @@ namespace PartManager
 		}
 	}
 #endif
+
+	std::string Settings::getSettingsFilePath()
+	{
+#if APP_SETTINGS_LIBRARY_AVAILABLE == 1
+		return instance().getFilePath().toStdString();
+#else
+		return std::string();
+#endif
+	}
 
 	std::vector<KnownDatabaseEntry> Settings::getKnownDatabases()
 	{

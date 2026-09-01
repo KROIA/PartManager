@@ -10,4 +10,5 @@
 #include "tests/TST_TagRepository.h"
 #include "tests/TST_UnitTable.h"
 #include "tests/TST_ValueParser.h"
+#include "tests/TST_Settings.h"
 //#include "test_nasted.h"

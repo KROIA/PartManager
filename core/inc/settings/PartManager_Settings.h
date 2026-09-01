@@ -27,6 +27,10 @@ namespace PartManager
 	{
 		Settings() = delete;
 	public:
+		// Absolute path of the settings file in the per-user application-data directory.
+		// Empty if the AppSettings library is not available.
+		static std::string getSettingsFilePath();
+
 		// Returns every known database entry, in no particular guaranteed order.
 		static std::vector<KnownDatabaseEntry> getKnownDatabases();
 		// Overwrites the entire known-databases list.
