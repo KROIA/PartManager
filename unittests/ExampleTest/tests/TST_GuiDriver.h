@@ -377,8 +377,12 @@ private:
 		window.close();
 	}
 
-	// The other layer: a genuine OS-level click, aimed with the widget's own geometry. Slower and
-	// disturbable by anything else on screen, so it exists to prove reachability, not for bulk use.
+	// The other layer: a genuine OS-level click, aimed with the widget's own geometry.
+	//
+	// OPT-IN, because it is flaky by nature and honestly so: it needs the window to be foreground and
+	// the cursor undisturbed, so anything else using the desktop at that moment can fail it. Set
+	// UNITTEST_GUI_REAL_INPUT=1 to run it. It proves reachability; the synthetic layer above is what
+	// the everyday suite should rely on.
 	TEST_FUNCTION(realMouseInputHitsTheWidgetItAimsAt)
 	{
 		TEST_START;
@@ -387,6 +391,11 @@ private:
 		if (!UnitTest::Gui::isAvailable())
 		{
 			TEST_MESSAGE("no screen available, real-input layer not exercised");
+			return;
+		}
+		if (!qEnvironmentVariableIsSet("UNITTEST_GUI_REAL_INPUT"))
+		{
+			TEST_MESSAGE("real input is opt-in (set UNITTEST_GUI_REAL_INPUT=1), skipped");
 			return;
 		}
 		Fixture fixture;

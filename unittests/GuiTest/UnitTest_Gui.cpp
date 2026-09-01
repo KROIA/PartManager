@@ -1,4 +1,9 @@
+// The guard wraps the include as well: without UNITTEST_GUI_ENABLED this file must compile to
+// nothing at all, including not looking for a header that is not on the library's include path.
+#ifdef UNITTEST_GUI_ENABLED
+
 #include "UnitTest_Gui.h"
+
 
 #include <QAbstractButton>
 #include <QAbstractItemView>
@@ -1198,3 +1203,5 @@ namespace UnitTest
 		}
 	}
 }
+
+#endif // UNITTEST_GUI_ENABLED

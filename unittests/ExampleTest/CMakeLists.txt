@@ -16,11 +16,13 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_PartEditor
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_StockController.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_DatabaseSelectorController.cpp")
 
-## The GUI driver (../GuiTest) is a standalone QtWidgets-only module, kept apart from this app so
-## it can move to the UnitTest library repository unchanged.
+## The GUI driver. Identical to core/inc/gui + core/src/gui in the UnitTest library repository, and
+## behind the same UNITTEST_GUI_ENABLED guard, so this copy can be dropped the moment this project
+## consumes a UnitTest version that ships it.
 set(GUI_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../GuiTest")
 include_directories(${GUI_TEST_DIR})
 list(APPEND ADDITONAL_SOURCES "${GUI_TEST_DIR}/UnitTest_Gui.cpp")
+add_definitions(-DUNITTEST_GUI_ENABLED)
 
 ## One real app dialog is compiled in as well, so the GUI driver is proven against a screen the
 ## user actually sees and not only against synthetic widgets. AUTOUIC turns its .ui into the

@@ -1,11 +1,6 @@
 // @file UnitTest_Gui.h
 // @brief Widget-level GUI driving for the KROIA UnitTest framework — click and type without pixels.
 //
-// This folder is NOT part of the UnitTest library target. The library is deliberately Qt-free,
-// and this module needs QtWidgets — so a project that wants GUI testing compiles
-// UnitTest_Gui.cpp into its own test target (two lines of CMake, see examples/GuiExample)
-// and every other consumer of UnitTest pays nothing for it.
-//
 // TWO LAYERS, and the difference matters:
 //
 //   * synthetic (`click`, `type`, `drag`, ...) — builds `QMouseEvent`/`QKeyEvent` and sends it
@@ -24,10 +19,17 @@
 // MODAL DIALOGS block on `exec()`, so a test cannot call it and then interact. Register what should
 // happen with `onNextWindow()` / `onNextMessageBox()` BEFORE making the blocking call.
 //
+// COMPILED ONLY WHEN ASKED FOR. This file lives inside core/, which the library target globs, but the
+// UnitTest library itself is deliberately Qt-free. Everything below is therefore behind
+// UNITTEST_GUI_ENABLED: the library build compiles it to nothing, and a project that wants GUI
+// testing defines the macro and adds QtWidgets to its own test target (see examples/GuiExample).
+//
 // Every function returns false rather than asserting, so the calling test decides what a failure
 // means. A hidden or disabled widget always refuses input: a test that "clicks" something the user
 // could not have clicked is worse than no test at all.
 #pragma once
+
+#ifdef UNITTEST_GUI_ENABLED
 
 #include <QKeySequence>
 #include <QPoint>
@@ -209,3 +211,5 @@ namespace UnitTest
 		QString dumpWidgetTree(QWidget* root = nullptr);
 	}
 }
+
+#endif // UNITTEST_GUI_ENABLED
