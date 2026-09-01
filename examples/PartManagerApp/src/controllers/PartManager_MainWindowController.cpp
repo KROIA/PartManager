@@ -3,6 +3,7 @@
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_TagRepository.h"
+#include "search/PartManager_SearchEngine.h"
 #include "units/PartManager_ValueParser.h"
 
 #include <QCoreApplication>
@@ -33,6 +34,7 @@ namespace PartManager
 			const std::map<int, const PartType*>& byId,
 			const std::map<int, std::vector<int>>& childrenOf,
 			const std::map<int, int>& inStockByType,
+			const std::map<int, int>& matchByType,
 			std::set<int>& visited)
 		{
 			CategoryNode node;
@@ -45,6 +47,8 @@ namespace PartManager
 
 			auto ownIt = inStockByType.find(typeId);
 			node.inStockCount = ownIt != inStockByType.end() ? ownIt->second : 0;
+			auto matchIt = matchByType.find(typeId);
+			node.matchCount = matchIt != matchByType.end() ? matchIt->second : 0;
 
 			auto childIt = childrenOf.find(typeId);
 			if (childIt != childrenOf.end())
@@ -57,8 +61,9 @@ namespace PartManager
 					{
 						continue;
 					}
-					node.children.push_back(buildNode(childId, byId, childrenOf, inStockByType, visited));
+					node.children.push_back(buildNode(childId, byId, childrenOf, inStockByType, matchByType, visited));
 					node.inStockCount += node.children.back().inStockCount;
+					node.matchCount += node.children.back().matchCount;
 				}
 			}
 
@@ -69,7 +74,8 @@ namespace PartManager
 	}
 
 	std::vector<CategoryNode> buildCategoryTree(const std::vector<PartType>& types,
-		const std::map<int, int>& inStockByType)
+		const std::map<int, int>& inStockByType,
+		const std::map<int, int>& matchByType)
 	{
 		std::map<int, const PartType*> byId;
 		for (const PartType& type : types)
@@ -96,7 +102,7 @@ namespace PartManager
 		std::vector<CategoryNode> roots;
 		for (int rootId : rootIds)
 		{
-			roots.push_back(buildNode(rootId, byId, childrenOf, inStockByType, visited));
+			roots.push_back(buildNode(rootId, byId, childrenOf, inStockByType, matchByType, visited));
 		}
 
 		std::sort(roots.begin(), roots.end(),
@@ -205,6 +211,14 @@ namespace PartManager
 		return QString::number(value, 'g', 10);
 	}
 
+	QString searchError(const QString& filterText)
+	{
+		SearchQuery query = SearchQuery::parse(filterText.toStdString());
+		// The parser's message is developer-written English, not user data, but it is not a
+		// tr() literal either — it comes out of core. Shown as-is.
+		return query.ok ? QString() : toQt(query.error);
+	}
+
 	MainWindowController::MainWindowController(std::unique_ptr<DatabaseHandle> handle)
 		: m_handle(std::move(handle))
 	{
@@ -225,13 +239,25 @@ namespace PartManager
 		return m_handle ? QString::fromStdString(m_handle->pmdbPath()) : QString();
 	}
 
-	std::vector<CategoryNode> MainWindowController::categoryTree() const
+	std::vector<CategoryNode> MainWindowController::categoryTree(const QString& filterText) const
 	{
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		if (m_handle && m_handle->isOpen())
 		{
 			SQLiteWrapper::SQLite& db = m_handle->connection();
 			std::vector<PartType> types = PartTypeRepository::listTypes(db);
+
+			// §7a: the tree filter only counts, it never hides a category. A query that fails to
+			// parse counts zero everywhere, same as one that simply matches nothing.
+			std::map<int, int> matchByType;
+			if (!filterText.trimmed().isEmpty())
+			{
+				SearchQuery query = SearchQuery::parse(filterText.toStdString());
+				for (const PartType& type : types)
+				{
+					matchByType[type.id] = static_cast<int>(SearchEngine::searchIds(db, query, type.id).size());
+				}
+			}
 
 			// One listParts() per type rather than a GROUP BY, so the count comes from the
 			// same repository the table reads — a hand-written aggregate here would be a
@@ -251,8 +277,10 @@ namespace PartManager
 				}
 				inStockByType[type.id] = count;
 			}
-			return buildCategoryTree(types, inStockByType);
+			return buildCategoryTree(types, inStockByType, matchByType);
 		}
+#else
+		Q_UNUSED(filterText);
 #endif
 		return std::vector<CategoryNode>();
 	}
@@ -268,7 +296,8 @@ namespace PartManager
 		return deriveColumns(std::vector<PartTypeAttribute>());
 	}
 
-	std::vector<PartRow> MainWindowController::partsFor(int typeId, const std::vector<PartColumn>& columns) const
+	std::vector<PartRow> MainWindowController::partsFor(int typeId, const std::vector<PartColumn>& columns,
+		const QString& filterText) const
 	{
 		std::vector<PartRow> rows;
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
@@ -278,10 +307,30 @@ namespace PartManager
 		}
 		SQLiteWrapper::SQLite& db = m_handle->connection();
 
+		const bool filtered = !filterText.trimmed().isEmpty();
+		SearchQuery query;
+		if (filtered)
+		{
+			query = SearchQuery::parse(filterText.toStdString());
+		}
+
 		for (int id : typeIdWithDescendants(PartTypeRepository::listTypes(db), typeId))
 		{
+			// The table filter is scoped to the selected category, but that category includes
+			// its descendants — so the id set is collected per descendant type, not once.
+			std::set<int> matched;
+			if (filtered)
+			{
+				std::vector<int> ids = SearchEngine::searchIds(db, query, id);
+				matched.insert(ids.begin(), ids.end());
+			}
+
 			for (const Part& part : PartRepository::listParts(db, id))
 			{
+				if (filtered && matched.count(part.id) == 0)
+				{
+					continue;
+				}
 				PartRow row;
 				row.partId = part.id;
 				row.stockQty = part.stockQty;
@@ -325,6 +374,7 @@ namespace PartManager
 #else
 		Q_UNUSED(typeId);
 		Q_UNUSED(columns);
+		Q_UNUSED(filterText);
 #endif
 		return rows;
 	}

@@ -19,6 +19,8 @@ public:
 		ADD_TEST(TST_MainWindowController::descendantsOfAParentIncludeGrandchildren);
 		ADD_TEST(TST_MainWindowController::columnsFollowEffectiveAttributeOrder);
 		ADD_TEST(TST_MainWindowController::dimensionValuesFormatWithSiPrefix);
+		ADD_TEST(TST_MainWindowController::treeMatchCountsRollUpLikeStock);
+		ADD_TEST(TST_MainWindowController::searchErrorOnlyReportsMalformedQueries);
 	}
 
 private:
@@ -182,6 +184,47 @@ private:
 		missing.datatype = PartManager::AttributeDataType::Dimension;
 		TEST_ASSERT(PartManager::formatAttributeValue(json, missing).isEmpty());
 		TEST_ASSERT(PartManager::formatAttributeValue("not json at all", resistance).isEmpty());
+	}
+
+	TEST_FUNCTION(treeMatchCountsRollUpLikeStock)
+	{
+		TEST_START;
+
+		std::vector<PartManager::PartType> types{
+			makeType(1, "Capacitor", PartManager::NoParentType),
+			makeType(2, "Ceramic Capacitor", 1),
+			makeType(4, "Resistor", PartManager::NoParentType)
+		};
+		std::map<int, int> inStock{ {1, 5}, {2, 20}, {4, 412} };
+		// §7a tree filter: only the child and the unrelated root have hits.
+		std::map<int, int> matches{ {2, 3}, {4, 1} };
+
+		std::vector<PartManager::CategoryNode> roots =
+			PartManager::buildCategoryTree(types, inStock, matches);
+
+		TEST_COMPARE(roots[0].matchCount, 3);              // parent inherits its child's hits
+		TEST_COMPARE(roots[0].children[0].matchCount, 3);
+		TEST_COMPARE(roots[1].matchCount, 1);
+		// No filter at all leaves every count at zero, which is what suppresses the ": n" suffix.
+		TEST_COMPARE(PartManager::buildCategoryTree(types, inStock)[0].matchCount, 0);
+	}
+
+	TEST_FUNCTION(searchErrorOnlyReportsMalformedQueries)
+	{
+		TEST_START;
+
+		// An empty box and a well-formed query are both silent, including one that will match
+		// nothing — "no results" is an answer, not an error.
+		TEST_ASSERT(PartManager::searchError("").isEmpty());
+		TEST_ASSERT(PartManager::searchError("   ").isEmpty());
+		TEST_ASSERT(PartManager::searchError("resistance>1k").isEmpty());
+		TEST_ASSERT(PartManager::searchError("tag:SMD \"power supply\"").isEmpty());
+		TEST_ASSERT(PartManager::searchError("nothing_matches_this").isEmpty());
+
+		// A typo has to say something, or the view would just empty itself unexplained.
+		TEST_ASSERT(!PartManager::searchError("tag:").isEmpty());
+		TEST_ASSERT(!PartManager::searchError("resistance>").isEmpty());
+		TEST_ASSERT(!PartManager::searchError("resistance>abc").isEmpty());
 	}
 
 };

@@ -36,14 +36,12 @@
         </property>
         <item>
          <widget class="QLineEdit" name="treeFilterEdit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
           <property name="placeholderText">
            <string>Search all categories...</string>
           </property>
           <property name="toolTip">
-           <string>Cross-category search is not available yet.</string>
+           <string>Searches every category and shows the hit count next to each one.
+Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</string>
           </property>
           <property name="clearButtonEnabled">
            <bool>true</bool>
@@ -112,9 +110,6 @@
           </item>
           <item>
            <widget class="QLineEdit" name="tableFilterEdit">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
             <property name="maximumSize">
              <size>
               <width>200</width>
@@ -125,7 +120,8 @@
              <string>Filter this table...</string>
             </property>
             <property name="toolTip">
-             <string>Table filtering is not available yet.</string>
+             <string>Filters the rows of the selected category only.
+Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</string>
             </property>
             <property name="clearButtonEnabled">
              <bool>true</bool>

@@ -15,6 +15,7 @@
 #include <QMainWindow>
 #include <memory>
 
+class QLineEdit;
 class QTreeWidgetItem;
 
 namespace Ui { class MainWindow; }
@@ -50,6 +51,10 @@ namespace PartManager
 
 		// Builds the Home/Parts tabs of §7 into the .ui file's ribbonToolBar.
 		void buildRibbon();
+		// Wires both §7a filter boxes to their debounce timers.
+		void setupFilters();
+		// Red border + tooltip when a filter box holds a malformed query; clears both when it doesn't.
+		void markFilterError(QLineEdit* edit, const QString& error);
 		// Adds one CategoryNode and its children under `parent` (nullptr = a tree root).
 		void addCategoryItem(const CategoryNode& node, QTreeWidgetItem* parent);
 		// Rebuilds the table's dynamic header and rows for one category.

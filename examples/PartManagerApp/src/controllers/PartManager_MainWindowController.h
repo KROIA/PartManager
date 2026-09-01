@@ -34,6 +34,7 @@ namespace PartManager
 		int typeId = NoParentType;
 		QString name;                       // user data (the type's name) — never tr()'d
 		int inStockCount = 0;               // parts with stock_qty > 0, own + all descendants
+		int matchCount = 0;                 // §7a tree filter hits, own + all descendants; 0 with no filter
 		std::vector<CategoryNode> children;
 	};
 
@@ -61,8 +62,15 @@ namespace PartManager
 	// inStockByType maps a type id to the count of ITS OWN in-stock parts; each node's
 	// inStockCount comes back as that count plus every descendant's. Children are sorted
 	// by name; a row whose parent is missing (or which sits in a parent cycle) becomes a root.
+	// matchByType is the same thing for the §7a tree filter's per-type hit counts.
 	std::vector<CategoryNode> buildCategoryTree(const std::vector<PartType>& types,
-		const std::map<int, int>& inStockByType);
+		const std::map<int, int>& inStockByType,
+		const std::map<int, int>& matchByType = std::map<int, int>());
+
+	// Parse error for a §7a filter box, empty when the text parses (or is blank). The box is
+	// a filter, so this exists only to explain a typo — a valid query that matches nothing
+	// still reports no error.
+	QString searchError(const QString& filterText);
 
 	// typeId plus every type below it, so selecting a parent lists its children's parts (see header note).
 	std::vector<int> typeIdWithDescendants(const std::vector<PartType>& types, int typeId);
@@ -93,14 +101,19 @@ namespace PartManager
 		// Path of the open database's .pmdb entry file.
 		QString pmdbPath() const;
 
-		// The whole §7a category forest with live in-stock counts.
-		std::vector<CategoryNode> categoryTree() const;
+		// The whole §7a category forest with live in-stock counts. A non-empty filterText also
+		// fills each node's matchCount — the tree filter counts hits across all categories, it
+		// never hides a category (§7a).
+		std::vector<CategoryNode> categoryTree(const QString& filterText = QString()) const;
 
 		// §7b columns for one category.
 		std::vector<PartColumn> columnsFor(int typeId) const;
 
 		// Rows for one category, including every descendant type's parts (see header note).
-		std::vector<PartRow> partsFor(int typeId, const std::vector<PartColumn>& columns) const;
+		// A non-empty filterText keeps only the rows the §7a query matches; text that fails to
+		// parse matches nothing, same as SearchEngine.
+		std::vector<PartRow> partsFor(int typeId, const std::vector<PartColumn>& columns,
+			const QString& filterText = QString()) const;
 
 	private:
 		std::unique_ptr<DatabaseHandle> m_handle;

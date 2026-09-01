@@ -7,8 +7,11 @@
 #include "widgets/PartManager_TagChipDelegate.h"
 
 #include <QHeaderView>
+#include <QLineEdit>
 #include <QTableWidgetItem>
+#include <QTimer>
 #include <QTreeWidgetItem>
+#include <QTreeWidgetItemIterator>
 
 #if RIBBON_WIDGET_LIBRARY_AVAILABLE == 1
 	#include "RibbonWidget.h"
@@ -35,8 +38,7 @@ namespace PartManager
 		setWindowTitle(tr("PartManager — %1").arg(m_controller.databaseName()));
 		m_ui->statusBar->showMessage(m_controller.pmdbPath());
 
-		// TODO(core/search): both filter boxes need the §2a query engine (core/search), which
-		// does not exist yet — they stay disabled rather than pretending to filter.
+		setupFilters();
 		m_ui->partTable->setItemDelegateForColumn(0, new TagChipDelegate(this));
 		m_ui->bodySplitter->setStretchFactor(0, 0);
 		m_ui->bodySplitter->setStretchFactor(1, 1);
@@ -64,20 +66,69 @@ namespace PartManager
 		// Ribbon actions land in later slices; the buttons exist so the shell matches §7.
 	}
 
+	void MainWindow::setupFilters()
+	{
+		// §7a's two boxes are independent: the tree one re-counts every category, the table
+		// one filters the selected category's rows. Both debounce so a burst of keystrokes
+		// costs one query round, not one per character.
+		auto wire = [this](QLineEdit* edit, void (MainWindow::*slot)())
+		{
+			QTimer* timer = new QTimer(this);
+			timer->setSingleShot(true);
+			timer->setInterval(200);
+			connect(timer, &QTimer::timeout, this, slot);
+			connect(edit, &QLineEdit::textChanged, timer, qOverload<>(&QTimer::start));
+		};
+		wire(m_ui->treeFilterEdit, &MainWindow::reloadCategories);
+		wire(m_ui->tableFilterEdit, &MainWindow::refreshCurrentCategory);
+	}
+
+	void MainWindow::markFilterError(QLineEdit* edit, const QString& error)
+	{
+		// The Designer tooltip is the syntax help; stash it once so the error can borrow the slot.
+		if (!edit->property("syntaxHelp").isValid())
+		{
+			edit->setProperty("syntaxHelp", edit->toolTip());
+		}
+		const QString help = edit->property("syntaxHelp").toString();
+
+		edit->setStyleSheet(error.isEmpty() ? QString() : QStringLiteral("border: 1px solid #c0392b;"));
+		edit->setToolTip(error.isEmpty() ? help : tr("Invalid query: %1").arg(error) + "\n\n" + help);
+	}
+
 	void MainWindow::reloadCategories()
 	{
+		const QString filter = m_ui->treeFilterEdit->text();
+		markFilterError(m_ui->treeFilterEdit, searchError(filter));
+
+		// Rebuilding the tree resets the selection, which would yank the table out from under
+		// the user on every debounced keystroke — so the current category is re-selected.
+		const int previousTypeId = m_currentTypeId;
+
 		m_ui->categoryTree->clear();
-		for (const CategoryNode& root : m_controller.categoryTree())
+		for (const CategoryNode& root : m_controller.categoryTree(filter))
 		{
 			addCategoryItem(root, nullptr);
 		}
 		m_ui->categoryTree->expandAll();
 
+		QTreeWidgetItem* target = nullptr;
+		for (QTreeWidgetItemIterator it(m_ui->categoryTree); *it && !target; ++it)
+		{
+			if ((*it)->data(0, TypeIdRole).toInt() == previousTypeId)
+			{
+				target = *it;
+			}
+		}
 		// Open on the first category rather than an empty table — the mockup shows a
 		// selected category, and there is nothing else the Home tab could usefully show.
-		if (QTreeWidgetItem* first = m_ui->categoryTree->topLevelItem(0))
+		if (!target)
 		{
-			m_ui->categoryTree->setCurrentItem(first);
+			target = m_ui->categoryTree->topLevelItem(0);
+		}
+		if (target)
+		{
+			m_ui->categoryTree->setCurrentItem(target);
 		}
 	}
 
@@ -87,8 +138,11 @@ namespace PartManager
 			? new QTreeWidgetItem(parent)
 			: new QTreeWidgetItem(m_ui->categoryTree);
 
-		// §7a: `Category (inStock)`. The category name is user data, only the frame is translated.
-		item->setText(0, tr("%1 (%2)").arg(node.name).arg(node.inStockCount));
+		// §7a: `Category (inStock)`, or `Category (inStock : matches)` while the tree filter
+		// is active. The category name is user data, only the frame is translated.
+		item->setText(0, m_ui->treeFilterEdit->text().trimmed().isEmpty()
+			? tr("%1 (%2)").arg(node.name).arg(node.inStockCount)
+			: tr("%1 (%2 : %3)").arg(node.name).arg(node.inStockCount).arg(node.matchCount));
 		item->setData(0, TypeIdRole, node.typeId);
 		item->setData(0, TypeNameRole, node.name);
 
@@ -172,8 +226,11 @@ namespace PartManager
 	{
 		// §7b: the header is per-category and comes from data, so it is built here rather
 		// than in the .ui — the one part of this screen Designer genuinely cannot express.
+		const QString filter = m_ui->tableFilterEdit->text();
+		markFilterError(m_ui->tableFilterEdit, searchError(filter));
+
 		std::vector<PartColumn> columns = m_controller.columnsFor(typeId);
-		std::vector<PartRow> rows = m_controller.partsFor(typeId, columns);
+		std::vector<PartRow> rows = m_controller.partsFor(typeId, columns, filter);
 
 		m_ui->partTable->clearContents();
 		m_ui->partTable->setColumnCount(static_cast<int>(columns.size()));
