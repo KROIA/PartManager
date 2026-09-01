@@ -1,5 +1,6 @@
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
+#include "persistence/PartManager_TagRepository.h"
 #include "PartManager_global.h"
 
 #include <cstdlib>
@@ -180,6 +181,9 @@ namespace PartManager
 		}
 		int newId = static_cast<int>(db.getLastInsertRowId());
 		writeSearchableAttrColumns(db, newId, part.partTypeId, part.attributes);
+		// §2d one-time seed of the type's default tags. Done here rather than at the call site so no
+		// caller can forget it; updatePart() deliberately does not, tags are independent after creation.
+		TagRepository::seedTagsForNewPart(db, newId, part.partTypeId);
 		return newId;
 	}
 

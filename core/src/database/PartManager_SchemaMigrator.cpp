@@ -2,6 +2,7 @@
 #include "PartManager_global.h"
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_PartRepository.h"
+#include "persistence/PartManager_TagRepository.h"
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 	#include "SQLite.h"
@@ -42,6 +43,11 @@ namespace PartManager
 			// and crashes in strlen()).
 			PartTypeRepository::createSchema(db);
 			PartRepository::createSchema(db);
+		}
+		if (storedSchemaVersion < 2 && db.isOpen())
+		{
+			// v1 -> v2: tags (§2d). Same CREATE TABLE IF NOT EXISTS / db.isOpen() reasoning as above.
+			TagRepository::createSchema(db);
 		}
 		return SchemaCompatibility::migrated;
 	}

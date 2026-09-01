@@ -3,10 +3,11 @@
 //
 // Compares a database's stored schema_version against CurrentSchemaVersion
 // and either opens as-is (equal), migrates forward in order (lower), or
-// refuses to open (higher — no downgrade path, ever). No migration steps
-// exist yet because no domain tables exist yet (core/domain + core/persistence,
-// the next backlog item, is what starts adding real forward-migration steps
-// here); CurrentSchemaVersion starts at 1.
+// refuses to open (higher — no downgrade path, ever). Migration steps in
+// migrate() are ordered and cumulative — a v0 database runs every block in
+// turn, so a step is never rewritten once shipped, only appended after.
+//   v1: core/domain + core/persistence tables (§2, §3).
+//   v2: tag/part_type_tag/part_tag (§2d).
 // @see docs/design/ARCHITECTURE.md §1c
 #pragma once
 
@@ -21,7 +22,7 @@ namespace PartManager
 {
 
 	// The schema (table/column structure) version this build of PartManager understands.
-	constexpr int CurrentSchemaVersion = 1;
+	constexpr int CurrentSchemaVersion = 2;
 
 	// Outcome of comparing a database's stored schema_version against CurrentSchemaVersion.
 	enum class SchemaCompatibility
