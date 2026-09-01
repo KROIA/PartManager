@@ -1,6 +1,7 @@
 #include "ui/PartManager_MainWindow.h"
 #include "ui_PartManager_MainWindow.h"
 
+#include "ui/PartManager_ColumnsDialog.h"
 #include "ui/PartManager_ManageTagsDialog.h"
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
@@ -70,6 +71,9 @@ namespace PartManager
 		connect(m_ui->previewOpenButton, &QPushButton::clicked,
 			this, [this]() { onPartActivated(m_ui->partTable->currentRow()); });
 		connect(m_ui->previewTakeOutButton, &QPushButton::clicked, this, &MainWindow::onTakeOut);
+		// §7b: dragging a header divider saves that column's width for the shown category.
+		connect(m_ui->partTable->horizontalHeader(), &QHeaderView::sectionResized,
+			this, &MainWindow::onColumnResized);
 
 		reloadCategories();
 	}
@@ -305,6 +309,53 @@ namespace PartManager
 		reloadCategories();
 	}
 
+	void MainWindow::onCustomizeColumns()
+	{
+		if (m_currentTypeId == NoParentType)
+		{
+			QMessageBox::information(this, tr("Customize Columns"), tr("Select a category first."));
+			return;
+		}
+
+		ColumnsDialog dialog(m_currentTypeName, m_controller.allColumnsFor(m_currentTypeId), this);
+		if (dialog.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+
+		// "Restore Defaults" drops the saved rows rather than saving a layout that looks default —
+		// the category then derives its columns from its attributes again (§7b).
+		if (dialog.resetRequested())
+		{
+			m_controller.resetColumns(m_currentTypeId);
+		}
+		else
+		{
+			m_controller.saveColumns(m_currentTypeId, dialog.columns());
+		}
+		refreshCurrentCategory();
+	}
+
+	void MainWindow::onColumnResized(int logicalIndex, int oldSize, int newSize)
+	{
+		Q_UNUSED(oldSize);
+		if (m_currentTypeId == NoParentType
+			|| logicalIndex < 0 || logicalIndex >= static_cast<int>(m_currentColumns.size()))
+		{
+			return;
+		}
+		// The last section stretches to fill the table, so its width is the window's, not the
+		// user's — saving it would rewrite the layout on every window resize.
+		if (logicalIndex == static_cast<int>(m_currentColumns.size()) - 1)
+		{
+			return;
+		}
+
+		m_currentColumns[static_cast<size_t>(logicalIndex)].widthPx = newSize;
+		m_controller.saveColumnWidth(m_currentTypeId, m_currentColumns[static_cast<size_t>(logicalIndex)].key,
+			newSize);
+	}
+
 	void MainWindow::showParts(int typeId, const QString& typeName)
 	{
 		// §7b: the header is per-category and comes from data, so it is built here rather
@@ -312,7 +363,8 @@ namespace PartManager
 		const QString filter = m_ui->tableFilterEdit->text();
 		markFilterError(m_ui->tableFilterEdit, searchError(filter));
 
-		std::vector<PartColumn> columns = m_controller.columnsFor(typeId);
+		m_currentColumns = m_controller.columnsFor(typeId);
+		const std::vector<PartColumn>& columns = m_currentColumns;
 		std::vector<PartRow> rows = m_controller.partsFor(typeId, columns, filter);
 
 		m_ui->partTable->clearContents();
@@ -352,8 +404,21 @@ namespace PartManager
 			}
 		}
 
-		m_ui->partTable->resizeColumnsToContents();
-		m_ui->partTable->horizontalHeader()->setStretchLastSection(true);
+		// Laying out the header emits sectionResized for every column — unblocked, the app would
+		// immediately save its own auto-fit widths back over the ones the user chose.
+		QHeaderView* header = m_ui->partTable->horizontalHeader();
+		{
+			const QSignalBlocker blocker(header);
+			m_ui->partTable->resizeColumnsToContents();
+			for (int index = 0; index < static_cast<int>(columns.size()); ++index)
+			{
+				if (columns[static_cast<size_t>(index)].widthPx > 0)
+				{
+					m_ui->partTable->setColumnWidth(index, columns[static_cast<size_t>(index)].widthPx);
+				}
+			}
+			header->setStretchLastSection(true);
+		}
 		m_ui->partsHeaderLabel->setText(tr("%1 — %n part(s)", "", static_cast<int>(rows.size())).arg(typeName));
 		// Refilling the table drops the selection without always emitting the signal, and the
 		// values behind a kept selection may have just changed anyway.
@@ -440,6 +505,7 @@ namespace PartManager
 		addButton(stockGroup, tr("Restock"), QStringLiteral(":/icons/restock.png"), &MainWindow::onRestock);
 		addButton(stockGroup, tr("Take Out"), QStringLiteral(":/icons/take-out.png"), &MainWindow::onTakeOut);
 		addButton(viewGroup, tr("Refresh"), QStringLiteral(":/icons/refresh.png"), &MainWindow::reloadCategories);
+		addButton(viewGroup, tr("Customize Columns"), QStringLiteral(":/icons/tabelle.png"), &MainWindow::onCustomizeColumns);
 		addButton(viewGroup, tr("List / Grid"), QStringLiteral(":/icons/view-list.png"), &MainWindow::onNotImplemented);
 		addButton(viewGroup, tr("3D Viewer"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onNotImplemented);
 		addButton(manageGroup, tr("Edit Type Templates"), QStringLiteral(":/icons/edit-type-template.png"), &MainWindow::onNotImplemented);

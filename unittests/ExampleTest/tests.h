@@ -7,6 +7,7 @@
 #include "tests/TST_DatabaseCreate.h"
 #include "tests/TST_PartTypeRepository.h"
 #include "tests/TST_PartRepository.h"
+#include "tests/TST_ListColumnRepository.h"
 #include "tests/TST_TagRepository.h"
 #include "tests/TST_StockRepository.h"
 #include "tests/TST_StockController.h"

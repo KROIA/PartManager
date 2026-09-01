@@ -2,6 +2,7 @@
 
 #include "controllers/PartManager_PartEditorController.h"
 #include "controllers/PartManager_StockController.h"
+#include "persistence/PartManager_ListColumnRepository.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_TagRepository.h"
@@ -169,6 +170,73 @@ namespace PartManager
 
 		builtIn("stock_qty", QObject::tr("Stock"));
 		return columns;
+	}
+
+	std::vector<PartColumn> applyColumnConfig(const std::vector<PartColumn>& derived,
+		const std::vector<PartTypeListColumn>& config)
+	{
+		if (config.empty())
+		{
+			return derived;   // never customized (or a database older than §7b) — derived order stands
+		}
+
+		std::vector<PartColumn> result;
+		std::set<QString> placed;
+		for (const PartTypeListColumn& saved : config)
+		{
+			const QString key = toQt(saved.columnKey);
+			auto match = std::find_if(derived.begin(), derived.end(),
+				[&key](const PartColumn& column) { return column.key == key; });
+			if (match == derived.end() || !placed.insert(key).second)
+			{
+				continue; // an attribute that was deleted since, or a duplicated key in a hand-edited DB
+			}
+			PartColumn column = *match;
+			column.visible = saved.visible;
+			column.widthPx = saved.widthPx;
+			column.labelOverride = toQt(saved.labelOverride);
+			if (!column.labelOverride.isEmpty())
+			{
+				column.label = column.labelOverride; // user-typed text — never tr()'d
+			}
+			result.push_back(column);
+		}
+		// Anything the type gained after the layout was saved: appended, visible. Dropping it
+		// instead would make a newly added attribute invisible with no hint that it exists.
+		for (const PartColumn& column : derived)
+		{
+			if (placed.find(column.key) == placed.end())
+			{
+				result.push_back(column);
+			}
+		}
+
+		// The table hangs the part id and the tag chips off column 0 (see header note).
+		auto name = std::find_if(result.begin(), result.end(),
+			[](const PartColumn& column) { return column.key == "name"; });
+		if (name != result.end())
+		{
+			name->visible = true;
+			std::rotate(result.begin(), name, name + 1);
+		}
+		return result;
+	}
+
+	std::vector<PartTypeListColumn> toColumnConfig(const std::vector<PartColumn>& columns)
+	{
+		std::vector<PartTypeListColumn> config;
+		int sortOrder = 0;
+		for (const PartColumn& column : columns)
+		{
+			PartTypeListColumn row;
+			row.columnKey = column.key.toStdString();
+			row.labelOverride = column.labelOverride.toStdString();
+			row.visible = column.visible;
+			row.sortOrder = sortOrder++;
+			row.widthPx = column.widthPx;
+			config.push_back(row);
+		}
+		return config;
 	}
 
 	QString formatAttributeValue(const QString& attributesJson, const PartColumn& column)
@@ -354,15 +422,75 @@ namespace PartManager
 		return std::vector<CategoryNode>();
 	}
 
-	std::vector<PartColumn> MainWindowController::columnsFor(int typeId) const
+	std::vector<PartColumn> MainWindowController::allColumnsFor(int typeId) const
 	{
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		if (m_handle && m_handle->isOpen())
 		{
-			return deriveColumns(PartTypeRepository::effectiveAttributes(m_handle->connection(), typeId));
+			SQLiteWrapper::SQLite& db = m_handle->connection();
+			return applyColumnConfig(deriveColumns(PartTypeRepository::effectiveAttributes(db, typeId)),
+				ListColumnRepository::effectiveColumns(db, typeId));
 		}
 #endif
 		return deriveColumns(std::vector<PartTypeAttribute>());
+	}
+
+	std::vector<PartColumn> MainWindowController::columnsFor(int typeId) const
+	{
+		std::vector<PartColumn> visible;
+		for (const PartColumn& column : allColumnsFor(typeId))
+		{
+			if (column.visible)
+			{
+				visible.push_back(column);
+			}
+		}
+		return visible;
+	}
+
+	bool MainWindowController::saveColumns(int typeId, const std::vector<PartColumn>& columns) const
+	{
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		if (m_handle && m_handle->isOpen() && typeId != NoParentType)
+		{
+			return ListColumnRepository::saveColumns(m_handle->connection(), typeId, toColumnConfig(columns));
+		}
+#else
+		Q_UNUSED(typeId);
+		Q_UNUSED(columns);
+#endif
+		return false;
+	}
+
+	bool MainWindowController::resetColumns(int typeId) const
+	{
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		if (m_handle && m_handle->isOpen() && typeId != NoParentType)
+		{
+			return ListColumnRepository::clearColumns(m_handle->connection(), typeId);
+		}
+#else
+		Q_UNUSED(typeId);
+#endif
+		return false;
+	}
+
+	bool MainWindowController::saveColumnWidth(int typeId, const QString& columnKey, int widthPx) const
+	{
+		// Written through the whole layout rather than a single-column upsert: a lone width row
+		// would be the only entry in the config, and applyColumnConfig() would then order the
+		// table by it — one dragged divider would jumble every other column.
+		std::vector<PartColumn> columns = allColumnsFor(typeId);
+		bool found = false;
+		for (PartColumn& column : columns)
+		{
+			if (column.key == columnKey)
+			{
+				column.widthPx = widthPx;
+				found = true;
+			}
+		}
+		return found && saveColumns(typeId, columns);
 	}
 
 	std::vector<PartRow> MainWindowController::partsFor(int typeId, const std::vector<PartColumn>& columns,

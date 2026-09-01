@@ -141,27 +141,27 @@ namespace PartManager
 			slot.sortOrder = std::atoi(row[6].c_str());
 			return slot;
 		}
+	}
 
-		// Root ancestor -> typeId, typeId last. Stops early / drops the rest if a cycle is found.
-		std::vector<int> ancestorChainRootFirst(SQLiteWrapper::SQLite& db, int typeId)
+	// Root ancestor -> typeId, typeId last. Stops early / drops the rest if a cycle is found.
+	std::vector<int> PartTypeRepository::ancestorChainRootFirst(SQLiteWrapper::SQLite& db, int typeId)
+	{
+		std::vector<int> chain;
+		std::unordered_set<int> visited;
+		int current = typeId;
+		while (current != NoParentType && visited.find(current) == visited.end())
 		{
-			std::vector<int> chain;
-			std::unordered_set<int> visited;
-			int current = typeId;
-			while (current != NoParentType && visited.find(current) == visited.end())
+			visited.insert(current);
+			chain.push_back(current);
+			PartType type;
+			if (!findType(db, current, type))
 			{
-				visited.insert(current);
-				chain.push_back(current);
-				PartType type;
-				if (!PartTypeRepository::findType(db, current, type))
-				{
-					break;
-				}
-				current = type.parentTypeId;
+				break;
 			}
-			std::reverse(chain.begin(), chain.end());
-			return chain;
+			current = type.parentTypeId;
 		}
+		std::reverse(chain.begin(), chain.end());
+		return chain;
 	}
 
 	bool PartTypeRepository::createSchema(SQLiteWrapper::SQLite& db)

@@ -4,6 +4,7 @@
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_TagRepository.h"
 #include "persistence/PartManager_StockRepository.h"
+#include "persistence/PartManager_ListColumnRepository.h"
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 	#include "SQLite.h"
@@ -59,6 +60,14 @@ namespace PartManager
 			// right, so re-running this step can never double-count.
 			StockRepository::createSchema(db);
 			StockRepository::backfillOpeningBalances(db);
+		}
+		if (storedSchemaVersion < 4 && db.isOpen())
+		{
+			// v3 -> v4: the part_type_list_column layout table (§7b). Same CREATE TABLE IF NOT EXISTS /
+			// db.isOpen() reasoning as above. Deliberately no backfill: an empty table means every
+			// category still derives its columns from its effective attributes, exactly as before, so
+			// a migrated database looks identical until the user customizes something.
+			ListColumnRepository::createSchema(db);
 		}
 		return SchemaCompatibility::migrated;
 	}

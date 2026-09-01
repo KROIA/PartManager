@@ -22,6 +22,9 @@ public:
 		ADD_TEST(TST_MainWindowController::treeMatchCountsRollUpLikeStock);
 		ADD_TEST(TST_MainWindowController::searchErrorOnlyReportsMalformedQueries);
 		ADD_TEST(TST_MainWindowController::previewShapesTheSelectedPartsFields);
+		ADD_TEST(TST_MainWindowController::emptyColumnConfigFallsBackToDerived);
+		ADD_TEST(TST_MainWindowController::savedColumnConfigReordersHidesAndResizes);
+		ADD_TEST(TST_MainWindowController::columnConfigSurvivesAddedAndRemovedAttributes);
 	}
 
 private:
@@ -34,6 +37,24 @@ private:
 		type.domain = "electronic";
 		type.parentTypeId = parentId;
 		return type;
+	}
+
+	static PartManager::PartTypeAttribute makeAttribute(const std::string& key)
+	{
+		PartManager::PartTypeAttribute attribute;
+		attribute.key = key;
+		attribute.label = key;
+		attribute.datatype = PartManager::AttributeDataType::Text;
+		return attribute;
+	}
+
+	static PartManager::PartTypeListColumn makeListColumn(const std::string& key, bool visible, int widthPx)
+	{
+		PartManager::PartTypeListColumn column;
+		column.columnKey = key;
+		column.visible = visible;
+		column.widthPx = widthPx;
+		return column;
 	}
 
 	// Tests
@@ -290,6 +311,92 @@ private:
 		TEST_ASSERT(!PartManager::datasheetState(QString(), false).isEmpty());
 		TEST_ASSERT(PartManager::datasheetState("rc0603.pdf", false).contains("rc0603.pdf"));
 		TEST_ASSERT(PartManager::datasheetState("rc0603.pdf", false) != QString("rc0603.pdf"));
+	}
+
+	TEST_FUNCTION(emptyColumnConfigFallsBackToDerived)
+	{
+		TEST_START;
+
+		std::vector<PartManager::PartColumn> derived = PartManager::deriveColumns({ makeAttribute("resistance") });
+
+		// The whole compatibility story: no saved rows, nothing changes.
+		std::vector<PartManager::PartColumn> applied =
+			PartManager::applyColumnConfig(derived, std::vector<PartManager::PartTypeListColumn>());
+		TEST_COMPARE(applied.size(), derived.size());
+		for (size_t index = 0; index < applied.size(); ++index)
+		{
+			TEST_COMPARE(applied[index].key.toStdString(), derived[index].key.toStdString());
+			TEST_ASSERT_M(applied[index].visible, "a derived column is visible");
+			TEST_COMPARE(applied[index].widthPx, 0);
+		}
+	}
+
+	TEST_FUNCTION(savedColumnConfigReordersHidesAndResizes)
+	{
+		TEST_START;
+
+		std::vector<PartManager::PartColumn> derived = PartManager::deriveColumns({ makeAttribute("resistance") });
+		std::vector<PartManager::PartTypeListColumn> config{
+			makeListColumn("stock_qty", true, 80),
+			makeListColumn("resistance", true, 120),
+			makeListColumn("name", true, 0),
+			makeListColumn("mpn", false, 0),
+			makeListColumn("manufacturer", false, 0),
+			makeListColumn("package", false, 0)
+		};
+
+		std::vector<PartManager::PartColumn> applied = PartManager::applyColumnConfig(derived, config);
+
+		// `name` is pinned first however the layout ordered it — the table hangs the part id and
+		// the tag chips off column 0.
+		TEST_COMPARE(applied.size(), static_cast<size_t>(6));
+		TEST_COMPARE(applied[0].key.toStdString(), std::string("name"));
+		TEST_COMPARE(applied[1].key.toStdString(), std::string("stock_qty"));
+		TEST_COMPARE(applied[1].widthPx, 80);
+		TEST_COMPARE(applied[2].key.toStdString(), std::string("resistance"));
+		TEST_COMPARE(applied[2].widthPx, 120);
+		TEST_ASSERT_M(!applied[3].visible, "a hidden column stays in the list, marked hidden");
+
+		// toColumnConfig() is the inverse, so a save-then-load leaves the layout where it was.
+		std::vector<PartManager::PartColumn> reapplied =
+			PartManager::applyColumnConfig(derived, PartManager::toColumnConfig(applied));
+		TEST_COMPARE(reapplied.size(), applied.size());
+		for (size_t index = 0; index < applied.size(); ++index)
+		{
+			TEST_COMPARE(reapplied[index].key.toStdString(), applied[index].key.toStdString());
+			TEST_COMPARE(reapplied[index].widthPx, applied[index].widthPx);
+			TEST_ASSERT(reapplied[index].visible == applied[index].visible);
+		}
+	}
+
+	TEST_FUNCTION(columnConfigSurvivesAddedAndRemovedAttributes)
+	{
+		TEST_START;
+
+		// The layout was saved when the type still had `tolerance` and not yet `power`.
+		std::vector<PartManager::PartTypeListColumn> config{
+			makeListColumn("name", true, 0),
+			makeListColumn("tolerance", true, 0),
+			makeListColumn("stock_qty", true, 0)
+		};
+		std::vector<PartManager::PartColumn> derived =
+			PartManager::deriveColumns({ makeAttribute("resistance"), makeAttribute("power") });
+
+		std::vector<PartManager::PartColumn> applied = PartManager::applyColumnConfig(derived, config);
+
+		// The deleted attribute is dropped; everything the layout never mentioned is appended
+		// visible rather than silently disappearing.
+		auto keyAt = [&applied](size_t index) { return applied[index].key.toStdString(); };
+		TEST_COMPARE(applied.size(), static_cast<size_t>(7));
+		TEST_COMPARE(keyAt(0), std::string("name"));
+		TEST_COMPARE(keyAt(1), std::string("stock_qty"));
+		TEST_COMPARE(keyAt(2), std::string("manufacturer"));
+		TEST_COMPARE(keyAt(5), std::string("resistance"));
+		TEST_COMPARE(keyAt(6), std::string("power"));
+		for (const PartManager::PartColumn& column : applied)
+		{
+			TEST_ASSERT_M(column.key != QString("tolerance"), "a deleted attribute must not stay a column");
+		}
 	}
 
 };

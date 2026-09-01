@@ -62,6 +62,10 @@ namespace PartManager
 		static bool deleteFileSlot(SQLiteWrapper::SQLite& db, int fileSlotId);
 		static std::vector<PartTypeFileSlot> listOwnFileSlots(SQLiteWrapper::SQLite& db, int typeId);
 
+		// The §2b walk itself: root ancestor first, typeId last. A parent_type_id cycle stops the
+		// walk instead of looping. Public because list columns resolve the same way (§7b).
+		static std::vector<int> ancestorChainRootFirst(SQLiteWrapper::SQLite& db, int typeId);
+
 		// §2b resolution: root ancestor -> typeId, ancestor rows first (by their own sort_order),
 		// then typeId's own new/overridden rows; a same-key row on typeId replaces the ancestor's.
 		static std::vector<PartTypeAttribute> effectiveAttributes(SQLiteWrapper::SQLite& db, int typeId);

@@ -19,6 +19,7 @@
 #include "domain/PartManager_Part.h"
 #include "domain/PartManager_PartType.h"
 #include "domain/PartManager_PartTypeAttribute.h"
+#include "domain/PartManager_PartTypeListColumn.h"
 #include "domain/PartManager_Tag.h"
 #include <QString>
 #include <QStringList>
@@ -47,6 +48,9 @@ namespace PartManager
 		bool isAttribute = false;
 		QString unit;                       // §2a dropdown unit, empty for "(no unit)"; drives ValueParser::format()
 		AttributeDataType datatype = AttributeDataType::Text;
+		QString labelOverride;              // §7b renamed header, empty = `label` is the real one
+		bool visible = true;                // §7b saved visibility; columnsFor() drops the hidden ones
+		int widthPx = 0;                    // §7b saved width, 0 = size the column to its contents
 	};
 
 	// One rendered row of the §7b part table.
@@ -94,13 +98,25 @@ namespace PartManager
 	// typeId plus every type below it, so selecting a parent lists its children's parts (see header note).
 	std::vector<int> typeIdWithDescendants(const std::vector<PartType>& types, int typeId);
 
-	// §7b columns for a type: the built-ins the mockup shows, with the type's effective
-	// attributes (declaration order) slotted in before the stock column.
-	// TODO(§7b): once `part_type_list_column` exists, order/visibility/width come from there
-	// and the "Customize columns..." dialog writes back to it.
-	// ponytail: declaration order is hardcoded here — ceiling is that the user cannot reorder
-	// or hide a column; upgrade path is the part_type_list_column table above.
+	// §7b default columns for a type: the built-ins the mockup shows, with the type's effective
+	// attributes (declaration order) slotted in before the stock column. This is the full set of
+	// columns a category *can* show — `part_type_list_column` only ever reorders/hides/resizes
+	// what comes out of here, it can never invent a column.
 	std::vector<PartColumn> deriveColumns(const std::vector<PartTypeAttribute>& effectiveAttributes);
+
+	// Lays a saved §7b layout over the derived columns. An empty `config` (the untouched state,
+	// and every database that predates the table) returns `derived` unchanged.
+	//
+	// Otherwise the saved order/visibility/width/label wins, but the derived set still decides
+	// what exists: a saved key that no longer resolves is dropped, and a column the type gained
+	// after the layout was saved (a new attribute) is appended, visible, rather than vanishing.
+	// `name` is always forced first and visible — the table hangs the part id and the §2d tag
+	// chips off column 0, so a layout that moved or hid it would break selection.
+	std::vector<PartColumn> applyColumnConfig(const std::vector<PartColumn>& derived,
+		const std::vector<PartTypeListColumn>& config);
+
+	// The inverse: the rows that persist `columns` as-is, ready for ListColumnRepository::saveColumns().
+	std::vector<PartTypeListColumn> toColumnConfig(const std::vector<PartColumn>& columns);
 
 	// Pulls one column's value out of a part's `attributes` JSON and renders it for display —
 	// dimensioned values go through ValueParser::format(), so 4700 Ω shows as "4.7 kΩ" (§2a).
@@ -140,8 +156,23 @@ namespace PartManager
 		// never hides a category (§7a).
 		std::vector<CategoryNode> categoryTree(const QString& filterText = QString()) const;
 
-		// §7b columns for one category.
+		// §7b columns for one category, saved layout applied, hidden ones already dropped —
+		// what the table and the preview panel actually render.
 		std::vector<PartColumn> columnsFor(int typeId) const;
+
+		// The same list with the hidden columns still in it, for the "Customize columns..." dialog.
+		std::vector<PartColumn> allColumnsFor(int typeId) const;
+
+		// Persists the dialog's result as this category's own §7b layout.
+		bool saveColumns(int typeId, const std::vector<PartColumn>& columns) const;
+
+		// "Reset to default": drops this category's saved layout, so it derives its columns again.
+		bool resetColumns(int typeId) const;
+
+		// Persists one column's width after the user drags a header divider. The first drag on a
+		// never-customized category materializes its current layout, so the width has somewhere
+		// to live without silently reordering everything else.
+		bool saveColumnWidth(int typeId, const QString& columnKey, int widthPx) const;
 
 		// Rows for one category, including every descendant type's parts (see header note).
 		// A non-empty filterText keeps only the rows the §7a query matches; text that fails to

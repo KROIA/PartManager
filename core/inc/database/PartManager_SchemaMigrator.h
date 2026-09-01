@@ -10,6 +10,9 @@
 //   v2: tag/part_type_tag/part_tag (§2d).
 //   v3: stock_transaction (§3) + the opening-balance backfill for parts whose
 //       stock_qty was written directly, before the log existed.
+//   v4: part_type_list_column (§7b), the per-category table layout. Created
+//       empty on purpose — no rows means "columns still derived from the
+//       type's attributes", so a migrated database renders unchanged.
 // @see docs/design/ARCHITECTURE.md §1c
 #pragma once
 
@@ -24,7 +27,7 @@ namespace PartManager
 {
 
 	// The schema (table/column structure) version this build of PartManager understands.
-	constexpr int CurrentSchemaVersion = 3;
+	constexpr int CurrentSchemaVersion = 4;
 
 	// Outcome of comparing a database's stored schema_version against CurrentSchemaVersion.
 	enum class SchemaCompatibility

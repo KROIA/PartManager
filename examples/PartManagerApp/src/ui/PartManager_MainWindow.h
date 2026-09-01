@@ -51,6 +51,10 @@ namespace PartManager
 		// Home tab's Stock group (§7): both write one stock_transaction for the selected part (§3).
 		void onRestock();
 		void onTakeOut();
+		// Home tab's View group — the §7b "Customize Columns..." dialog for the selected category.
+		void onCustomizeColumns();
+		// Persists a column width the user just dragged (§7b).
+		void onColumnResized(int logicalIndex, int oldSize, int newSize);
 
 	private:
 		// Shared body of the two Stock buttons — prompt, then one transaction through the controller.
@@ -80,6 +84,9 @@ namespace PartManager
 		// Which category the table currently shows, so an edit can re-render it in place.
 		int m_currentTypeId = NoParentType;
 		QString m_currentTypeName;
+		// The columns behind the table's current header — a dragged divider only reports a
+		// section index, so this is what turns that back into a column key (§7b).
+		std::vector<PartColumn> m_currentColumns;
 	};
 
 }
