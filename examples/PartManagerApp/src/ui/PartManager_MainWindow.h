@@ -52,6 +52,8 @@ namespace PartManager
 		void onNewPartlist();
 		// Home tab's Partlists button — the §4 overview.
 		void onManagePartlists();
+		// Home tab's Import CSV/BOM button — column mapping, then the editor on the result (§4, §5).
+		void onImportPartlist();
 		// Parts tab's Manage Tags button (§2d).
 		void onManageTags();
 		// Home tab's Stock group (§7): both write one stock_transaction for the selected part (§3).

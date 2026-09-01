@@ -11,6 +11,9 @@
 #pragma once
 
 #include "PartManager_global.h"
+// For NoPartlistId, which partlistId defaults to. Every caller so far happened to include
+// Partlist.h first, so this header only looked self-contained.
+#include "domain/PartManager_Partlist.h"
 #include <string>
 
 namespace PartManager

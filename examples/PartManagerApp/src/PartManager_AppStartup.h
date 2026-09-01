@@ -1,0 +1,39 @@
+// @file PartManager_AppStartup.h
+// @brief The display setup every PartManager GUI process has to perform, in one place.
+//
+// Shared because there are two of them: the app itself and the GUI test binary.
+// They have to agree — a GUI test that renders at a different scale and a
+// different font size than the shipped app cannot see a layout that breaks on
+// the user's actual screen, which is most of the point of having one.
+//
+// Split in two because Qt demands it: the attributes must be set *before* a
+// QApplication exists, the font repair only makes sense *after* one does.
+// @see docs/design/ARCHITECTURE.md §7
+// @see examples/PartManagerApp/src/main.cpp, unittests/ExampleTest/main.cpp
+#pragma once
+
+class QApplication;
+
+namespace PartManager
+{
+
+	// High-DPI attributes. Must be called before any QApplication is constructed — Qt reads
+	// these once, at construction, and ignores them afterwards.
+	void applyHighDpiAttributes();
+
+	// Qt 5.15's Windows font database takes the default UI font from the DEFAULT_GUI_FONT stock
+	// object, whose LOGFONT height is in *unscaled* 96-DPI pixels (-11), and then converts that
+	// height to points using the *scaled* system DPI. On a 250% display that is
+	// 11 * 72 / 240 = 3.3pt where it should be 8.25pt — so every layout scales correctly and
+	// every label comes out unreadably small. Reproduces under both scale-factor rounding
+	// policies, so it is the font path and not the scaling path.
+	//
+	// Qt multiplies logical point sizes by the device pixel ratio again when it paints, and under
+	// PassThrough rounding that ratio *is* the system DPI over 96 — the very number the bad
+	// division used. Multiplying back is therefore the exact inverse, not a fudge factor.
+	//
+	// Guarded so a Qt build or platform that gets this right is left alone: a plausible UI font
+	// is never touched. Call before the first widget exists, so every screen inherits it.
+	void repairDefaultUiFont(QApplication& app);
+
+}

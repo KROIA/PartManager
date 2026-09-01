@@ -8,6 +8,7 @@
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
 #include "ui/PartManager_PartlistEditorDialog.h"
+#include "ui/PartManager_PartlistImportDialog.h"
 #include "ui/PartManager_PartlistManagerDialog.h"
 #include "ui/PartManager_StockDialog.h"
 #include "widgets/PartManager_TagChipDelegate.h"
@@ -315,6 +316,20 @@ namespace PartManager
 		editor.exec();
 	}
 
+	void MainWindow::onImportPartlist()
+	{
+		PartlistController controller(m_controller.handle());
+		PartlistImportDialog import(controller, this);
+		if (import.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+		// Straight into the editor, like the other two partlist entry points: an import that
+		// left rows unresolved is exactly what the user has to look at next.
+		PartlistEditorDialog editor(controller, import.createdPartlistId(), this);
+		editor.exec();
+	}
+
 	void MainWindow::onManagePartlists()
 	{
 		PartlistManagerDialog dialog(m_controller.handle(), this);
@@ -606,6 +621,7 @@ namespace PartManager
 		// Import from Mouser has no icon yet — that one is still on the asset list.
 		addButton(newGroup, tr("New Part"), QStringLiteral(":/icons/new-part.png"), &MainWindow::onNewPart);
 		addButton(newGroup, tr("New Partlist"), QStringLiteral(":/icons/new-partlist.png"), &MainWindow::onNewPartlist);
+		addButton(newGroup, tr("Import CSV / BOM"), QStringLiteral(":/icons/import-csv.png"), &MainWindow::onImportPartlist);
 		addButton(newGroup, tr("Partlists"), QStringLiteral(":/icons/view-list.png"), &MainWindow::onManagePartlists);
 		addButton(stockGroup, tr("Restock"), QStringLiteral(":/icons/restock.png"), &MainWindow::onRestock);
 		addButton(stockGroup, tr("Take Out"), QStringLiteral(":/icons/take-out.png"), &MainWindow::onTakeOut);

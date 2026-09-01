@@ -1,7 +1,9 @@
 #include <iostream>
+#include <QApplication>
 #include <QtGlobal>
 #include "UnitTest_Gui.h"
 #include "PartManager.h"
+#include "PartManager_AppStartup.h"
 #include "tests.h"
 
 
@@ -15,10 +17,20 @@ int main(int argc, char* argv[])
 		});
 
 
+	// The same display setup the app performs. Without it the GUI tests run unscaled with Qt
+	// 5.15's broken 3.3pt default font, which is a screen the user never sees — so a layout that
+	// only breaks at the real scale could never fail a test. Attributes first: Qt reads them when
+	// the QApplication is constructed and ignores them afterwards.
+	PartManager::applyHighDpiAttributes();
+
 	// Opening a database starts SQLiteWrapper's file-change watcher, a QThread whose run() calls
 	// exec() — and a QEventLoop warns on every construction while no QCoreApplication exists.
 	// The GUI tests create one anyway, so create it once up front and the whole run is quiet.
 	UnitTest::Gui::ensureApplication();
+	if (QApplication* app = qobject_cast<QApplication*>(QCoreApplication::instance()))
+	{
+		PartManager::repairDefaultUiFont(*app);
+	}
 
 	PartManager::LibraryInfo::printInfo();
 

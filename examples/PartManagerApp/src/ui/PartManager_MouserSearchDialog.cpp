@@ -101,6 +101,15 @@ namespace PartManager
 		return m_prefill;
 	}
 
+	void MouserSearchDialog::searchFor(const QString& query)
+	{
+		m_ui->searchEdit->setText(query);
+		if (MouserClient::hasApiKey())
+		{
+			search();
+		}
+	}
+
 	void MouserSearchDialog::search()
 	{
 		const QString query = m_ui->searchEdit->text().trimmed();

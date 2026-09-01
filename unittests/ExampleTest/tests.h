@@ -26,4 +26,5 @@
 #include "tests/TST_PartlistRepository.h"
 #include "tests/TST_PartlistController.h"
 #include "tests/TST_PartlistEditorGui.h"
+#include "tests/TST_BomCsvImport.h"
 //#include "test_nasted.h"

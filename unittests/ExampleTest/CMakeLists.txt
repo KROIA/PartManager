@@ -17,6 +17,10 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_StockContr
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_PartlistController.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_DatabaseSelectorController.cpp")
 
+## The app's display setup, so the GUI tests render at the same scale and font size the user's
+## app does. A suite that runs unscaled cannot see a layout that only breaks on the real screen.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/PartManager_AppStartup.cpp")
+
 ## The GUI driver ships with the UnitTest library, but stays out of its build behind
 ## UNITTEST_GUI_ENABLED so the library itself needs no Qt. A target that wants it defines the macro
 ## and compiles the one .cpp in, which is what happens here.

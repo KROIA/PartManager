@@ -34,6 +34,11 @@ namespace PartManager
 		// The row "Use this part" was pressed on. Only meaningful after exec() returned Accepted.
 		const MouserPartPrefill& selectedPrefill() const;
 
+		// Opens on an already-known query and searches it straight away — how the CSV import
+		// arrives here, with the unmatched row's part number in hand. Does nothing without an
+		// API key; the constructor has already said so on the status line.
+		void searchFor(const QString& query);
+
 	private slots:
 		// Runs the search and refills the table. Blocking, see the header note.
 		void search();

@@ -67,6 +67,10 @@ namespace PartManager
 		// combo is navigable by typing.
 		std::vector<Part> allParts() const;
 
+		// The handle this controller borrows, for a dialog that needs one of its own (the CSV
+		// import opens New Part, which talks to PartEditorController). Never owned here.
+		DatabaseHandle* handle() const { return m_handle; }
+
 	private:
 		DatabaseHandle* m_handle;
 	};
