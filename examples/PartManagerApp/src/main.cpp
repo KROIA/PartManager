@@ -2,7 +2,40 @@
 #include "ui/PartManager_MainWindow.h"
 
 #include <QApplication>
+#include <QFont>
 #include <QMessageBox>
+
+namespace
+{
+	// Qt 5.15's Windows font database takes the default UI font from the DEFAULT_GUI_FONT stock
+	// object, whose LOGFONT height is in *unscaled* 96-DPI pixels (-11), and then converts that
+	// height to points using the *scaled* system DPI. On a 250% display that is
+	// 11 * 72 / 240 = 3.3pt where it should be 8.25pt — so every layout scales correctly and
+	// every label comes out unreadably small. Reproduces under both scale-factor rounding
+	// policies, so it is the font path and not the scaling path.
+	//
+	// Qt multiplies logical point sizes by the device pixel ratio again when it paints, and under
+	// PassThrough rounding that ratio *is* the system DPI over 96 — the very number the bad
+	// division used. Multiplying back is therefore the exact inverse, not a fudge factor.
+	//
+	// Guarded so a Qt build or platform that gets this right is left alone: a plausible UI font
+	// is never touched.
+	void repairDefaultUiFont(QApplication& app)
+	{
+		// No desktop UI font is anywhere near this small; Windows' own is 8.25pt.
+		constexpr qreal SuspiciouslySmallPointSize = 6.0;
+
+		QFont font = app.font();
+		const qreal ratio = app.devicePixelRatio();
+		if (ratio <= 1.0 || font.pointSizeF() <= 0.0
+			|| font.pointSizeF() >= SuspiciouslySmallPointSize)
+		{
+			return;
+		}
+		font.setPointSizeF(font.pointSizeF() * ratio);
+		app.setFont(font);
+	}
+}
 
 int main(int argc, char* argv[])
 {
@@ -15,6 +48,10 @@ int main(int argc, char* argv[])
 	QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 
 	QApplication app(argc, argv);
+	// Before any widget exists, so the database selector is readable too — every screen inherits
+	// the application font.
+	repairDefaultUiFont(app);
+
 	// AppSettings (and therefore the known-databases registry, §1b) keys off these.
 	QCoreApplication::setOrganizationName("KROIA");
 	QCoreApplication::setApplicationName("PartManager");

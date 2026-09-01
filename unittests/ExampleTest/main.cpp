@@ -14,6 +14,7 @@ int main(int argc, char* argv[])
 			std::cout << "[Qt] " << message.toStdString() << std::endl;
 		});
 
+
 	// Opening a database starts SQLiteWrapper's file-change watcher, a QThread whose run() calls
 	// exec() — and a QEventLoop warns on every construction while no QCoreApplication exists.
 	// The GUI tests create one anyway, so create it once up front and the whole run is quiet.
