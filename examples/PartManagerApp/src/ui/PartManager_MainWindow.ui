@@ -14,15 +14,150 @@
    <string>PartManager</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QVBoxLayout" name="centralLayout">
+   <layout class="QHBoxLayout" name="centralLayout">
     <item>
-     <widget class="QLabel" name="placeholderLabel">
-      <property name="text">
-       <string>Category tree, part table and preview go here.</string>
+     <widget class="QSplitter" name="bodySplitter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
       </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
+      <widget class="QWidget" name="categoryPanel">
+       <layout class="QVBoxLayout" name="categoryLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QLineEdit" name="treeFilterEdit">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="placeholderText">
+           <string>Search all categories...</string>
+          </property>
+          <property name="toolTip">
+           <string>Cross-category search is not available yet.</string>
+          </property>
+          <property name="clearButtonEnabled">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="categoriesLabel">
+          <property name="text">
+           <string>CATEGORIES</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTreeWidget" name="categoryTree">
+          <property name="headerHidden">
+           <bool>true</bool>
+          </property>
+          <property name="uniformRowHeights">
+           <bool>true</bool>
+          </property>
+          <column>
+           <property name="text">
+            <string notr="true">Category</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="partsPanel">
+       <layout class="QVBoxLayout" name="partsLayout">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <layout class="QHBoxLayout" name="partsHeaderLayout">
+          <item>
+           <widget class="QLabel" name="partsHeaderLabel">
+            <property name="text">
+             <string>Select a category</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="partsHeaderSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="tableFilterEdit">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>200</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="placeholderText">
+             <string>Filter this table...</string>
+            </property>
+            <property name="toolTip">
+             <string>Table filtering is not available yet.</string>
+            </property>
+            <property name="clearButtonEnabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QTableWidget" name="partTable">
+          <property name="alternatingRowColors">
+           <bool>true</bool>
+          </property>
+          <property name="editTriggers">
+           <set>QAbstractItemView::NoEditTriggers</set>
+          </property>
+          <property name="selectionBehavior">
+           <enum>QAbstractItemView::SelectRows</enum>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::SingleSelection</enum>
+          </property>
+          <property name="wordWrap">
+           <bool>false</bool>
+          </property>
+          <attribute name="verticalHeaderVisible">
+           <bool>false</bool>
+          </attribute>
+         </widget>
+        </item>
+       </layout>
+      </widget>
      </widget>
     </item>
    </layout>

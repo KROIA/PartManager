@@ -1,18 +1,83 @@
 // @file PartManager_MainWindowController.h
 // @brief Owns the open database for the main window and answers what it needs to display (§12b).
 //
-// The main window body (category tree, part table, preview) is a later slice —
-// this currently exposes only the open handle's identity, and is the seam the
-// repositories will be reached through when it lands.
-// @see docs/design/ARCHITECTURE.md §7, §12b
+// Everything the Home tab shows — the category tree (§7a) and the part table
+// (§7b) — is assembled here, so the view stays a dumb renderer. The assembly
+// itself is split in two: free functions that are pure (types in, nodes/columns
+// out; no SQL, no widgets — unit-tested in TST_MainWindowController) and the
+// controller methods that just feed them repository rows.
+//
+// Selecting a category shows its OWN parts plus every descendant type's parts:
+// "Capacitor" is a real category with real parts in the mockup's tree, and a
+// user clicking it expects the ceramics and electrolytics under it too. The
+// columns shown in that case are the selected type's effective attributes — a
+// child's extra attributes are not merged in, since they don't exist on siblings.
+// @see docs/design/ARCHITECTURE.md §7a, §7b, §2b, §2d, §12b
 #pragma once
 
 #include "database/PartManager_DatabaseHandle.h"
+#include "domain/PartManager_PartType.h"
+#include "domain/PartManager_PartTypeAttribute.h"
+#include "domain/PartManager_Tag.h"
 #include <QString>
+#include <QStringList>
+#include <map>
 #include <memory>
+#include <vector>
 
 namespace PartManager
 {
+
+	// One node of the §7a category tree — a part_type plus its resolved subtree.
+	struct CategoryNode
+	{
+		int typeId = NoParentType;
+		QString name;                       // user data (the type's name) — never tr()'d
+		int inStockCount = 0;               // parts with stock_qty > 0, own + all descendants
+		std::vector<CategoryNode> children;
+	};
+
+	// One column of the §7b part table, either a built-in or a part_type_attribute.
+	struct PartColumn
+	{
+		QString key;                        // built-in key ('name', 'stock_qty', ...) or the attribute's key
+		QString label;                      // header text; attribute labels are user data, built-ins are tr()'d
+		bool isAttribute = false;
+		QString unit;                       // §2a dropdown unit, empty for "(no unit)"; drives ValueParser::format()
+		AttributeDataType datatype = AttributeDataType::Text;
+	};
+
+	// One rendered row of the §7b part table.
+	struct PartRow
+	{
+		int partId = 0;
+		QStringList cells;                  // one entry per PartColumn, already display-formatted
+		std::vector<Tag> tags;              // §2d chips, rendered by TagChipDelegate
+		int stockQty = 0;
+		int stockMinQty = 0;
+	};
+
+	// Assembles the part_type forest from flat rows, honoring parent_type_id (§2b).
+	// inStockByType maps a type id to the count of ITS OWN in-stock parts; each node's
+	// inStockCount comes back as that count plus every descendant's. Children are sorted
+	// by name; a row whose parent is missing (or which sits in a parent cycle) becomes a root.
+	std::vector<CategoryNode> buildCategoryTree(const std::vector<PartType>& types,
+		const std::map<int, int>& inStockByType);
+
+	// typeId plus every type below it, so selecting a parent lists its children's parts (see header note).
+	std::vector<int> typeIdWithDescendants(const std::vector<PartType>& types, int typeId);
+
+	// §7b columns for a type: the built-ins the mockup shows, with the type's effective
+	// attributes (declaration order) slotted in before the stock column.
+	// TODO(§7b): once `part_type_list_column` exists, order/visibility/width come from there
+	// and the "Customize columns..." dialog writes back to it.
+	// ponytail: declaration order is hardcoded here — ceiling is that the user cannot reorder
+	// or hide a column; upgrade path is the part_type_list_column table above.
+	std::vector<PartColumn> deriveColumns(const std::vector<PartTypeAttribute>& effectiveAttributes);
+
+	// Pulls one column's value out of a part's `attributes` JSON and renders it for display —
+	// dimensioned values go through ValueParser::format(), so 4700 Ω shows as "4.7 kΩ" (§2a).
+	QString formatAttributeValue(const QString& attributesJson, const PartColumn& column);
 
 	class MainWindowController
 	{
@@ -23,6 +88,15 @@ namespace PartManager
 		QString databaseName() const;
 		// Path of the open database's .pmdb entry file.
 		QString pmdbPath() const;
+
+		// The whole §7a category forest with live in-stock counts.
+		std::vector<CategoryNode> categoryTree() const;
+
+		// §7b columns for one category.
+		std::vector<PartColumn> columnsFor(int typeId) const;
+
+		// Rows for one category, including every descendant type's parts (see header note).
+		std::vector<PartRow> partsFor(int typeId, const std::vector<PartColumn>& columns) const;
 
 	private:
 		std::unique_ptr<DatabaseHandle> m_handle;

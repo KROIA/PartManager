@@ -6,6 +6,13 @@
 
 ## USER_SECTION_START 1
 
+## The app's controllers are plain classes with no widget dependency (§12b), so the
+## Home-tab logic they hold is testable here — pull in the app's src/ include root and
+## compile the one controller under test straight into this target.
+set(APP_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../examples/PartManagerApp/src")
+include_directories(${APP_SRC_DIR})
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_MainWindowController.cpp")
+
 ## USER_SECTION_END
 
 ## Override the QT_MODULES if you want to use other modules. 
