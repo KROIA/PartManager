@@ -4,6 +4,7 @@
 ![Qt](https://img.shields.io/badge/Qt-5.15-green)
 ![CMake](https://img.shields.io/badge/CMake-3.20%2B-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+![License](https://img.shields.io/badge/license-MIT-yellow)
 
 A desktop inventory manager for electronic components. PartManager keeps track of
 which parts are in stock, stores their datasheets, photos, KiCad symbols,
@@ -83,6 +84,24 @@ configurable column mapping. PartManager calculates the shortfall against curren
 stock and stages those quantities into a Mouser cart. Orders are tracked until
 arrival, and observed prices are stored as history.
 
+KiCad's BOM export maps itself. Column headers are matched case-insensitively by
+substring, with `_` and `-` treated as spaces:
+
+| Field | Recognised headers |
+|---|---|
+| Designators | `Reference`, `Designator`, `RefDes` |
+| Part number | `MPN`, `Part Number`, `Manufacturer Part`, `Mouser`, `Order Code`, `SKU` |
+| Quantity | `Qty`, `Quantity`, `Count` |
+| Value / name | `Value`, `Comment`, `Name`, `Description` |
+
+Two part-number columns are used when a file has both — a KiCad BOM carries
+`Mouser Part Number` and `Manufacturer_Part_Number` and fills whichever the
+schematic symbol had. Rows are matched against manufacturer part numbers, part
+names and the distributor numbers recorded on each part. Any column can also be
+mapped by hand, and the mapping is remembered for the next file with the same
+headers. Rows matching nothing are imported as unresolved lines rather than being
+dropped or invented as new parts.
+
 ### KiCad integration
 
 PartManager generates one `.kicad_sym` symbol library and one `.pretty` footprint
@@ -101,6 +120,7 @@ on a rendered PCB using the part's footprint.
 
 - Scheduled database snapshots with a configurable retention count.
 - Settings for language, theme, storage locations and backups.
+- A file-store sweep that reports and removes attachments no part references.
 - User interface available in English and German.
 
 ## Requirements
@@ -296,7 +316,6 @@ docs/design/              Architecture specification, mockups, prototype
 
 ## License
 
-This repository does not yet include a `LICENSE` file. Default copyright applies,
-which means the code may not be reused without permission from the author.
+Released under the [MIT License](LICENSE).
 
 Built on the [KROIA CMake project template](https://github.com/KROIA).
