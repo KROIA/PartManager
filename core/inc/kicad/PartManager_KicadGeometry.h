@@ -135,6 +135,25 @@ namespace PartManager
 		// The drawing for a `.kicad_mod` footprint file.
 		static KicadDrawing footprint(const std::string& footprintText);
 
+		// Rewrites the 3D-model path inside a `.kicad_mod` so KiCad can actually resolve it.
+		//
+		// A vendor footprint names its model with that vendor's own absolute path or
+		// `${SOMEONE_ELSES_LIB}` variable. PartManager copies the model file into
+		// `kicad_libs/3dmodels/` but the footprint still points at where it used to live, so
+		// KiCad opens the footprint and shows no model at all. `newPath` is the
+		// `${PARTMANAGER_KICAD_LIBS}/3dmodels/<name>` form the lib tables already use.
+		//
+		// Only the *first* `(model ...)` entry is touched: the rest are alternates a vendor
+		// supplies, and PartManager has one model file to offer, not a set. When the footprint
+		// names none, a complete entry (identity offset/scale/rotation) is appended before the
+		// closing paren rather than nothing happening. Everything else is left byte for byte —
+		// a footprint is a file the user may have edited in KiCad, and reformatting it would
+		// make the §5c edit tracker report a change that is not one.
+		//
+		// Returns the text unchanged when `newPath` is empty.
+		static std::string withModelPath(const std::string& footprintText,
+			const std::string& newPath);
+
 		// KiCad stores an arc as three points on it. Anything that wants to draw one — a painter
 		// with a bounding box and two angles, a mesh builder walking it in steps — needs the
 		// circle behind those three points first, so the circumcentre maths lives here rather

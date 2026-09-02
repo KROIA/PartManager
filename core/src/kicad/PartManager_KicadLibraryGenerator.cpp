@@ -1,4 +1,5 @@
 #include "kicad/PartManager_KicadLibraryGenerator.h"
+#include "kicad/PartManager_KicadGeometry.h"
 #include "kicad/PartManager_KicadSymbolWriter.h"
 #include "filestore/PartManager_FileStore.h"
 #include "persistence/PartManager_PartRepository.h"
@@ -395,7 +396,12 @@ namespace PartManager
 						result.preserved.push_back(skipped);
 						continue;
 					}
-					const std::string contents = readFile(stored);
+					// The vendor's footprint names the vendor's own 3D-model path, which resolves
+					// to nothing on this machine. The model file itself has already been copied
+					// into kicad_libs/3dmodels/ by specFor(), so the copy is pointed at that —
+					// otherwise KiCad opens the footprint and shows no model at all.
+					const std::string contents =
+						KicadGeometry::withModelPath(readFile(stored), spec.model3DPath);
 					if (!contents.empty() && writeFile(target, contents))
 					{
 						KicadEditTracker::record(db, part.id, KicadItemType::Footprint,

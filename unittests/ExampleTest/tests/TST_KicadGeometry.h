@@ -23,6 +23,7 @@ public:
 		ADD_TEST(TST_KicadGeometry::throughHolePadsCarryTheirHole);
 		ADD_TEST(TST_KicadGeometry::aTurnedPadKeepsItsAngle);
 		ADD_TEST(TST_KicadGeometry::aFootprintSaysWhereItsModelGoes);
+		ADD_TEST(TST_KicadGeometry::theModelPathIsRewrittenToWhereTheModelActuallyIs);
 		ADD_TEST(TST_KicadGeometry::anArcSweepsThroughItsMiddlePoint);
 		ADD_TEST(TST_KicadGeometry::rubbishInNothingOut);
 	}
@@ -290,6 +291,94 @@ private:
 	// Where the 3D model goes. A model file's own origin is not where the part sits: the TNPW0603
 	// resistor's STEP runs z = -0.55 .. 0, entirely below the board, and only the footprint's
 	// offset puts it back on top. Both footprints below are the real ones, verbatim.
+	// A vendor footprint names the vendor's own 3D-model path, which resolves to nothing here.
+	// PartManager copies the model into kicad_libs/3dmodels/, so the copied footprint has to be
+	// pointed at it — otherwise KiCad opens the footprint and shows no model at all.
+	TEST_FUNCTION(theModelPathIsRewrittenToWhereTheModelActuallyIs)
+	{
+		TEST_START;
+
+		const std::string target = "${PARTMANAGER_KICAD_LIBS}/3dmodels/2N7002-7-F.step";
+
+		// Quoted, KiCad 6+ spelling, with someone else's library variable in front of it.
+		const std::string vendor =
+			"(footprint \"SOT-23\" (layer \"F.Cu\")\n"
+			"  (pad \"1\" smd rect (at 0 0) (size 1 1) (layers \"F.Cu\"))\n"
+			"  (model \"${VENDOR_3D}/SOT-23.step\"\n"
+			"    (offset (xyz 0 0 0.55))\n"
+			"    (rotate (xyz 0 0 90))\n"
+			"  )\n"
+			")\n";
+		const std::string rewritten = PartManager::KicadGeometry::withModelPath(vendor, target);
+		TEST_ASSERT_M(rewritten.find(target) != std::string::npos,
+			"the model path must be rewritten: " + rewritten);
+		TEST_ASSERT_M(rewritten.find("VENDOR_3D") == std::string::npos,
+			"the vendor's path must be gone: " + rewritten);
+		// The placement is the vendor's measurement of their own model and must survive; so
+		// must the pad, or the rewrite has eaten the footprint.
+		TEST_ASSERT_M(rewritten.find("(offset (xyz 0 0 0.55))") != std::string::npos,
+			"the offset must survive the rewrite: " + rewritten);
+		TEST_ASSERT_M(rewritten.find("(rotate (xyz 0 0 90))") != std::string::npos,
+			"the rotation must survive the rewrite: " + rewritten);
+		TEST_ASSERT_M(rewritten.find("(pad \"1\"") != std::string::npos,
+			"everything else must be byte for byte: " + rewritten);
+		// And it still parses, with the placement it had before.
+		const PartManager::KicadDrawing drawing = PartManager::KicadGeometry::footprint(rewritten);
+		TEST_ASSERT(drawing.model3D.present);
+		TEST_ASSERT(std::abs(drawing.model3D.offsetZ - 0.55) < 1e-9);
+		TEST_COMPARE(drawing.model3D.rotateZ, -90.0);
+
+		// The bare, unquoted spelling older exporters write.
+		const std::string bare =
+			"(module \"SOT96P240X120-3N\" (layer F.Cu)\n"
+			"  (model C:/Vendor/models/2N7002.stp\n"
+			"    (at (xyz 0 0 0))\n"
+			"  )\n"
+			")\n";
+		const std::string bareOut = PartManager::KicadGeometry::withModelPath(bare, target);
+		TEST_ASSERT_M(bareOut.find("\"" + target + "\"") != std::string::npos,
+			"an unquoted path must be replaced and quoted: " + bareOut);
+		TEST_ASSERT_M(bareOut.find("C:/Vendor") == std::string::npos,
+			"the vendor's absolute path must be gone: " + bareOut);
+		TEST_ASSERT_M(bareOut.find("(at (xyz 0 0 0))") != std::string::npos,
+			"the placement must survive: " + bareOut);
+
+		// A footprint naming no model gets a complete entry rather than nothing happening —
+		// a hand-made footprint would otherwise never show the model that was copied for it.
+		const std::string none =
+			"(footprint \"X\" (layer \"F.Cu\")\n"
+			"  (pad \"1\" smd rect (at 0 0) (size 1 1) (layers \"F.Cu\"))\n"
+			")\n";
+		const PartManager::KicadDrawing added =
+			PartManager::KicadGeometry::footprint(
+				PartManager::KicadGeometry::withModelPath(none, target));
+		TEST_ASSERT_M(added.model3D.present, "a missing model entry must be appended");
+		TEST_COMPARE(added.model3D.scaleX, 1.0);
+		TEST_COMPARE(added.model3D.offsetZ, 0.0);
+		TEST_COMPARE(countOf(added, PartManager::KicadShapeKind::Pad), 1);
+
+		// Nothing to point at means nothing is touched — a part with no 3D model must not have
+		// an entry invented for it.
+		TEST_COMPARE(PartManager::KicadGeometry::withModelPath(none, std::string()), none);
+
+		// Only the first entry is rewritten; the rest are the vendor's alternates and there is
+		// only ever one file to offer.
+		const std::string several =
+			"(footprint \"X\" (layer \"F.Cu\")\n"
+			"  (model \"a.step\" (offset (xyz 0 0 0)))\n"
+			"  (model \"b.step\" (offset (xyz 0 0 0)))\n"
+			")\n";
+		const std::string severalOut = PartManager::KicadGeometry::withModelPath(several, target);
+		TEST_ASSERT_M(severalOut.find("\"b.step\"") != std::string::npos,
+			"the alternate model must be left alone: " + severalOut);
+		TEST_ASSERT_M(severalOut.find("\"a.step\"") == std::string::npos,
+			"the first model must be the one replaced: " + severalOut);
+
+		// Rewriting twice is the same as rewriting once: the generator runs on every regenerate
+		// and the §5c edit tracker would report a file that keeps changing as edited by hand.
+		TEST_COMPARE(PartManager::KicadGeometry::withModelPath(rewritten, target), rewritten);
+	}
+
 	TEST_FUNCTION(aFootprintSaysWhereItsModelGoes)
 	{
 		TEST_START;

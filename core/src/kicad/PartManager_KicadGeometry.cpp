@@ -2,6 +2,7 @@
 #include "kicad/PartManager_KicadSymbolWriter.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 
@@ -377,6 +378,77 @@ namespace PartManager
 		std::string base = KicadSymbolWriter::baseSymbolForType(typeName);
 		if (base.empty()) { base = KicadSymbolWriter::GenericBaseSymbol; }
 		return symbol(KicadSymbolWriter::library(KicadSymbolWriter::baseSymbolBlocks()), base);
+	}
+
+	std::string KicadGeometry::withModelPath(const std::string& footprintText,
+		const std::string& newPath)
+	{
+		if (newPath.empty())
+		{
+			return footprintText;
+		}
+
+		// Text surgery rather than parse-and-rewrite on purpose: the S-expression parser above
+		// keeps only what a drawing needs, so round-tripping through it would throw away every
+		// pad, property and comment in the file.
+		for (size_t at = footprintText.find("(model"); at != std::string::npos;
+			at = footprintText.find("(model", at + 1))
+		{
+			// "(models" and "(model_thing" are not this token. A footprint has no such key today,
+			// but a cheap boundary check is better than a rewrite that silently corrupts one.
+			size_t cursor = at + 6;
+			if (cursor >= footprintText.size()
+				|| !std::isspace(static_cast<unsigned char>(footprintText[cursor])))
+			{
+				continue;
+			}
+			while (cursor < footprintText.size()
+				&& std::isspace(static_cast<unsigned char>(footprintText[cursor])))
+			{
+				++cursor;
+			}
+			if (cursor >= footprintText.size())
+			{
+				break;
+			}
+
+			// The path is quoted in KiCad 6+ and bare in files written by older tools; both end
+			// where the next whitespace or the entry's own children begin.
+			size_t end = cursor;
+			if (footprintText[cursor] == '"')
+			{
+				end = footprintText.find('"', cursor + 1);
+				if (end == std::string::npos) { break; }
+				++end;
+			}
+			else
+			{
+				while (end < footprintText.size()
+					&& !std::isspace(static_cast<unsigned char>(footprintText[end]))
+					&& footprintText[end] != '(' && footprintText[end] != ')')
+				{
+					++end;
+				}
+			}
+
+			return footprintText.substr(0, cursor) + "\"" + newPath + "\""
+				+ footprintText.substr(end);
+		}
+
+		// No model entry at all — a hand-made or stripped-down footprint. Appending one is what
+		// makes the copied model reachable; without it the file is correct and useless.
+		const size_t close = footprintText.find_last_of(')');
+		if (close == std::string::npos)
+		{
+			return footprintText;
+		}
+		const std::string entry =
+			"  (model \"" + newPath + "\"\n"
+			"    (offset (xyz 0 0 0))\n"
+			"    (scale (xyz 1 1 1))\n"
+			"    (rotate (xyz 0 0 0))\n"
+			"  )\n";
+		return footprintText.substr(0, close) + entry + footprintText.substr(close);
 	}
 
 	KicadDrawing KicadGeometry::footprint(const std::string& footprintText)
