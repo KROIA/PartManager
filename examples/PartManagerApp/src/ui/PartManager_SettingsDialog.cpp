@@ -2,6 +2,7 @@
 #include "ui_PartManager_SettingsDialog.h"
 
 #include "PartManager_AppStartup.h"
+#include "filestore/PartManager_FileStore.h"
 #include "mouser/PartManager_MouserCartClient.h"
 #include "mouser/PartManager_MouserClient.h"
 
@@ -100,8 +101,13 @@ namespace PartManager
 		connect(m_ui->openFolderButton, &QPushButton::clicked, this, &SettingsDialog::openBackupFolder);
 		connect(m_ui->snapshotTable, &QTableWidget::itemSelectionChanged,
 			this, &SettingsDialog::updateButtons);
+		connect(m_ui->scanFilesButton, &QPushButton::clicked, this, &SettingsDialog::scanUnusedFiles);
+		connect(m_ui->deleteUnusedButton, &QPushButton::clicked, this, &SettingsDialog::deleteUnusedFiles);
 		connect(m_ui->closeButton, &QPushButton::clicked, this, &SettingsDialog::accept);
 
+		m_ui->cleanupLabel->setText(tr("Deleting a part leaves its datasheets, images and models "
+			"in the file store — they are only removed once nothing points at them. Scanning "
+			"reports what is left over; nothing is deleted until you say so."));
 		refreshSnapshots();
 	}
 
@@ -271,11 +277,78 @@ namespace PartManager
 		m_ui->backupNowButton->setEnabled(hasDatabase);
 		m_ui->openFolderButton->setEnabled(hasDatabase);
 		m_ui->restoreButton->setEnabled(hasDatabase && m_ui->snapshotTable->currentRow() >= 0);
+		m_ui->scanFilesButton->setEnabled(hasDatabase);
+		m_ui->deleteUnusedButton->setEnabled(hasDatabase
+			&& (!m_orphans.relativePaths.empty() || m_staleMeshCache > 0));
 		if (!hasDatabase)
 		{
 			m_ui->statusLabel->setText(
 				tr("Open a database to take or restore snapshots. The other settings apply anyway."));
 		}
+	}
+
+	void SettingsDialog::scanUnusedFiles()
+	{
+		m_orphans = FileStoreOrphans();
+		m_staleMeshCache = 0;
+		if (m_handle == nullptr || !m_handle->isOpen())
+		{
+			updateButtons();
+			return;
+		}
+
+		FileStore store(m_handle->filestorePath());
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		m_orphans = store.findOrphans(m_handle->connection());
+#endif
+		m_staleMeshCache = store.countStaleMeshCache();
+
+		QStringList parts;
+		if (!m_orphans.relativePaths.empty())
+		{
+			parts << tr("%n unused file(s), %1", "", static_cast<int>(m_orphans.relativePaths.size()))
+				.arg(humanSize(m_orphans.totalBytes));
+		}
+		if (m_staleMeshCache > 0)
+		{
+			parts << tr("%n obsolete mesh-cache entry/entries", "", m_staleMeshCache);
+		}
+		m_ui->cleanupLabel->setText(parts.isEmpty()
+			? tr("Nothing to clean up — every stored file is still in use.")
+			: tr("Found %1. Nothing has been deleted yet.").arg(parts.join(tr(" and "))));
+		updateButtons();
+	}
+
+	void SettingsDialog::deleteUnusedFiles()
+	{
+		if (m_handle == nullptr || !m_handle->isOpen())
+		{
+			return;
+		}
+		const int fileCount = static_cast<int>(m_orphans.relativePaths.size());
+		if (QMessageBox::question(this, tr("Delete unused files?"),
+			tr("%n file(s) will be deleted from the file store. This cannot be undone — the "
+				"snapshots on the Backups tab cover the database, not the file store.",
+				"", fileCount + m_staleMeshCache),
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+		{
+			return;
+		}
+
+		FileStore store(m_handle->filestorePath());
+		int removed = 0;
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		// Re-found rather than deleting the recorded list: between the scan and this press the
+		// user may have attached a file whose content deduplicates onto one of those paths, and
+		// deleting it then would take a live attachment with it.
+		removed += store.removeOrphans(m_handle->connection());
+#endif
+		removed += store.removeStaleMeshCache();
+
+		m_orphans = FileStoreOrphans();
+		m_staleMeshCache = 0;
+		m_ui->cleanupLabel->setText(tr("%n file(s) deleted.", "", removed));
+		updateButtons();
 	}
 
 	void SettingsDialog::backupNow()

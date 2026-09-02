@@ -24,6 +24,7 @@
 #include "domain/PartManager_PartFile.h"
 #include "domain/PartManager_PartFileRole.h"
 #include <string>
+#include <vector>
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 namespace SQLiteWrapper { class SQLite; }
@@ -55,6 +56,17 @@ namespace PartManager
 		std::string contentType;
 		std::string bytes;
 		int status = 0;
+	};
+
+	// What a sweep found: stored files no `part_file` row points at any more (§12a).
+	//
+	// Deleting a part clears its rows but cannot touch the files, because persistence is not
+	// allowed to depend on FileStore — so the bytes stay behind. That is deliberate and safe (a
+	// leak, never a loss), but it never gets cleaned up on its own.
+	struct PART_MANAGER_API FileStoreOrphans
+	{
+		std::vector<std::string> relativePaths;   // relative to the filestore root
+		long long totalBytes = 0;
 	};
 
 	// Content-addressed store rooted at one database folder's filestore/ path.
@@ -166,7 +178,30 @@ namespace PartManager
 		// import, so the bytes are not carried around a second time just to be deduplicated.
 		int adoptStoredFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
 			const FileStoreResult& stored, std::string* outError = nullptr);
+
+		// Every stored file no `part_file` row references. Read-only — nothing is deleted, so a
+		// caller can show the user what would go before anything does.
+		//
+		// Only the content-addressed area (`<xx>/<hash>.<ext>`) is examined. `meshcache/` holds
+		// *derived* data that no `part_file` row ever points at, so sweeping it by the same rule
+		// would delete the whole cache; its own stale entries are handled below.
+		FileStoreOrphans findOrphans(SQLiteWrapper::SQLite& db) const;
+
+		// Deletes what findOrphans() reported. Returns how many files were removed; a file that
+		// cannot be deleted is skipped and counted out, not treated as a failure of the sweep.
+		int removeOrphans(SQLiteWrapper::SQLite& db);
 #endif
+
+		// Mesh-cache entries left behind by the move to `.pmmesh` naming (§13). A `.stl` under
+		// `meshcache/` is dead by construction — nothing has written or read one since — so this
+		// needs no database at all. Returns how many were removed.
+		//
+		// A *current* `.pmmesh` whose STEP file is gone is not touched: proving that would mean
+		// re-hashing every stored model, and the entry is regenerated-or-ignored either way.
+		int removeStaleMeshCache();
+		// How many removeStaleMeshCache() would remove, without removing anything — so a caller
+		// can report the number before asking.
+		int countStaleMeshCache() const;
 
 	private:
 		std::string m_rootPath;

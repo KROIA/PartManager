@@ -318,6 +318,20 @@ namespace PartManager
 		return std::atoi(rows.front().front().c_str());
 	}
 
+	std::vector<std::string> PartRepository::allFilePaths(SQLiteWrapper::SQLite& db)
+	{
+		std::vector<std::string> result;
+		for (const std::vector<std::string>& row : db.fetchAll(
+			"SELECT DISTINCT relative_path FROM part_file;"))
+		{
+			if (!row.empty() && !row.front().empty())
+			{
+				result.push_back(row.front());
+			}
+		}
+		return result;
+	}
+
 	std::vector<PartFile> PartRepository::listFiles(SQLiteWrapper::SQLite& db, int partId)
 	{
 		std::vector<PartFile> result;

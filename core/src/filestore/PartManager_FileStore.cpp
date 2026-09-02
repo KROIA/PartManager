@@ -770,6 +770,132 @@ namespace PartManager
 		return true;
 	}
 
+	FileStoreOrphans FileStore::findOrphans(SQLiteWrapper::SQLite& db) const
+	{
+		FileStoreOrphans orphans;
+
+		std::vector<std::string> referenced = PartRepository::allFilePaths(db);
+		// Rows are written with '/' separators; std::filesystem hands back '\' on Windows, so
+		// without this every file on disk looks unreferenced and the sweep offers to delete the
+		// entire store.
+		for (std::string& path : referenced)
+		{
+			std::replace(path.begin(), path.end(), '\\', '/');
+		}
+		std::sort(referenced.begin(), referenced.end());
+
+		const std::filesystem::path root(m_rootPath);
+		std::error_code error;
+		if (!std::filesystem::is_directory(root, error))
+		{
+			return orphans;
+		}
+
+		for (const std::filesystem::directory_entry& bucket :
+			std::filesystem::directory_iterator(root, error))
+		{
+			if (!bucket.is_directory())
+			{
+				continue;
+			}
+			// The content-addressed layout is `<hash[0:2]>/<hash>.<ext>`, so a bucket is exactly
+			// two hex characters. Anything else — `meshcache/` today, whatever a later feature
+			// adds tomorrow — is not this store's to judge and is left alone.
+			const std::string name = bucket.path().filename().string();
+			if (name.size() != 2 || !std::isxdigit(static_cast<unsigned char>(name[0]))
+				|| !std::isxdigit(static_cast<unsigned char>(name[1])))
+			{
+				continue;
+			}
+
+			for (const std::filesystem::directory_entry& file :
+				std::filesystem::directory_iterator(bucket.path(), error))
+			{
+				if (!file.is_regular_file())
+				{
+					continue;
+				}
+				const std::string relative = name + "/" + file.path().filename().string();
+				if (std::binary_search(referenced.begin(), referenced.end(), relative))
+				{
+					continue;
+				}
+				std::error_code sizeError;
+				const auto size = std::filesystem::file_size(file.path(), sizeError);
+				orphans.relativePaths.push_back(relative);
+				orphans.totalBytes += sizeError ? 0 : static_cast<long long>(size);
+			}
+		}
+		return orphans;
+	}
+
+	int FileStore::removeOrphans(SQLiteWrapper::SQLite& db)
+	{
+		int removed = 0;
+		for (const std::string& relative : findOrphans(db).relativePaths)
+		{
+			std::error_code error;
+			if (std::filesystem::remove(std::filesystem::path(m_rootPath) / relative, error))
+			{
+				++removed;
+			}
+		}
+		return removed;
+	}
+
 #endif
+
+	namespace
+	{
+		// One walk for both the count and the delete, so the number the user is shown and the
+		// number acted on cannot come from two different rules.
+		int sweepMeshCache(const std::string& rootPath, bool deleteThem)
+		{
+			const std::filesystem::path cache = std::filesystem::path(rootPath) / "meshcache";
+			std::error_code error;
+			if (!std::filesystem::is_directory(cache, error))
+			{
+				return 0;
+			}
+
+			int count = 0;
+			for (const std::filesystem::directory_entry& file :
+				std::filesystem::directory_iterator(cache, error))
+			{
+				if (!file.is_regular_file())
+				{
+					continue;
+				}
+				std::string extension = file.path().extension().string();
+				std::transform(extension.begin(), extension.end(), extension.begin(),
+					[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+				if (extension != ".stl")
+				{
+					continue;
+				}
+				if (!deleteThem)
+				{
+					++count;
+					continue;
+				}
+				std::error_code removeError;
+				if (std::filesystem::remove(file.path(), removeError))
+				{
+					++count;
+				}
+			}
+			return count;
+		}
+	}
+
+	int FileStore::removeStaleMeshCache()
+	{
+		return sweepMeshCache(m_rootPath, true);
+	}
+
+	int FileStore::countStaleMeshCache() const
+	{
+		return sweepMeshCache(m_rootPath, false);
+	}
 
 }

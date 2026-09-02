@@ -22,6 +22,7 @@
 
 #include "backup/PartManager_BackupManager.h"
 #include "database/PartManager_DatabaseHandle.h"
+#include "filestore/PartManager_FileStore.h"
 #include "settings/PartManager_Settings.h"
 #include <QDialog>
 #include <vector>
@@ -56,6 +57,11 @@ namespace PartManager
 		void backupNow();
 		void restoreSelected();
 		void openBackupFolder();
+		// §12a housekeeping: finds stored files no `part_file` row points at any more, and the
+		// mesh-cache entries the `.pmmesh` rename left behind. Reports only; deleting is a
+		// second, separate press.
+		void scanUnusedFiles();
+		void deleteUnusedFiles();
 		void updateButtons();
 
 	private:
@@ -67,6 +73,10 @@ namespace PartManager
 		DatabaseHandle* m_handle;
 		AppPreferences m_preferences;
 		std::vector<BackupEntry> m_snapshots;
+		// What the last scan found, so "Delete them" removes exactly what was reported rather
+		// than re-scanning and possibly deleting something the user never saw listed.
+		FileStoreOrphans m_orphans;
+		int m_staleMeshCache = 0;
 		// Guards showPreferences()' own setter calls, which would otherwise look like user edits
 		// and write the defaults back over the stored values.
 		bool m_loading = false;

@@ -28,6 +28,7 @@ public:
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_FileStore::attachingCopiesAndKeepsNoPathToTheOriginal);
 		ADD_TEST(TST_FileStore::attachAndDetachKeepsRowsAndFilesInSync);
+		ADD_TEST(TST_FileStore::theSweepFindsOnlyWhatNothingPointsAt);
 #endif
 	}
 
@@ -336,6 +337,71 @@ private:
 		TEST_ASSERT_M(store.absolutePath(sharedPath).empty(), "the last reference must remove the file");
 
 		TEST_ASSERT_M(!store.detachFile(db, fileB), "detaching an unknown id must fail");
+	}
+
+	// §12a: deleting a part clears its rows but cannot touch its files, because persistence is
+	// not allowed to depend on FileStore. The bytes therefore stay behind, and this is the sweep
+	// that finds them. Getting it wrong the other way — reporting a *referenced* file — would
+	// delete a live attachment, so both directions are pinned here.
+	TEST_FUNCTION(theSweepFindsOnlyWhatNothingPointsAt)
+	{
+		TEST_START;
+
+		std::filesystem::path work = freshFolder("PartManager_TST_FileStore_sweep");
+
+		SQLiteWrapper::SQLite db((work / "partmanager.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+
+		PartManager::PartType type;
+		type.name = "Resistor";
+		type.domain = "electronic";
+		const int typeId = PartManager::PartTypeRepository::insertType(db, type);
+
+		PartManager::Part part;
+		part.partTypeId = typeId;
+		part.name = "Kept";
+		const int partId = PartManager::PartRepository::insertPart(db, part);
+
+		PartManager::FileStore store((work / "filestore").string());
+		std::string error;
+		const std::filesystem::path kept = writeTempFile(work, "kept.pdf", "a referenced datasheet");
+		TEST_ASSERT_M(store.attachFile(db, partId, PartManager::PartFileRole::Datasheet,
+			kept.string(), &error) != 0, error);
+
+		// Imported but never given a row — exactly the state deletePart() leaves behind.
+		const std::filesystem::path dropped = writeTempFile(work, "dropped.pdf", "an orphan");
+		const PartManager::FileStoreResult orphan = store.importFile(dropped.string());
+		TEST_ASSERT_M(orphan.ok, orphan.errorMessage);
+
+		PartManager::FileStoreOrphans found = store.findOrphans(db);
+		TEST_COMPARE(found.relativePaths.size(), static_cast<size_t>(1));
+		TEST_COMPARE(found.relativePaths.front(), orphan.relativePath);
+		TEST_ASSERT_M(found.totalBytes > 0, "an orphan's size must be reported, not left at zero");
+
+		// The mesh cache is derived data no part_file row ever points at. Sweeping it by the
+		// same rule would delete the whole cache, so it must be invisible here.
+		const std::filesystem::path cache = work / "filestore" / "meshcache";
+		std::error_code ignored;
+		std::filesystem::create_directories(cache, ignored);
+		writeTempFile(cache, "part-abc123.pmmesh", "cached mesh");
+		writeTempFile(cache, "part-abc123.stl", "left over from the old naming");
+		TEST_COMPARE(store.findOrphans(db).relativePaths.size(), static_cast<size_t>(1));
+
+		// The legacy `.stl` entries go; the current `.pmmesh` one stays.
+		TEST_COMPARE(store.countStaleMeshCache(), 1);
+		TEST_COMPARE(store.removeStaleMeshCache(), 1);
+		TEST_COMPARE(store.countStaleMeshCache(), 0);
+		TEST_ASSERT_M(std::filesystem::exists(cache / "part-abc123.pmmesh"),
+			"a current mesh-cache entry must not be swept");
+
+		TEST_COMPARE(store.removeOrphans(db), 1);
+		TEST_COMPARE(store.findOrphans(db).relativePaths.size(), static_cast<size_t>(0));
+		// The referenced file is still there — the whole point of scanning before deleting.
+		TEST_ASSERT_M(!store.absolutePath(
+			PartManager::PartRepository::listFiles(db, partId).front().relativePath).empty(),
+			"a file a part_file row points at must survive the sweep");
 	}
 #endif
 

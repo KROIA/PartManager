@@ -60,6 +60,10 @@ namespace PartManager
 		// How many part_file rows still reference one stored file — FileStore's reference count,
 		// since the filestore is content-addressed and one file can back several rows (§1).
 		static int countFilesWithPath(SQLiteWrapper::SQLite& db, const std::string& relativePath);
+		// Every distinct `part_file.relative_path` in the database — what the filestore sweep
+		// checks the files on disk against. One query rather than countFilesWithPath() per file,
+		// which is a query per attachment on a folder with thousands of them.
+		static std::vector<std::string> allFilePaths(SQLiteWrapper::SQLite& db);
 #endif
 
 	};
