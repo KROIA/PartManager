@@ -1,7 +1,11 @@
 #include "ui/PartManager_Model3DDialog.h"
 
+#include "kicad/PartManager_KicadGeometry.h"
 #include "model3d/PartManager_Model3DFormat.h"
 #include "widgets/PartManager_Model3DViewer.h"
+
+#include <fstream>
+#include <iterator>
 
 #include <QDesktopServices>
 #include <QFileDialog>
@@ -16,8 +20,8 @@
 namespace PartManager
 {
 
-	Model3DDialog::Model3DDialog(DatabaseHandle* handle, int partId, const QString& partName,
-		QWidget* parent)
+	Model3DDialog::Model3DDialog(DatabaseHandle* handle, MeshCacheBuilder* builder, int partId,
+		const QString& partName, QWidget* parent)
 		: QDialog(parent)
 		, m_controller(handle)
 		, m_partId(partId)
@@ -30,14 +34,9 @@ namespace PartManager
 		QVBoxLayout* layout = new QVBoxLayout(this);
 
 		m_viewer = new Model3DViewer(this);
-		// Converted STEP meshes are cached under the database folder, beside the filestore they
-		// were converted from — they are derived data, so they belong with the database rather
-		// than in a user-wide temp folder, and they go when the database folder goes.
-		if (handle != nullptr)
-		{
-			m_viewer->setMeshCachePath(QString::fromStdString(handle->filestorePath())
-				+ QStringLiteral("/meshcache"));
-		}
+		// Borrowed, not built here: one converter for the whole app, so this dialog and the
+		// background sweep cannot both be writing the same cache entry.
+		m_viewer->setCacheBuilder(builder);
 		layout->addWidget(m_viewer, 1);
 
 		m_fileLabel = new QLabel(this);
@@ -71,6 +70,22 @@ namespace PartManager
 	void Model3DDialog::reload()
 	{
 		const QString path = QString::fromStdString(m_controller.model3DPath(m_partId));
+
+		// The board the model stands on, from the part's own footprint. Set before showModel()
+		// so the board is built once and the camera frames the pair.
+		const std::string footprintPath =
+			m_controller.roleFilePath(m_partId, PartFileRole::KicadFootprint);
+		if (footprintPath.empty())
+		{
+			m_viewer->setFootprint(KicadDrawing());
+		}
+		else
+		{
+			std::ifstream in(footprintPath, std::ios::binary);
+			const std::string text((std::istreambuf_iterator<char>(in)),
+				std::istreambuf_iterator<char>());
+			m_viewer->setFootprint(KicadGeometry::footprint(text));
+		}
 
 		PartFile file;
 		const bool hasRow = m_controller.model3DFile(m_partId, file);
@@ -136,6 +151,7 @@ namespace PartManager
 			return;
 		}
 		reload();
+		emit modelChanged();
 	}
 
 	void Model3DDialog::detach()
@@ -155,6 +171,7 @@ namespace PartManager
 		}
 		m_controller.detachModel3D(m_partId);
 		reload();
+		emit modelChanged();
 	}
 
 	void Model3DDialog::openInSystemViewer()

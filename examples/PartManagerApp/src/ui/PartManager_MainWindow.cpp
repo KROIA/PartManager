@@ -8,7 +8,10 @@
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
 #include "ui/PartManager_OrderManagerDialog.h"
+#include "services/PartManager_MeshCacheBuilder.h"
+#include "widgets/PartManager_AttachmentIconPainter.h"
 #include "widgets/PartManager_KicadPreviewWidget.h"
+#include "widgets/PartManager_Model3DViewer.h"
 #include "widgets/PartManager_PartlistPanel.h"
 #include "ui/PartManager_KicadLibraryDialog.h"
 #include "ui/PartManager_Model3DDialog.h"
@@ -58,9 +61,65 @@ namespace PartManager
 		// A negative count means the book-keeping is off (§3) — it is shown, never hidden.
 		const QColor NegativeStockColor(0xC0, 0x39, 0x2B);
 
+		// The header tint on the column the table is sorted by. Dark enough to need light text,
+		// so both are named together — a background set without its foreground is the classic way
+		// to make a header unreadable under a dark theme.
+		const QColor SortedColumnColor(0x2E, 0x6D, 0xA4);
+		const QColor SortedColumnTextColor(0xFF, 0xFF, 0xFF);
+
 		// Big enough to tell an SOIC from an electrolytic at a glance, small enough that the
 		// table still reads as a table.
 		constexpr int ThumbnailSize = 28;
+
+		// The Files column's glyphs. Smaller than the thumbnail — four of them share one cell.
+		// Big enough that a folded page corner and a pad row are actually distinguishable at a
+		// glance; the row is 34 px tall, so this is what fits without stretching the grid.
+		constexpr int AttachmentGlyphSize = 18;
+
+		// A cell's numeric value for sorting, when it has one. Without it "10" sorts before "9",
+		// which on a Stock column is not a quirk but a wrong answer.
+		constexpr int SortKeyRole = Qt::UserRole + 20;
+
+		// Sorts on SortKeyRole when both cells carry one, and case-insensitively otherwise —
+		// QTableWidgetItem's own operator< is a case-*sensitive* string compare, which files every
+		// lowercase part name after every uppercase one.
+		class SortableItem : public QTableWidgetItem
+		{
+		public:
+			explicit SortableItem(const QString& text) : QTableWidgetItem(text) {}
+
+			bool operator<(const QTableWidgetItem& other) const override
+			{
+				const QVariant mine = data(SortKeyRole);
+				const QVariant theirs = other.data(SortKeyRole);
+				if (mine.isValid() && theirs.isValid())
+				{
+					return mine.toDouble() < theirs.toDouble();
+				}
+				return QString::compare(text(), other.text(), Qt::CaseInsensitive) < 0;
+			}
+		};
+
+		// The number a cell sorts by, or an invalid QVariant when it is not numeric. Parses the
+		// leading number so "4.7 kΩ" and "100 nF" still order sensibly within one unit — which is
+		// the case that matters, since a column holds one attribute and therefore one unit.
+		QVariant numericSortKey(const QString& text)
+		{
+			QString number;
+			for (QChar c : text.trimmed())
+			{
+				if (c.isDigit() || c == '.' || c == '-' || c == '+'
+					|| ((c == 'e' || c == 'E') && !number.isEmpty()))
+				{
+					number += c;
+					continue;
+				}
+				break;
+			}
+			bool ok = false;
+			const double value = number.toDouble(&ok);
+			return ok ? QVariant(value) : QVariant();
+		}
 
 		// KiCad files are a few kB and read only when the selection changes, so slurping is fine.
 		std::string readWholeFile(const QString& path)
@@ -114,6 +173,14 @@ namespace PartManager
 		// not jump about as images are attached.
 		m_ui->partTable->setIconSize(QSize(ThumbnailSize, ThumbnailSize));
 		m_ui->partTable->verticalHeader()->setDefaultSectionSize(ThumbnailSize + 6);
+		// §7b: click a header to sort, click again to reverse. Qt draws the arrow that says which
+		// column and which way; highlightSortedColumn() adds the colour on top of it, because an
+		// arrow in one header among a dozen is easy to lose.
+		m_ui->partTable->setSortingEnabled(true);
+		m_ui->partTable->horizontalHeader()->setSortIndicatorShown(true);
+		m_ui->partTable->horizontalHeader()->setSectionsClickable(true);
+		connect(m_ui->partTable->horizontalHeader(), &QHeaderView::sortIndicatorChanged,
+			this, [this](int, Qt::SortOrder) { highlightSortedColumn(); });
 		// Only the table grows with the window; both side panels keep their width and can be
 		// collapsed to nothing, so the preview never eats the rows it is describing.
 		m_ui->bodySplitter->setStretchFactor(0, 0);
@@ -140,6 +207,38 @@ namespace PartManager
 			m_ui->previewLayout->insertLayout(
 				m_ui->previewLayout->indexOf(m_ui->previewGraphicLabel) + 1, kicadRow);
 		}
+
+		// §13: the fourth drawing of the same part, under the other three. Orbitable in place —
+		// the dialog is for attaching and replacing, not for the one look that answers "is this
+		// the right package".
+		m_meshBuilder = new MeshCacheBuilder(m_controller.handle(), this);
+		m_modelPreview = new Model3DViewer(m_ui->previewPanel);
+		m_modelPreview->setCacheBuilder(m_meshBuilder);
+		m_modelPreview->setMinimumHeight(110);
+		m_modelPreview->setMaximumHeight(170);
+		m_modelPreview->setToolTip(tr("The 3D model this part places on the board. Drag to orbit."));
+		// +2: the photo, then the symbol/footprint row that was just inserted after it.
+		m_ui->previewLayout->insertWidget(
+			m_ui->previewLayout->indexOf(m_ui->previewGraphicLabel) + 2, m_modelPreview);
+
+		// §13's background sweep. Whatever it converts is reported on the status bar and nowhere
+		// else — it is work the user did not ask for and must not be interrupted by.
+		connect(m_meshBuilder, &MeshCacheBuilder::progressed, this,
+			[this](int done, int total)
+			{
+				if (total <= 0)
+				{
+					m_ui->statusBar->showMessage(m_controller.pmdbPath());
+					return;
+				}
+				m_ui->statusBar->showMessage(
+					tr("Preparing 3D models — %1 of %2…").arg(done).arg(total));
+			});
+		// (A conversion finishing for the model currently on screen is picked up by the viewer
+		// itself, which is already listening to the same builder for exactly that.)
+		// After the window is up, not during startup: the first sweep reads every 3D model in the
+		// database and there is no reason for that to sit between the user and their part list.
+		QTimer::singleShot(3000, m_meshBuilder, &MeshCacheBuilder::rescan);
 
 		// §4 lives here rather than in a pair of dialogs: the part table is the component browser
 		// the old editor's part picker was missing, so a line is added by dragging a row down into
@@ -235,7 +334,15 @@ namespace PartManager
 		}
 		// Opens whether or not the part has a model: attaching one is the same screen, because
 		// the first thing anyone does after attaching is check it is the right file.
-		Model3DDialog dialog(m_controller.handle(), partId, name, this);
+		Model3DDialog dialog(m_controller.handle(), m_meshBuilder, partId, name, this);
+		// A model attached in there is a new STEP file to tessellate and a new glyph in the Files
+		// column, neither of which the dialog can do on its own.
+		connect(&dialog, &Model3DDialog::modelChanged, this, [this]()
+			{
+				if (m_meshBuilder != nullptr) { m_meshBuilder->rescan(); }
+				refreshCurrentCategory();
+				updatePreview();
+			});
 		dialog.exec();
 	}
 
@@ -365,15 +472,32 @@ namespace PartManager
 
 	void MainWindow::addCategoryItem(const CategoryNode& node, QTreeWidgetItem* parent)
 	{
+		const bool filtering = !m_ui->treeFilterEdit->text().trimmed().isEmpty();
+
+		// While the filter is on, a branch with no hits anywhere under it is dropped rather than
+		// shown at zero — the tree becomes the shape of the result, not the whole catalogue with
+		// most of it reading "(0)". matchCount already includes every descendant, so a category
+		// that only matches through a child survives here and its child is kept below.
+		if (filtering && node.matchCount == 0)
+		{
+			return;
+		}
+
 		QTreeWidgetItem* item = parent
 			? new QTreeWidgetItem(parent)
 			: new QTreeWidgetItem(m_ui->categoryTree);
 
-		// §7a: `Category (inStock)`, or `Category (inStock : matches)` while the tree filter
-		// is active. The category name is user data, only the frame is translated.
-		item->setText(0, m_ui->treeFilterEdit->text().trimmed().isEmpty()
-			? tr("%1 (%2)").arg(node.name).arg(node.inStockCount)
-			: tr("%1 (%2 : %3)").arg(node.name).arg(node.inStockCount).arg(node.matchCount));
+		// §7a: `Category (parts)`, or `Category (parts : matches)` while the tree filter is
+		// active. The count is every part in the category, not only the ones in stock — with
+		// in-stock, creating a part with no opening quantity left the number unchanged, so the
+		// tree appeared not to have noticed. In stock moved to the tooltip, where it is still
+		// one hover away.
+		item->setText(0, filtering
+			? tr("%1 (%2 : %3)").arg(node.name).arg(node.partCount).arg(node.matchCount)
+			: tr("%1 (%2)").arg(node.name).arg(node.partCount));
+		item->setToolTip(0, tr("%n part(s) in this category and below", "", node.partCount)
+			+ QLatin1Char('\n')
+			+ tr("%n of them in stock", "", node.inStockCount));
 		item->setData(0, TypeIdRole, node.typeId);
 		item->setData(0, TypeNameRole, node.name);
 
@@ -491,6 +615,13 @@ namespace PartManager
 			m_footprintPreview->showMessage(QString());
 			m_symbolPreview->setCaption(QString());
 			m_footprintPreview->setCaption(QString());
+			if (m_modelPreview != nullptr)
+			{
+				m_modelPreview->setFootprint(KicadDrawing());
+				// An empty path clears it — the viewer says "no 3D model" rather than leaving
+				// the previous part's shape on screen.
+				m_modelPreview->showModel(QString());
+			}
 			return;
 		}
 
@@ -517,11 +648,22 @@ namespace PartManager
 				KicadGeometry::footprint(readWholeFile(preview.kicadFootprintPath));
 			m_footprintPreview->showDrawing(drawing, tr("Footprint file cannot be drawn."));
 			m_footprintPreview->setCaption(QString::fromStdString(drawing.name));
+			// The same pads, under the 3D model — which is the one view that shows whether the
+			// model and the footprint actually agree about where the part sits.
+			if (m_modelPreview != nullptr) { m_modelPreview->setFootprint(drawing); }
 		}
 		else
 		{
 			m_footprintPreview->showMessage(tr("No footprint."));
 			m_footprintPreview->setCaption(QString());
+			if (m_modelPreview != nullptr) { m_modelPreview->setFootprint(KicadDrawing()); }
+		}
+
+		// Last, so the board is built once from the final footprint and the camera is framed
+		// against both it and the model rather than against whichever arrived first.
+		if (m_modelPreview != nullptr)
+		{
+			m_modelPreview->showModel(preview.model3DPath);
 		}
 	}
 
@@ -699,6 +841,14 @@ namespace PartManager
 		const std::vector<PartColumn>& columns = m_currentColumns;
 		std::vector<PartRow> rows = m_controller.partsFor(typeId, columns, filter);
 
+		// Sorting off while the table is filled: with it on, every setItem() re-sorts what is
+		// already there and the rows land in an order that has nothing to do with the loop below.
+		// The indicator is remembered and re-applied, so a refresh keeps the user's chosen order.
+		QHeaderView* const sortHeader = m_ui->partTable->horizontalHeader();
+		const int previousSortColumn = sortHeader->sortIndicatorSection();
+		const Qt::SortOrder previousSortOrder = sortHeader->sortIndicatorOrder();
+		m_ui->partTable->setSortingEnabled(false);
+
 		m_ui->partTable->clearContents();
 		m_ui->partTable->setColumnCount(static_cast<int>(columns.size()));
 		QStringList headers;
@@ -714,7 +864,27 @@ namespace PartManager
 			const PartRow& row = rows[static_cast<size_t>(rowIndex)];
 			for (int columnIndex = 0; columnIndex < row.cells.size(); ++columnIndex)
 			{
-				QTableWidgetItem* cell = new QTableWidgetItem(row.cells.at(columnIndex)); // user data
+				QTableWidgetItem* cell = new SortableItem(row.cells.at(columnIndex)); // user data
+				const QString& columnKey = columns[static_cast<size_t>(columnIndex)].key;
+				if (columnKey == "files")
+				{
+					// Glyphs only — the cell's text is empty by design (see formatCell). It still
+					// sorts: the flag set is the key, so one click groups the parts that have
+					// nothing attached, which is the list worth working through.
+					cell->setData(Qt::DecorationRole, AttachmentIconPainter::strip(
+						row.attachments, AttachmentGlyphSize, devicePixelRatioF()));
+					cell->setData(SortKeyRole, row.attachments);
+					cell->setToolTip(AttachmentIconPainter::describe(row.attachments));
+					cell->setTextAlignment(Qt::AlignCenter);
+				}
+				else
+				{
+					const QVariant sortKey = numericSortKey(row.cells.at(columnIndex));
+					if (sortKey.isValid())
+					{
+						cell->setData(SortKeyRole, sortKey);
+					}
+				}
 				if (columnIndex == 0)
 				{
 					// §2d chips ride along on the name cell; TagChipDelegate paints them.
@@ -746,7 +916,7 @@ namespace PartManager
 						cell->setData(Qt::DecorationRole, thumbnail);
 					}
 				}
-				if (columns[static_cast<size_t>(columnIndex)].key == "stock_qty" && row.stockQty < 0)
+				if (columnKey == "stock_qty" && row.stockQty < 0)
 				{
 					// §3 lets stock go negative; a plain black number would hide that.
 					cell->setForeground(QBrush(NegativeStockColor));
@@ -770,6 +940,16 @@ namespace PartManager
 			}
 			header->setStretchLastSection(true);
 		}
+
+		// Back on, and put the user's order back. sortItems() rather than only restoring the
+		// indicator: re-enabling sorting sets the arrow without actually reordering the new rows.
+		m_ui->partTable->setSortingEnabled(true);
+		if (previousSortColumn >= 0 && previousSortColumn < static_cast<int>(columns.size()))
+		{
+			m_ui->partTable->sortItems(previousSortColumn, previousSortOrder);
+		}
+		highlightSortedColumn();
+
 		m_ui->partsHeaderLabel->setText(tr("%1 — %n part(s)", "", static_cast<int>(rows.size())).arg(typeName));
 
 		// Reselect the same part if it is still in the list — it may have been filtered out, or
@@ -791,6 +971,35 @@ namespace PartManager
 		// Refilling the table drops the selection without always emitting the signal, and the
 		// values behind a kept selection may have just changed anyway.
 		updatePreview();
+	}
+
+	void MainWindow::highlightSortedColumn()
+	{
+		QHeaderView* header = m_ui->partTable->horizontalHeader();
+		const int sorted = header->isSortIndicatorShown() ? header->sortIndicatorSection() : -1;
+
+		for (int column = 0; column < m_ui->partTable->columnCount(); ++column)
+		{
+			QTableWidgetItem* item = m_ui->partTable->horizontalHeaderItem(column);
+			if (item == nullptr)
+			{
+				continue;
+			}
+			// A tint rather than a bold font: changing the weight re-measures the header and the
+			// column jumps a few pixels wider every time the sort moves to it.
+			if (column == sorted)
+			{
+				item->setBackground(QBrush(SortedColumnColor));
+				item->setForeground(QBrush(SortedColumnTextColor));
+			}
+			else
+			{
+				// A default-constructed brush, not a palette colour — the header then paints
+				// itself from the current style, so this still follows a theme change.
+				item->setBackground(QBrush());
+				item->setForeground(QBrush());
+			}
+		}
 	}
 
 	void MainWindow::updatePreview()

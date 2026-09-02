@@ -20,6 +20,10 @@ public:
 		ADD_TEST(TST_KicadGeometry::aGeneratedSymbolDrawsItsBaseBody);
 		ADD_TEST(TST_KicadGeometry::aVendorSymbolKeepsItsOwnPins);
 		ADD_TEST(TST_KicadGeometry::footprintPadsAndSilkscreen);
+		ADD_TEST(TST_KicadGeometry::throughHolePadsCarryTheirHole);
+		ADD_TEST(TST_KicadGeometry::aTurnedPadKeepsItsAngle);
+		ADD_TEST(TST_KicadGeometry::aFootprintSaysWhereItsModelGoes);
+		ADD_TEST(TST_KicadGeometry::anArcSweepsThroughItsMiddlePoint);
 		ADD_TEST(TST_KicadGeometry::rubbishInNothingOut);
 	}
 
@@ -183,6 +187,216 @@ private:
 		PartManager::KicadPoint min, max;
 		TEST_ASSERT(drawing.bounds(min, max));
 		TEST_ASSERT_M(min.x <= -3.45, "the leftmost pad's own width must be inside the bounds");
+
+		// An SMD pad has copper on one face and no hole. The 3D board draws the bottom face only
+		// for through-hole pads, so getting this wrong doubles every SMD pad onto the underside.
+		for (const PartManager::KicadShape& shape : drawing.shapes)
+		{
+			if (shape.kind != PartManager::KicadShapeKind::Pad) { continue; }
+			TEST_ASSERT(!shape.throughHole);
+			TEST_COMPARE(shape.drillDiameter, 0.0);
+		}
+	}
+
+	// Every side-entry package in the KiCad library turns its pads. Dropped, an SOT-23's pads
+	// come out tall and narrow instead of wide and short — a plausible-looking footprint for a
+	// package that is not the one on screen.
+	TEST_FUNCTION(aTurnedPadKeepsItsAngle)
+	{
+		TEST_START;
+
+		// The real 2N7002 footprint's pad line, verbatim.
+		const std::string footprint =
+			"(module \"SOT96P240X120-3N\" (layer F.Cu)\n"
+			"  (pad 1 smd rect (at -1.05 -0.96 90) (size 0.65 1.2) (layers F.Cu F.Paste F.Mask))\n"
+			"  (pad 3 smd rect (at 1.05 0) (size 0.65 1.2) (layers F.Cu F.Paste F.Mask))\n"
+			")\n";
+
+		const PartManager::KicadDrawing drawing = PartManager::KicadGeometry::footprint(footprint);
+		TEST_COMPARE(countOf(drawing, PartManager::KicadShapeKind::Pad), 2);
+		for (const PartManager::KicadShape& shape : drawing.shapes)
+		{
+			if (shape.kind != PartManager::KicadShapeKind::Pad) { continue; }
+			TEST_COMPARE(shape.rotationDegrees, shape.label == "1" ? 90.0 : 0.0);
+			// The size itself is untouched — it is the *drawing* that turns, so a renderer that
+			// ignores the angle is visibly wrong rather than quietly given pre-swapped numbers.
+			TEST_COMPARE(shape.sizeX, 0.65);
+			TEST_COMPARE(shape.sizeY, 1.2);
+		}
+
+		// Bounds have to be of the turned pad, or the fit clips the wide axis of every one.
+		// Pad 1 turned 90 degrees reaches 1.2/2 in x from -1.05, i.e. to -1.65.
+		PartManager::KicadPoint min, max;
+		TEST_ASSERT(drawing.bounds(min, max));
+		TEST_ASSERT_M(std::abs(min.x + 1.65) < 1e-9,
+			"a pad turned 90 degrees is 1.2 wide, not 0.65");
+		// Pad 3 is upright, so the right edge is the plain half-width.
+		TEST_ASSERT_M(std::abs(max.x - 1.375) < 1e-9, "an upright pad must not be turned too");
+		// And in y the turned pad is now the short one: -0.96 - 0.65/2.
+		TEST_ASSERT(std::abs(min.y + 1.285) < 1e-9);
+	}
+
+	// Through-hole is what makes a DIP a DIP: copper on both faces and a hole between them. Read
+	// as surface copper it puts the leads on top of a board they are supposed to pass through.
+	TEST_FUNCTION(throughHolePadsCarryTheirHole)
+	{
+		TEST_START;
+
+		const std::string footprint =
+			"(footprint \"DIP-8_W7.62mm\" (version 20221018) (layer \"F.Cu\")\n"
+			"  (pad \"1\" thru_hole rect (at -3.81 -3.81) (size 1.6 1.6) (drill 0.8)\n"
+			"    (layers \"*.Cu\" \"*.Mask\"))\n"
+			"  (pad \"2\" thru_hole oval (at -3.81 -1.27) (size 1.6 1.6) (drill oval 0.9 1.4)\n"
+			"    (layers \"*.Cu\" \"*.Mask\"))\n"
+			"  (pad \"MP\" np_thru_hole circle (at 0 0) (size 3.2 3.2) (drill 3.2)\n"
+			"    (layers \"*.Cu\" \"*.Mask\"))\n"
+			"  (pad \"9\" smd rect (at 2.54 0) (size 1 1) (layers \"F.Cu\"))\n"
+			")\n";
+
+		const PartManager::KicadDrawing drawing = PartManager::KicadGeometry::footprint(footprint);
+		TEST_COMPARE(countOf(drawing, PartManager::KicadShapeKind::Pad), 4);
+
+		int throughHoles = 0;
+		for (const PartManager::KicadShape& shape : drawing.shapes)
+		{
+			if (shape.kind != PartManager::KicadShapeKind::Pad) { continue; }
+			if (shape.label == "1")
+			{
+				TEST_ASSERT(shape.throughHole);
+				TEST_COMPARE(shape.drillDiameter, 0.8);
+			}
+			else if (shape.label == "2")
+			{
+				TEST_ASSERT(shape.throughHole);
+				// "(drill oval 0.9 1.4)" — atom 1 is the word "oval", so reading it as a number
+				// gives a hole of zero, i.e. a through-hole pad that renders as solid copper.
+				TEST_ASSERT_M(std::abs(shape.drillDiameter - 0.9) < 1e-9,
+					"an oval drill's size starts one atom later");
+			}
+			else if (shape.label == "MP")
+			{
+				TEST_ASSERT_M(shape.throughHole, "np_thru_hole is still a hole through the board");
+				TEST_COMPARE(shape.drillDiameter, 3.2);
+			}
+			else
+			{
+				TEST_ASSERT_M(!shape.throughHole, "an smd pad has no hole and one copper face");
+			}
+			if (shape.throughHole) { ++throughHoles; }
+		}
+		TEST_COMPARE(throughHoles, 3);
+	}
+
+	// Where the 3D model goes. A model file's own origin is not where the part sits: the TNPW0603
+	// resistor's STEP runs z = -0.55 .. 0, entirely below the board, and only the footprint's
+	// offset puts it back on top. Both footprints below are the real ones, verbatim.
+	TEST_FUNCTION(aFootprintSaysWhereItsModelGoes)
+	{
+		TEST_START;
+
+		// The 2N7002's, whose placement is the identity — which is exactly why ignoring the
+		// placement altogether looked like it worked.
+		const PartManager::KicadDrawing upright = PartManager::KicadGeometry::footprint(
+			"(module \"SOT96P240X120-3N\" (layer F.Cu)\n"
+			"  (model 2N7002-7-F.stp\n"
+			"    (at (xyz 0 0 0))\n"
+			"    (scale (xyz 1 1 1))\n"
+			"    (rotate (xyz 0 0 0))\n"
+			"  )\n"
+			")\n");
+		TEST_ASSERT(upright.model3D.present);
+		TEST_COMPARE(upright.model3D.offsetZ, 0.0);
+		TEST_COMPARE(upright.model3D.scaleX, 1.0);
+		TEST_COMPARE(upright.model3D.rotateZ, 0.0);
+
+		// The resistor's. The legacy "(at (xyz ...))" is in *inches*: 0.021653543776415 in is
+		// 0.55 mm, which is exactly the height of a model that would otherwise sit entirely
+		// inside the board. Read as millimetres it is a fortieth of that — near enough to zero
+		// to look like no offset at all, which is the whole failure.
+		const PartManager::KicadDrawing sunken = PartManager::KicadGeometry::footprint(
+			"(module \"RESC1608X55N\" (layer F.Cu)\n"
+			"  (model TNPW060330K0BXEA.stp\n"
+			"    (at (xyz 0 0 0.021653543776415))\n"
+			"    (scale (xyz 1 1 1))\n"
+			"    (rotate (xyz 0 0 0))\n"
+			"  )\n"
+			")\n");
+		TEST_ASSERT(sunken.model3D.present);
+		TEST_ASSERT_M(std::abs(sunken.model3D.offsetZ - 0.55) < 1e-6,
+			"the legacy model offset is in inches and must be converted");
+		// Applied to that model's own box, the body lands on the board rather than under it.
+		TEST_ASSERT(std::abs((-0.55 + sunken.model3D.offsetZ) - 0.0) < 1e-6);
+
+		// The current spelling is millimetres and must *not* be multiplied.
+		const PartManager::KicadDrawing modern = PartManager::KicadGeometry::footprint(
+			"(footprint \"X\" (layer \"F.Cu\")\n"
+			"  (model \"X.step\" (offset (xyz 0 0 0.55)) (scale (xyz 1 1 1))\n"
+			"    (rotate (xyz 0 0 90)))\n"
+			")\n");
+		TEST_ASSERT(std::abs(modern.model3D.offsetZ - 0.55) < 1e-9);
+		// KiCad stores the rotation the opposite way round from the one it applies; negated once
+		// here so no renderer has to remember it.
+		TEST_COMPARE(modern.model3D.rotateZ, -90.0);
+
+		// No model entry is the identity, so a caller can apply the placement unconditionally.
+		const PartManager::KicadDrawing none = PartManager::KicadGeometry::footprint(
+			"(footprint \"X\" (layer \"F.Cu\")\n"
+			"  (pad \"1\" smd rect (at 0 0) (size 1 1) (layers \"F.Cu\"))\n"
+			")\n");
+		TEST_ASSERT(!none.model3D.present);
+		TEST_COMPARE(none.model3D.offsetZ, 0.0);
+		TEST_COMPARE(none.model3D.scaleX, 1.0);
+
+		// A zero scale would collapse the part to a point; treated as unscaled instead.
+		const PartManager::KicadDrawing broken = PartManager::KicadGeometry::footprint(
+			"(footprint \"X\" (layer \"F.Cu\")\n"
+			"  (model \"X.step\" (offset (xyz 0 0 0)) (scale (xyz 0 0 0)))\n"
+			")\n");
+		TEST_COMPARE(broken.model3D.scaleX, 1.0);
+		TEST_COMPARE(broken.model3D.scaleZ, 1.0);
+
+		// The placement is not a shape and must not move the 2D bounds.
+		PartManager::KicadPoint min, max;
+		TEST_ASSERT(!sunken.bounds(min, max));
+	}
+
+	// The circumcentre behind KiCad's three-point arc. It used to live in the preview widget's
+	// anonymous namespace with no test at all; the 3D board walks the same arc, so one wrong
+	// sweep would now be wrong in two places at once.
+	TEST_FUNCTION(anArcSweepsThroughItsMiddlePoint)
+	{
+		TEST_START;
+
+		PartManager::KicadPoint centre;
+		double radius = 0.0, start = 0.0, span = 0.0;
+
+		// A half circle of radius 1 about the origin, from (1,0) up over (0,1) to (-1,0).
+		TEST_ASSERT(PartManager::KicadGeometry::arcCircle({ 1.0, 0.0 }, { 0.0, 1.0 },
+			{ -1.0, 0.0 }, centre, radius, start, span));
+		TEST_ASSERT(std::abs(centre.x) < 1e-9 && std::abs(centre.y) < 1e-9);
+		TEST_ASSERT(std::abs(radius - 1.0) < 1e-9);
+		TEST_ASSERT(std::abs(start) < 1e-9);
+		TEST_ASSERT_M(std::abs(span - 3.14159265358979323846) < 1e-9,
+			"the sweep must go the way the middle point lies, anticlockwise here");
+
+		// The same two endpoints with the middle point on the other side must sweep the other
+		// way. This is the whole reason KiCad stores three points, and the case a "shortest arc"
+		// implementation gets wrong while looking perfectly correct on the first one.
+		TEST_ASSERT(PartManager::KicadGeometry::arcCircle({ 1.0, 0.0 }, { 0.0, -1.0 },
+			{ -1.0, 0.0 }, centre, radius, start, span));
+		TEST_ASSERT_M(span < 0.0, "a middle point below the axis must sweep clockwise");
+		TEST_ASSERT(std::abs(span + 3.14159265358979323846) < 1e-9);
+
+		// Walking the sweep must actually land on the middle point, which is the property both
+		// renderers rely on and neither would notice losing.
+		const double midAngle = start + span / 2.0;
+		TEST_ASSERT(std::abs(centre.x + radius * std::cos(midAngle) - 0.0) < 1e-9);
+		TEST_ASSERT(std::abs(centre.y + radius * std::sin(midAngle) + 1.0) < 1e-9);
+
+		// Three points on a line have no circle. Reported, not approximated with a vast radius
+		// that would make a straight silkscreen edge into a thousand-segment curve.
+		TEST_ASSERT(!PartManager::KicadGeometry::arcCircle({ 0.0, 0.0 }, { 1.0, 1.0 },
+			{ 2.0, 2.0 }, centre, radius, start, span));
 	}
 
 	// Anything unreadable must come back empty rather than half-drawn: a preview that renders

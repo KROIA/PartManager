@@ -430,12 +430,77 @@ namespace PartManager
 		return lastSlash == std::string::npos ? path : path.substr(lastSlash + 1);
 	}
 
+	std::string MouserSearchService::datasheetUrlFor(const std::string& manufacturer,
+		const std::string& mpn)
+	{
+		if (mpn.empty())
+		{
+			return std::string();
+		}
+		// An MPN with a slash or a space in it would build a URL pointing somewhere else entirely.
+		if (mpn.find_first_of("/\\ ?#&") != std::string::npos)
+		{
+			return std::string();
+		}
+
+		const std::string maker = toLower(manufacturer);
+		// Confirmed against 150120YS75000, 74437346220 and 885012207072 — all three answered with
+		// a real PDF. Würth is the manufacturer the user's own stock list is fullest of, which is
+		// the only reason a one-entry table earns its keep.
+		// ponytail: one entry, grown by hand. Ceiling: covers exactly the manufacturers whose URL
+		// is a pure function of the MPN; anything else still needs the API's DataSheetUrl or a
+		// file attached by hand. Add a row only after fetching the URL and seeing a PDF come back.
+		if (contains(maker, "wurth") || contains(maker, "würth"))
+		{
+			return "https://www.we-online.com/catalog/datasheet/" + mpn + ".pdf";
+		}
+		return std::string();
+	}
+
+	std::string MouserSearchService::previewImageUrl(const std::string& imagePath)
+	{
+		// Only the exact `/images/<vendor>/<variant>/<file>` shape is rewritten. Splitting on the
+		// segment count rather than searching for "sm" or "images" by name is what keeps a vendor
+		// called "images" or a file called "sm.jpg" from being mistaken for the size segment.
+		const size_t schemeEnd = imagePath.find("://");
+		const size_t hostStart = schemeEnd == std::string::npos ? 0 : schemeEnd + 3;
+		const size_t pathStart = imagePath.find('/', hostStart);
+		if (pathStart == std::string::npos)
+		{
+			return imagePath;
+		}
+
+		std::vector<size_t> slashes;
+		for (size_t i = pathStart; i < imagePath.size(); ++i)
+		{
+			if (imagePath[i] == '/')
+			{
+				slashes.push_back(i);
+			}
+		}
+		// Four segments means four slashes and no trailing one: /images /<vendor> /<variant> /<file>.
+		if (slashes.size() != 4 || slashes.back() == imagePath.size() - 1)
+		{
+			return imagePath;
+		}
+		if (toLower(imagePath.substr(slashes[0], slashes[1] - slashes[0])) != "/images")
+		{
+			return imagePath;
+		}
+
+		return imagePath.substr(0, slashes[2]) + "/lrg" + imagePath.substr(slashes[3]);
+	}
+
 	MouserPartPrefill MouserSearchService::toPrefill(const MouserPartDto& dto)
 	{
 		MouserPartPrefill prefill;
 		prefill.mouserPartNumber = dto.mouserPartNumber;
-		prefill.datasheetUrl = dto.dataSheetUrl;
-		prefill.imageUrl = dto.imagePath;
+		// Mouser leaves DataSheetUrl empty for most real parts (§6) — including the Würth LED the
+		// user brought this up with — so the fallback runs whenever it is missing, never over it.
+		prefill.datasheetUrl = dto.dataSheetUrl.empty()
+			? datasheetUrlFor(dto.manufacturer, dto.manufacturerPartNumber)
+			: dto.dataSheetUrl;
+		prefill.imageUrl = previewImageUrl(dto.imagePath);
 		prefill.productDetailUrl = dto.productDetailUrl;
 		prefill.suggestedTypeName = suggestedTypeName(dto.category);
 

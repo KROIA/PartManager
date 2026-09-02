@@ -24,14 +24,23 @@ class QPushButton;
 namespace PartManager
 {
 
+	class MeshCacheBuilder;
 	class Model3DViewer;
 
 	class Model3DDialog : public QDialog
 	{
 		Q_OBJECT
 	public:
-		Model3DDialog(DatabaseHandle* handle, int partId, const QString& partName,
-			QWidget* parent = nullptr);
+		// `builder` is the app's one STEP converter, borrowed rather than owned — a dialog that
+		// started its own would race the background sweep for the same cache entry. May be null,
+		// in which case a STEP file is reported instead of converted.
+		Model3DDialog(DatabaseHandle* handle, MeshCacheBuilder* builder, int partId,
+			const QString& partName, QWidget* parent = nullptr);
+
+	signals:
+		// A model was attached or removed, so the owner can refresh what it shows and put the
+		// new STEP file in front of the converter.
+		void modelChanged();
 
 	private slots:
 		void attach();

@@ -1,6 +1,7 @@
 #include "ui/PartManager_PartEditorDialog.h"
 #include "ui_PartManager_PartEditorDialog.h"
 
+#include "ui/PartManager_EcadFetchDialog.h"
 #include "widgets/PartManager_AttributeFormWidget.h"
 #include "widgets/PartManager_KicadPreviewWidget.h"
 #include "widgets/PartManager_TypeIconPainter.h"
@@ -101,6 +102,14 @@ namespace PartManager
 		m_footprintPreview = new KicadPreviewWidget(this);
 		m_symbolPreview->setToolTip(tr("The schematic symbol this part places in KiCad."));
 		m_footprintPreview->setToolTip(tr("The PCB footprint this part places in KiCad."));
+		// Above the previews, because it is the button that fills them: hunting down a vendor ZIP
+		// by hand is the slow path, not the first thing to offer.
+		QPushButton* fetchEcadButton = new QPushButton(tr("Download symbol && footprint…"), this);
+		fetchEcadButton->setToolTip(tr("Look the part up on EasyEDA, or watch for a library "
+			"archive you download yourself."));
+		m_ui->kicadLayout->addWidget(fetchEcadButton);
+		connect(fetchEcadButton, &QPushButton::clicked, this, &PartEditorDialog::fetchEcadModel);
+
 		QHBoxLayout* previewRow = new QHBoxLayout();
 		previewRow->addWidget(m_symbolPreview);
 		previewRow->addWidget(m_footprintPreview);
@@ -535,6 +544,59 @@ namespace PartManager
 		{
 			m_footprintPreview->showMessage(tr("No footprint attached."));
 			m_footprintPreview->setCaption(QString());
+		}
+	}
+
+	void PartEditorDialog::fetchEcadModel()
+	{
+		EcadFetchDialog dialog(toQt(m_part.mpn), toQt(m_part.manufacturer),
+			toQt(m_controller.mouserUrl(m_part.id)), this);
+		if (dialog.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+
+		// A vendor archive carries a 3D model too, so it goes through the ZIP importer rather
+		// than being taken apart twice.
+		if (!dialog.archivePath().isEmpty())
+		{
+			QApplication::setOverrideCursor(Qt::WaitCursor);
+			const PartEditorController::EcadImportSummary summary =
+				m_controller.importEcadArchive(m_part.id, dialog.archivePath().toStdString());
+			QApplication::restoreOverrideCursor();
+			if (!summary.ok)
+			{
+				QMessageBox::warning(this, tr("Could not read the archive"),
+					toQt(summary.errorMessage));
+				return;
+			}
+			updateKicadState();
+			return;
+		}
+
+		QStringList failures;
+		const auto attach = [this, &failures](PartFileRole role, const QByteArray& bytes,
+			const QString& filename)
+			{
+				if (bytes.isEmpty())
+				{
+					return;
+				}
+				std::string error;
+				if (m_controller.attachRoleBytes(m_part.id, role,
+					std::string(bytes.constData(), static_cast<size_t>(bytes.size())),
+					filename.toStdString(), &error) == 0)
+				{
+					failures.append(toQt(error));
+				}
+			};
+		attach(PartFileRole::KicadSymbol, dialog.symbolBytes(), dialog.symbolFilename());
+		attach(PartFileRole::KicadFootprint, dialog.footprintBytes(), dialog.footprintFilename());
+
+		updateKicadState();
+		if (!failures.isEmpty())
+		{
+			QMessageBox::warning(this, tr("Not everything was attached"), failures.join('\n'));
 		}
 	}
 

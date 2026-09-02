@@ -22,9 +22,78 @@ public:
 		ADD_TEST(TST_MouserSearchService::categoryMappingRefusesToGuess);
 		ADD_TEST(TST_MouserSearchService::closestMatchIsRankedFirst);
 		ADD_TEST(TST_MouserSearchService::productLinksYieldTheirPartNumber);
+		ADD_TEST(TST_MouserSearchService::imagePathIsUpgradedToTheLargeVariant);
+		ADD_TEST(TST_MouserSearchService::anEmptyDatasheetUrlFallsBackToTheManufacturer);
 	}
 
 private:
+
+	// Mouser sends "" for DataSheetUrl on most real parts, and its product page — where the link
+	// actually is — is behind a JavaScript bot challenge. The fallback is a short table of
+	// manufacturers who publish at a URL derivable from the part number; see the header.
+	TEST_FUNCTION(anEmptyDatasheetUrlFallsBackToTheManufacturer)
+	{
+		TEST_START;
+		using S = PartManager::MouserSearchService;
+
+		TEST_COMPARE(S::datasheetUrlFor("Wurth Elektronik", "150120YS75000"),
+			std::string("https://www.we-online.com/catalog/datasheet/150120YS75000.pdf"));
+		// However Mouser spells it, and whatever case it arrives in.
+		TEST_COMPARE(S::datasheetUrlFor("Würth Elektronik eiSos", "74437346220"),
+			std::string("https://www.we-online.com/catalog/datasheet/74437346220.pdf"));
+		TEST_COMPARE(S::datasheetUrlFor("WURTH ELEKTRONIK", "885012207072"),
+			std::string("https://www.we-online.com/catalog/datasheet/885012207072.pdf"));
+
+		// Everyone else: no guess. A wrong URL downloads a 404 page, and a part then looks like it
+		// has a datasheet when it has an HTML error document.
+		TEST_COMPARE(S::datasheetUrlFor("Texas Instruments", "LM358DR"), std::string());
+		TEST_COMPARE(S::datasheetUrlFor("", "150120YS75000"), std::string());
+		TEST_COMPARE(S::datasheetUrlFor("Wurth Elektronik", ""), std::string());
+		// A part number that would escape the path is refused rather than pasted into a URL.
+		TEST_COMPARE(S::datasheetUrlFor("Wurth Elektronik", "../../etc/passwd"), std::string());
+		TEST_COMPARE(S::datasheetUrlFor("Wurth Elektronik", "150120 YS75000"), std::string());
+
+		// The prefill only reaches for it when Mouser gave nothing; a real DataSheetUrl wins.
+		PartManager::MouserPartDto dto;
+		dto.manufacturer = "Wurth Elektronik";
+		dto.manufacturerPartNumber = "150120YS75000";
+		TEST_COMPARE(S::toPrefill(dto).datasheetUrl,
+			std::string("https://www.we-online.com/catalog/datasheet/150120YS75000.pdf"));
+		dto.dataSheetUrl = "https://www.mouser.com/datasheet/2/445/whatever-123.pdf";
+		TEST_COMPARE(S::toPrefill(dto).datasheetUrl, dto.dataSheetUrl);
+	}
+
+	// The API hands out a ~1.5 kB thumbnail; the same picture sits one path segment away.
+	// Real URLs, checked live against api.mouser.com and www.mouser.com on 2026-09-02.
+	TEST_FUNCTION(imagePathIsUpgradedToTheLargeVariant)
+	{
+		TEST_START;
+		using S = PartManager::MouserSearchService;
+
+		TEST_COMPARE(S::previewImageUrl("https://www.mouser.ch/images/wurthelectronics/images/WL-SMCW.JPG"),
+			std::string("https://www.mouser.ch/images/wurthelectronics/lrg/WL-SMCW.JPG"));
+		// The API is not consistent about which variant it names, so all of them must land on lrg.
+		TEST_COMPARE(S::previewImageUrl("https://www.mouser.com/images/vishay/sm/CRCW_SPL.jpg"),
+			std::string("https://www.mouser.com/images/vishay/lrg/CRCW_SPL.jpg"));
+		TEST_COMPARE(S::previewImageUrl("https://www.mouser.com/images/yageo/hd/SMD_MLCC_series_SPL.JPG"),
+			std::string("https://www.mouser.com/images/yageo/lrg/SMD_MLCC_series_SPL.JPG"));
+		// Already large: rewriting it to itself is the same answer, not a no-op that needs a branch.
+		TEST_COMPARE(S::previewImageUrl("https://www.mouser.com/images/onsemiconductor/lrg/TO-220.jpg"),
+			std::string("https://www.mouser.com/images/onsemiconductor/lrg/TO-220.jpg"));
+
+		// Anything not in the four-segment /images/ shape is left exactly as it came. A URL we do
+		// not recognise still has to download — mangling it would lose the picture altogether.
+		for (const char* untouched : {
+			"",
+			"https://example.com/photo.jpg",
+			"https://www.mouser.com/images/vishay/CRCW_SPL.jpg",              // three segments
+			"https://www.mouser.com/images/vishay/lrg/sub/CRCW_SPL.jpg",      // five
+			"https://www.mouser.com/pictures/vishay/sm/CRCW_SPL.jpg",         // not /images/
+			"https://www.mouser.com/images/vishay/sm/" })                     // trailing slash, no file
+		{
+			TEST_COMPARE(S::previewImageUrl(untouched), std::string(untouched));
+		}
+	}
 
 	TEST_FUNCTION(productLinksYieldTheirPartNumber)
 	{
@@ -122,8 +191,10 @@ private:
 		TEST_ASSERT(!prefill.datasheetUrl.empty());
 		// The product photo becomes a role='image' attachment, which is what the part table
 		// paints as a thumbnail. Losing it here is invisible until someone looks at the table.
+		// Note the `images` -> `lrg` upgrade: the fixture holds the URL exactly as the API sends
+		// it, and previewImageUrl() is what turns it into the one worth downloading.
 		TEST_COMPARE(prefill.imageUrl,
-			std::string("https://www.mouser.ch/images/yageo/images/RC_SERIES_t.jpg"));
+			std::string("https://www.mouser.ch/images/yageo/lrg/RC_SERIES_t.jpg"));
 		// partTypeId is never guessed here — resolving the name to a row is the caller's job.
 		TEST_COMPARE(prefill.part.partTypeId, 0);
 		// Package / Case and Operating Temperature are not part_type_attribute keys.

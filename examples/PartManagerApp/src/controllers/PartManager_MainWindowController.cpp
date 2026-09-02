@@ -39,6 +39,7 @@ namespace PartManager
 			const std::map<int, std::vector<int>>& childrenOf,
 			const std::map<int, int>& inStockByType,
 			const std::map<int, int>& matchByType,
+			const std::map<int, int>& partCountByType,
 			std::set<int>& visited)
 		{
 			CategoryNode node;
@@ -53,6 +54,8 @@ namespace PartManager
 			node.inStockCount = ownIt != inStockByType.end() ? ownIt->second : 0;
 			auto matchIt = matchByType.find(typeId);
 			node.matchCount = matchIt != matchByType.end() ? matchIt->second : 0;
+			auto countIt = partCountByType.find(typeId);
+			node.partCount = countIt != partCountByType.end() ? countIt->second : 0;
 
 			auto childIt = childrenOf.find(typeId);
 			if (childIt != childrenOf.end())
@@ -65,9 +68,11 @@ namespace PartManager
 					{
 						continue;
 					}
-					node.children.push_back(buildNode(childId, byId, childrenOf, inStockByType, matchByType, visited));
+					node.children.push_back(buildNode(childId, byId, childrenOf, inStockByType,
+						matchByType, partCountByType, visited));
 					node.inStockCount += node.children.back().inStockCount;
 					node.matchCount += node.children.back().matchCount;
+					node.partCount += node.children.back().partCount;
 				}
 			}
 
@@ -79,7 +84,8 @@ namespace PartManager
 
 	std::vector<CategoryNode> buildCategoryTree(const std::vector<PartType>& types,
 		const std::map<int, int>& inStockByType,
-		const std::map<int, int>& matchByType)
+		const std::map<int, int>& matchByType,
+		const std::map<int, int>& partCountByType)
 	{
 		std::map<int, const PartType*> byId;
 		for (const PartType& type : types)
@@ -106,7 +112,8 @@ namespace PartManager
 		std::vector<CategoryNode> roots;
 		for (int rootId : rootIds)
 		{
-			roots.push_back(buildNode(rootId, byId, childrenOf, inStockByType, matchByType, visited));
+			roots.push_back(buildNode(rootId, byId, childrenOf, inStockByType, matchByType,
+				partCountByType, visited));
 		}
 
 		std::sort(roots.begin(), roots.end(),
@@ -169,6 +176,9 @@ namespace PartManager
 			columns.push_back(column);
 		}
 
+		// Glyphs, not text — see MainWindow's Files column. Last but one so it sits beside Stock,
+		// which is the other "state of this part" column rather than an identity one.
+		builtIn("files", QObject::tr("Files"));
 		builtIn("stock_qty", QObject::tr("Stock"));
 		return columns;
 	}
@@ -308,6 +318,8 @@ namespace PartManager
 		{
 			return QString::number(part.stockQty);
 		}
+		// "files" is painted from PartRow::attachments, not written as text — a cell with both a
+		// glyph strip and a caption in it would be unreadable at row height.
 		return QString();
 	}
 
@@ -403,19 +415,23 @@ namespace PartManager
 			// ponytail: O(types) queries, each loading full rows. Ceiling is a few hundred
 			// types; upgrade path is a dedicated PartRepository::countInStockByType().
 			std::map<int, int> inStockByType;
+			std::map<int, int> partCountByType;
 			for (const PartType& type : types)
 			{
 				int count = 0;
+				int total = 0;
 				for (const Part& part : PartRepository::listParts(db, type.id))
 				{
+					++total;
 					if (part.stockQty > 0)
 					{
 						++count;
 					}
 				}
 				inStockByType[type.id] = count;
+				partCountByType[type.id] = total;
 			}
-			return buildCategoryTree(types, inStockByType, matchByType);
+			return buildCategoryTree(types, inStockByType, matchByType, partCountByType);
 		}
 #else
 		Q_UNUSED(filterText);
@@ -518,6 +534,29 @@ namespace PartManager
 			}
 		}
 
+		// Same one-query-per-role trick as the thumbnails above: four queries for the whole table
+		// rather than four per row. Only the presence of a row matters here, not the file behind
+		// it, so unlike the image path this does not have to touch the disk at all.
+		std::map<int, int> attachmentsByPart;
+		{
+			// Not `slots`: Qt #defines that as a keyword, and the error it produces names the
+			// array rather than the macro.
+			struct RoleFlag { PartFileRole role; int flag; };
+			const RoleFlag roleSlots[] = {
+				{ PartFileRole::Datasheet, AttachmentDatasheet },
+				{ PartFileRole::KicadSymbol, AttachmentKicadSymbol },
+				{ PartFileRole::KicadFootprint, AttachmentKicadFootprint },
+				{ PartFileRole::Kicad3DModel, Attachment3DModel },
+			};
+			for (const RoleFlag& slot : roleSlots)
+			{
+				for (const PartFile& file : PartRepository::listFilesWithRole(db, slot.role))
+				{
+					attachmentsByPart[file.partId] |= slot.flag;
+				}
+			}
+		}
+
 		const bool filtered = !filterText.trimmed().isEmpty();
 		SearchQuery query;
 		if (filtered)
@@ -558,6 +597,8 @@ namespace PartManager
 				row.imagePath = imageByPart.count(part.id) ? imageByPart[part.id] : QString();
 				row.typeName = typeNameById.count(part.partTypeId)
 					? typeNameById[part.partTypeId] : QString();
+				row.attachments = attachmentsByPart.count(part.id)
+					? attachmentsByPart[part.id] : 0;
 
 				for (const PartColumn& column : columns)
 				{
@@ -602,6 +643,8 @@ namespace PartManager
 					toQt(editor.roleFilePath(partId, PartFileRole::KicadSymbol));
 				preview.kicadFootprintPath =
 					toQt(editor.roleFilePath(partId, PartFileRole::KicadFootprint));
+				preview.model3DPath =
+					toQt(editor.roleFilePath(partId, PartFileRole::Kicad3DModel));
 				for (const PartType& type : editor.types())
 				{
 					if (type.id == part.partTypeId) { preview.typeName = toQt(type.name); break; }

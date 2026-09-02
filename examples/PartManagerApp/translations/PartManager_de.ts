@@ -757,6 +757,43 @@ Mouser füllt das aus seiner Spalte &quot;Package / Case&quot; aus.</translation
     </message>
 </context>
 <context>
+    <name>PartManager::AttachmentIconPainter</name>
+    <message>
+        <source>Datasheet</source>
+        <translation>Datenblatt</translation>
+    </message>
+    <message>
+        <source>KiCad symbol</source>
+        <translation>KiCad-Symbol</translation>
+    </message>
+    <message>
+        <source>KiCad footprint</source>
+        <translation>KiCad-Footprint</translation>
+    </message>
+    <message>
+        <source>3D model</source>
+        <translation>3D-Modell</translation>
+    </message>
+    <message>
+        <source>, </source>
+        <translation>, </translation>
+    </message>
+    <message>
+        <source>Nothing attached</source>
+        <translation>Nichts angehängt</translation>
+    </message>
+    <message>
+        <source>Attached: %1</source>
+        <translation>Angehängt: %1</translation>
+    </message>
+    <message>
+        <source>Attached: %1
+Missing: %2</source>
+        <translation>Angehängt: %1
+Fehlt: %2</translation>
+    </message>
+</context>
+<context>
     <name>PartManager::CartStagingDialog</name>
     <message>
         <source>Review what goes into your Mouser cart</source>
@@ -954,6 +991,135 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
     <message>
         <source>= %1</source>
         <translation>= %1</translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::EcadFetchDialog</name>
+    <message>
+        <source>Get KiCad symbol and footprint</source>
+        <translation>KiCad-Symbol und Footprint holen</translation>
+    </message>
+    <message>
+        <source>Symbol</source>
+        <translation>Symbol</translation>
+    </message>
+    <message>
+        <source>Looking…</source>
+        <translation>Suche…</translation>
+    </message>
+    <message>
+        <source>Footprint</source>
+        <translation>Footprint</translation>
+    </message>
+    <message>
+        <source>Not converted:</source>
+        <translation>Nicht konvertiert:</translation>
+    </message>
+    <message>
+        <source>Open on Mouser…</source>
+        <translation>Bei Mouser öffnen…</translation>
+    </message>
+    <message>
+        <source>Choose ZIP…</source>
+        <translation>ZIP wählen…</translation>
+    </message>
+    <message>
+        <source>Attach</source>
+        <translation>Anhängen</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Abbrechen</translation>
+    </message>
+    <message>
+        <source>This part has no manufacturer part number, so there is nothing to look up. Download the model by hand instead.</source>
+        <translation>Dieses Bauteil hat keine Hersteller-Teilenummer, also gibt es nichts nachzuschlagen. Laden Sie das Modell stattdessen von Hand herunter.</translation>
+    </message>
+    <message>
+        <source>Looking up %1 on EasyEDA…</source>
+        <translation>%1 wird bei EasyEDA nachgeschlagen…</translation>
+    </message>
+    <message>
+        <source>EasyEDA has nothing for %1. %2</source>
+        <translation>EasyEDA hat nichts zu %1. %2</translation>
+    </message>
+    <message>
+        <source>Not found</source>
+        <translation>Nicht gefunden</translation>
+    </message>
+    <message>
+        <source>Nothing to draw</source>
+        <translation>Nichts zu zeichnen</translation>
+    </message>
+    <message>
+        <source>No symbol</source>
+        <translation>Kein Symbol</translation>
+    </message>
+    <message>
+        <source>No footprint</source>
+        <translation>Kein Footprint</translation>
+    </message>
+    <message numerus="yes">
+        <source>EasyEDA: %1, %n pin(s), %2 pad(s). Check both drawings before attaching — the footprint decides how the part solders.</source>
+        <translation>
+            <numerusform>EasyEDA: %1, %n Pin, %2 Pads. Prüfen Sie beide Zeichnungen vor dem Anhängen — der Footprint bestimmt, wie das Bauteil gelötet wird.</numerusform>
+            <numerusform>EasyEDA: %1, %n Pins, %2 Pads. Prüfen Sie beide Zeichnungen vor dem Anhängen — der Footprint bestimmt, wie das Bauteil gelötet wird.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Open the part on Mouser, download its KiCad model, and it will be picked up automatically from %1.</source>
+        <translation>Öffnen Sie das Bauteil bei Mouser und laden Sie das KiCad-Modell herunter — es wird automatisch aus %1 übernommen.</translation>
+    </message>
+    <message>
+        <source>%1 has a KiCad folder, but only KiCad 5 files in it. Re-download it choosing KiCad 6 or later.</source>
+        <translation>%1 hat einen KiCad-Ordner, darin aber nur KiCad-5-Dateien. Laden Sie es erneut herunter und wählen Sie KiCad 6 oder neuer.</translation>
+    </message>
+    <message>
+        <source>%1 holds no KiCad symbol or footprint.</source>
+        <translation>%1 enthält weder KiCad-Symbol noch Footprint.</translation>
+    </message>
+    <message>
+        <source>No symbol in the archive</source>
+        <translation>Kein Symbol im Archiv</translation>
+    </message>
+    <message>
+        <source>No footprint in the archive</source>
+        <translation>Kein Footprint im Archiv</translation>
+    </message>
+    <message>
+        <source>symbol</source>
+        <translation>Symbol</translation>
+    </message>
+    <message>
+        <source>footprint</source>
+        <translation>Footprint</translation>
+    </message>
+    <message>
+        <source>3D model</source>
+        <translation>3D-Modell</translation>
+    </message>
+    <message>
+        <source>Found %1 in %2: %3.</source>
+        <translation>%1 in %2 gefunden: %3.</translation>
+    </message>
+    <message>
+        <source>, </source>
+        <translation>, </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n other CAD tool&apos;s file(s) ignored</source>
+        <translation>
+            <numerusform>%n Datei eines anderen CAD-Werkzeugs ignoriert</numerusform>
+            <numerusform>%n Dateien anderer CAD-Werkzeuge ignoriert</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Choose an ECAD archive</source>
+        <translation>ECAD-Archiv wählen</translation>
+    </message>
+    <message>
+        <source>ECAD archives (*.zip);;All files (*)</source>
+        <translation>ECAD-Archive (*.zip);;Alle Dateien (*)</translation>
     </message>
 </context>
 <context>
@@ -1189,14 +1355,6 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
         <translation>Datenblatt öffnen</translation>
     </message>
     <message>
-        <source>[ no image ]</source>
-        <translation type="vanished">[ kein Bild ]</translation>
-    </message>
-    <message>
-        <source>Attach a photo in the part editor, or import the part from Mouser — its product photo is downloaded automatically.</source>
-        <translation type="vanished">Hängen Sie im Bauteileditor ein Foto an oder importieren Sie das Bauteil von Mouser — dessen Produktfoto wird automatisch heruntergeladen.</translation>
-    </message>
-    <message>
         <source>The schematic symbol this part places in KiCad.</source>
         <translation>Das Schaltplansymbol, das dieses Bauteil in KiCad platziert.</translation>
     </message>
@@ -1227,6 +1385,28 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
     <message>
         <source>No photo yet — this is a placeholder for “%1”. Attach one in the part editor, or import the part from Mouser, which downloads its product photo.</source>
         <translation>Noch kein Foto — dies ist ein Platzhalter für „%1“. Hängen Sie eines im Bauteil-Editor an, oder importieren Sie das Bauteil von Mouser, wodurch das Produktfoto heruntergeladen wird.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n part(s) in this category and below</source>
+        <translation>
+            <numerusform>%n Bauteil in dieser Kategorie und darunter</numerusform>
+            <numerusform>%n Bauteile in dieser Kategorie und darunter</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n of them in stock</source>
+        <translation>
+            <numerusform>davon %n an Lager</numerusform>
+            <numerusform>davon %n an Lager</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The 3D model this part places on the board. Drag to orbit.</source>
+        <translation>Das 3D-Modell, das dieses Bauteil auf der Platine platziert. Zum Drehen ziehen.</translation>
+    </message>
+    <message>
+        <source>Preparing 3D models — %1 of %2…</source>
+        <translation>3D-Modelle werden vorbereitet — %1 von %2…</translation>
     </message>
 </context>
 <context>
@@ -1341,6 +1521,17 @@ PartManager führt sie nicht mehr auf. Ihr Ordner, ihre Bauteile und alle Dateie
     <message>
         <source>Delete &quot;%1&quot;? It is removed from every part that carries it.</source>
         <translation>„%1“ löschen? Es wird von jedem Bauteil entfernt, das es trägt.</translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::MeshCacheBuilder</name>
+    <message>
+        <source>Could not write the conversion script to a temporary file.</source>
+        <translation>Das Umwandlungsskript konnte nicht in eine temporäre Datei geschrieben werden.</translation>
+    </message>
+    <message>
+        <source>The converter exited with code %1.</source>
+        <translation>Der Konverter endete mit Code %1.</translation>
     </message>
 </context>
 <context>
@@ -1461,10 +1652,6 @@ Nach einem Konverter gesucht in:
 %1</translation>
     </message>
     <message>
-        <source>Could not write the conversion script to a temporary file.</source>
-        <translation>Das Umwandlungsskript konnte nicht in eine temporäre Datei geschrieben werden.</translation>
-    </message>
-    <message>
         <source>Converting %1 to a mesh…
 This happens once per model.</source>
         <translation>%1 wird in ein Mesh umgewandelt…
@@ -1479,14 +1666,20 @@ Das passiert einmal pro Modell.</translation>
 %1</translation>
     </message>
     <message>
-        <source>The converter exited with code %1.</source>
-        <translation>Der Konverter endete mit Code %1.</translation>
+        <source>Converting…</source>
+        <translation>Wird konvertiert…</translation>
     </message>
     <message>
-        <source>The converter could not be started:
-%1</source>
-        <translation>Der Konverter konnte nicht gestartet werden:
-%1</translation>
+        <source>“%1” did not load.
+
+The file is on disk, so this is usually a missing Qt3D geometry loader — check that the “geometryloaders” folder sits next to the executable.</source>
+        <translation>„%1“ wurde nicht geladen.
+
+Die Datei liegt auf der Festplatte, daher fehlt meist ein Qt3D-Geometrie-Loader — prüfen Sie, ob der Ordner „geometryloaders“ neben der ausführbaren Datei liegt.</translation>
+    </message>
+    <message>
+        <source>The converted mesh for this model could not be read.</source>
+        <translation>Das umgewandelte Netz für dieses Modell konnte nicht gelesen werden.</translation>
     </message>
 </context>
 <context>
@@ -1556,6 +1749,30 @@ Das passiert einmal pro Modell.</translation>
             <numerusform>%n Artikelnummertreffer, der genaueste zuerst.</numerusform>
             <numerusform>%n Artikelnummertreffer, die genauesten zuerst.</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Files</source>
+        <translation>Dateien</translation>
+    </message>
+    <message>
+        <source>Datasheet: yes</source>
+        <translation>Datenblatt: ja</translation>
+    </message>
+    <message>
+        <source>Datasheet: Mouser publishes none</source>
+        <translation>Datenblatt: Mouser veröffentlicht keines</translation>
+    </message>
+    <message>
+        <source>KiCad symbol and footprint: EasyEDA has this part</source>
+        <translation>KiCad-Symbol und Footprint: EasyEDA führt dieses Bauteil</translation>
+    </message>
+    <message>
+        <source>KiCad symbol and footprint: not on EasyEDA — download the model by hand</source>
+        <translation>KiCad-Symbol und Footprint: nicht bei EasyEDA — Modell von Hand herunterladen</translation>
+    </message>
+    <message>
+        <source>KiCad symbol and footprint: checking EasyEDA…</source>
+        <translation>KiCad-Symbol und Footprint: EasyEDA wird geprüft…</translation>
     </message>
 </context>
 <context>
@@ -2078,10 +2295,6 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
         <translation>Die Datenbank hat die Änderung abgelehnt.</translation>
     </message>
     <message>
-        <source>none</source>
-        <translation type="vanished">keins</translation>
-    </message>
-    <message>
         <source>No image attached yet.</source>
         <translation>Noch kein Bild angehängt.</translation>
     </message>
@@ -2312,6 +2525,18 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
     <message>
         <source>No footprint attached.</source>
         <translation>Kein Footprint angehängt.</translation>
+    </message>
+    <message>
+        <source>Download symbol &amp;&amp; footprint…</source>
+        <translation>Symbol &amp;&amp; Footprint herunterladen…</translation>
+    </message>
+    <message>
+        <source>Look the part up on EasyEDA, or watch for a library archive you download yourself.</source>
+        <translation>Das Bauteil bei EasyEDA nachschlagen oder auf ein selbst heruntergeladenes Bibliotheksarchiv warten.</translation>
+    </message>
+    <message>
+        <source>Not everything was attached</source>
+        <translation>Nicht alles wurde angehängt</translation>
     </message>
 </context>
 <context>
@@ -3100,6 +3325,10 @@ Das Bauteil selbst ist davon nicht betroffen.</translation>
     <message>
         <source>Open in browser</source>
         <translation>Im Browser öffnen</translation>
+    </message>
+    <message>
+        <source>Files</source>
+        <translation>Dateien</translation>
     </message>
 </context>
 <context>

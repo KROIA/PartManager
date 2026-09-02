@@ -72,6 +72,36 @@ namespace PartManager
 		// part-number search still finding it; upgrade path is falling back to a keyword search.
 		static std::string partNumberFromUrl(const std::string& url);
 
+		// A datasheet URL for a part whose MouserPart.DataSheetUrl came back empty, "" when there
+		// is no way to know one.
+		//
+		// **Mouser's own page cannot be used for this.** The `<a id="pdp-datasheet_0">` link is
+		// right there in the product page markup, but www.mouser.* serves that page behind a
+		// DataDome/Akamai JavaScript challenge: a request with HTTP/2, the full browser header set
+		// and WinHTTP — the exact combination that gets the product *images* through — is answered
+		// with HTTP 403 and a `geo.captcha-delivery.com` challenge stub (measured 2026-09-02).
+		// Only the image CDN is ungated. Reading that link would take a JavaScript-executing
+		// browser and would still be one CAPTCHA away from breaking, so it is not attempted.
+		//
+		// What is left is manufacturers who publish at a URL derivable from the part number. That
+		// is a short list, and every entry in it is a URL that was fetched and confirmed to return
+		// a PDF rather than a guess: TI, ST and Vishay all host real datasheets but under family
+		// document names ("lm358.pdf" for LM358DR) that no rule recovers from an MPN.
+		static std::string datasheetUrlFor(const std::string& manufacturer, const std::string& mpn);
+
+		// MouserPart.ImagePath -> the same picture at the size the product page's zoom popup uses.
+		// Mouser serves one image under four sibling paths that differ only in a single segment:
+		// `/images/<vendor>/{sm|images|lrg|hd}/<file>`. The API always hands out the `images`
+		// variant, which is a ~1.5 kB web thumbnail — too soft for the §7a preview panel. `lrg` is
+		// the same picture around 8-20 kB. `hd` is bigger still but not always there: it 404s for
+		// e.g. 511-STM32F103C8T6 where `lrg` answers, so the always-present one is the one used.
+		// Scraping the product page HTML for the popup's <a href> yields this exact URL, so it
+		// buys nothing but a second request through Mouser's bot filter and a regex against markup
+		// they can restyle. Anything not in the four-segment shape comes back unchanged.
+		// Note the file extension lies — every variant is served as image/webp regardless of the
+		// `.JPG` in the name, which is FileStore::correctedFilename()'s job, not this one's.
+		static std::string previewImageUrl(const std::string& imagePath);
+
 		// Mouser's ProductAttributes[] -> the §2a attributes JSON, base-SI values only.
 		// Attribute names we have no mapping for, and values ValueParser rejects, are reported
 		// in outUnmapped instead of being guessed at. Returns "{}" when nothing mapped.

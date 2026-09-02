@@ -76,6 +76,10 @@ namespace PartManager
 		// §5c KiCad slots. The symbol and footprint the generated library is built from, and that
 		// a KiCad edit is synced back into.
 		void importEcadArchive();
+		// §5c: fetch the symbol and footprint instead of hunting for them. Tries EasyEDA/LCSC
+		// first — the one ECAD source with an open API — and falls back to watching for a vendor
+		// ZIP the user downloads by hand. See EcadFetchDialog for why there is no third option.
+		void fetchEcadModel();
 		void attachKicadSymbol();
 		void removeKicadSymbol();
 		void attachKicadFootprint();

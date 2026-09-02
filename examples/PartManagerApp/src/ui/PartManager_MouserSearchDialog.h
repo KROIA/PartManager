@@ -17,7 +17,12 @@
 #include "mouser/PartManager_MouserClient.h"
 #include "mouser/PartManager_MouserSearchService.h"
 #include <QDialog>
+#include <QHash>
+#include <QPixmap>
+#include <QSet>
 #include <vector>
+
+class QThreadPool;
 
 namespace Ui { class MouserSearchDialog; }
 
@@ -55,10 +60,40 @@ namespace PartManager
 		// The MouserPartDto behind the selected row, nullptr when nothing is selected.
 		const MouserPartDto* selectedDto() const;
 
+		// Queues one product photo for download, or paints it straight away if it is already in
+		// hand. Downloads run on m_thumbnailPool because FileStore::downloadBytes() blocks — 25
+		// rows fetched on the GUI thread would freeze the dialog for several seconds, which is
+		// exactly the stall the search itself already costs and does not need doubling.
+		void requestThumbnail(const QString& url);
+		// Paints `url`'s picture onto every row that shows it. Matched by URL rather than by row
+		// index on purpose: a download that lands after the user searched again would otherwise
+		// paint a picture onto whatever part now occupies that row.
+		void applyThumbnail(const QString& url);
+
+		// Asks EasyEDA whether it carries `mpn`, so the row can say up front whether a KiCad
+		// symbol and footprint will be there after the import. Only the *search* endpoint is
+		// called — one request per row rather than the two a full fetch would need, and the
+		// answer ("is there an exact match") is all a glyph can express anyway.
+		void requestEcadAvailability(const QString& mpn, const QString& manufacturer);
+		// Repaints the file glyphs of every row for `mpn`, from m_ecadByMpn plus the datasheet
+		// state, which needs no lookup at all.
+		void applyFileGlyphs(const QString& mpn);
+
 		Ui::MouserSearchDialog* m_ui;
 		MouserClient m_client;
 		std::vector<MouserPartDto> m_results;
 		MouserPartPrefill m_prefill;
+		// Mouser reuses one stock photo across a whole series, so a 25-row result set is
+		// routinely a handful of distinct pictures. Cache holds a null pixmap for a failed or
+		// undecodable download too, so a dead URL is attempted once and not once per search.
+		QHash<QString, QPixmap> m_thumbnails;
+		QSet<QString> m_thumbnailsInFlight;
+		QThreadPool* m_thumbnailPool;
+		// MPN -> does EasyEDA carry an exact match. Absent means "not looked up yet", which the
+		// row draws as the faint outline — the same thing it draws for a definite no, because
+		// until the answer arrives those two really are indistinguishable to the user.
+		QHash<QString, bool> m_ecadByMpn;
+		QSet<QString> m_ecadInFlight;
 	};
 
 }

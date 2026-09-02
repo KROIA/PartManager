@@ -1,6 +1,8 @@
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui_PartManager_NewPartDialog.h"
 
+#include "ui/PartManager_EcadFetchDialog.h"
+
 #include "widgets/PartManager_AttributeFormWidget.h"
 
 #include <QApplication>
@@ -67,7 +69,8 @@ namespace PartManager
 		wireFileSlot(PartFileRole::Image, m_ui->imageStateLabel, m_ui->imageFileButton,
 			m_ui->imageUrlButton, m_ui->imageClearButton,
 			tr("Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp);;All files (*)"));
-		// No URL button: no vendor API publishes a CAD model, so this slot is always a local file.
+		// No URL button: the 3D model has no URL a user could paste. It arrives inside a vendor
+		// ZIP, which the §5c download step (fetchEcadModel) unpacks after Create.
 		wireFileSlot(PartFileRole::Kicad3DModel, m_ui->modelStateLabel, m_ui->modelFileButton,
 			nullptr, m_ui->modelClearButton,
 			tr("3D models (*.step *.stp *.obj *.stl *.ply *.wrl *.gltf *.glb);;All files (*)"));
@@ -262,6 +265,41 @@ namespace PartManager
 			: tr("Still required: %1").arg(missing.join(tr(", "))));
 	}
 
+	void NewPartDialog::fetchEcadModel(const Part& part)
+	{
+		if (part.mpn.empty())
+		{
+			return;
+		}
+
+		// Offered rather than done silently: a converted footprint decides how the part solders,
+		// so the user sees it drawn before it is attached. EcadFetchDialog starts the EasyEDA
+		// lookup itself and only shows the manual-download route when that misses.
+		EcadFetchDialog dialog(toQt(part.mpn), toQt(part.manufacturer),
+			toQt(m_prefill.productDetailUrl), this);
+		if (dialog.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+
+		if (!dialog.archivePath().isEmpty())
+		{
+			m_controller.importEcadArchive(m_createdPartId, dialog.archivePath().toStdString());
+			return;
+		}
+		const auto attach = [this](PartFileRole role, const QByteArray& bytes, const QString& filename)
+			{
+				if (!bytes.isEmpty())
+				{
+					m_controller.attachRoleBytes(m_createdPartId, role,
+						std::string(bytes.constData(), static_cast<size_t>(bytes.size())),
+						filename.toStdString());
+				}
+			};
+		attach(PartFileRole::KicadSymbol, dialog.symbolBytes(), dialog.symbolFilename());
+		attach(PartFileRole::KicadFootprint, dialog.footprintBytes(), dialog.footprintFilename());
+	}
+
 	void NewPartDialog::applyPendingFiles(int partId, Part& part)
 	{
 		QStringList failures;
@@ -418,6 +456,8 @@ namespace PartManager
 		{
 			m_stock.restock(m_createdPartId, m_ui->stockSpin->value(), tr("Initial stock"));
 		}
+
+		fetchEcadModel(part);
 		accept();
 	}
 

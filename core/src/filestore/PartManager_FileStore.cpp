@@ -466,75 +466,30 @@ namespace PartManager
 
 #if QT_ENABLED
 
-	FileStoreResult FileStore::downloadFile(const std::string& url, const std::string& originalFilename)
+	DownloadedBytes FileStore::downloadBytes(const std::string& url, int timeoutMs)
 	{
-		FileStoreResult result;
+		DownloadedBytes result;
 
 		const QUrl requestUrl = QUrl::fromUserInput(QString::fromStdString(url));
 		if (url.empty() || !requestUrl.isValid())
 		{
 			// Mouser leaves DataSheetUrl empty for most parts (§6) — that is the normal case,
 			// not an exception, and the caller falls back to attaching a file by hand.
-			result.errorMessage = "No datasheet URL to download.";
+			result.errorMessage = "No URL to download.";
 			return result;
 		}
-
-		std::string filename = originalFilename;
-		if (filename.empty())
-		{
-			filename = requestUrl.fileName().toStdString();
-		}
-		if (filename.empty())
-		{
-			filename = "datasheet.pdf";
-		}
-
-		// Everything from here to the end of the Qt path is duplicated once for WinHTTP, because
-		// the two stacks report status, content type and body through completely different APIs.
-		// Kept as one shared tail below (finishDownload) so the block-page and extension rules
-		// cannot drift between them.
-		const auto finishDownload = [this, &filename](int status, const std::string& contentType,
-			const std::string& body, const QString& requestPath) -> FileStoreResult
-			{
-				FileStoreResult failed;
-				if (status != 0 && status != 200)
-				{
-					failed.errorMessage = "Download failed with HTTP " + std::to_string(status) + ".";
-					return failed;
-				}
-				if (body.empty())
-				{
-					failed.errorMessage = "Download returned an empty file.";
-					return failed;
-				}
-				// See looksLikeBlockPage() — a blocked download arrives as a successful one, so
-				// every check above passes and the block page would be stored under the requested
-				// name. Unless a web page really was what was asked for. Nothing in the app asks
-				// for one, but downloadFile() is general.
-				const bool wantedHtml = requestPath.endsWith(QLatin1String(".htm"))
-					|| requestPath.endsWith(QLatin1String(".html"));
-				if (!wantedHtml && looksLikeBlockPage(contentType, body))
-				{
-					failed.errorMessage = "The server returned a web page instead of the file. The "
-						"vendor's site blocked the download. Open the link in a browser, save the "
-						"file, and attach it from disk.";
-					return failed;
-				}
-				// The URL said .JPG; Mouser sent WebP. Store it under what it is, or the user has
-				// to rename it by hand before anything will open it.
-				return importBytes(body, correctedFilename(filename, contentType, body));
-			};
-
-		const QString requestPathLower = requestUrl.path().toLower();
 
 #ifdef _WIN32
 		// The only stack Mouser answers properly — see winHttpGet(). Qt stays as the fallback
 		// for anything WinHTTP cannot do, so this can only add successes, never remove them.
-		const HttpResponse windowsResponse = winHttpGet(url, m_timeoutMs);
+		const HttpResponse windowsResponse = winHttpGet(url, timeoutMs);
 		if (!windowsResponse.transportFailed)
 		{
-			return finishDownload(windowsResponse.status, windowsResponse.contentType,
-				windowsResponse.body, requestPathLower);
+			result.ok = true;
+			result.status = windowsResponse.status;
+			result.contentType = windowsResponse.contentType;
+			result.bytes = windowsResponse.body;
+			return result;
 		}
 #endif
 
@@ -581,7 +536,7 @@ namespace PartManager
 				loop.quit();
 			});
 		QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-		timer.start(m_timeoutMs);
+		timer.start(timeoutMs);
 		loop.exec();
 		timer.stop();
 
@@ -594,7 +549,7 @@ namespace PartManager
 
 		if (timedOut)
 		{
-			result.errorMessage = "Download timed out after " + std::to_string(m_timeoutMs) + " ms.";
+			result.errorMessage = "Download timed out after " + std::to_string(timeoutMs) + " ms.";
 			return result;
 		}
 		if (networkError != QNetworkReply::NoError)
@@ -602,11 +557,77 @@ namespace PartManager
 			result.errorMessage = "Download failed: " + networkErrorText.toStdString();
 			return result;
 		}
-		return finishDownload(httpStatus, contentType.toStdString(), body.toStdString(),
-			requestPathLower);
+
+		result.ok = true;
+		result.status = httpStatus;
+		result.contentType = contentType.toStdString();
+		result.bytes = body.toStdString();
+		return result;
+	}
+
+	FileStoreResult FileStore::downloadFile(const std::string& url, const std::string& originalFilename)
+	{
+		const QUrl requestUrl = QUrl::fromUserInput(QString::fromStdString(url));
+
+		const DownloadedBytes downloaded = downloadBytes(url, m_timeoutMs);
+		if (!downloaded.ok)
+		{
+			FileStoreResult failed;
+			failed.errorMessage = downloaded.errorMessage;
+			return failed;
+		}
+
+		std::string filename = originalFilename;
+		if (filename.empty())
+		{
+			filename = requestUrl.fileName().toStdString();
+		}
+		if (filename.empty())
+		{
+			filename = "datasheet.pdf";
+		}
+
+		FileStoreResult failed;
+		if (downloaded.status != 0 && downloaded.status != 200)
+		{
+			failed.errorMessage = "Download failed with HTTP " + std::to_string(downloaded.status) + ".";
+			return failed;
+		}
+		if (downloaded.bytes.empty())
+		{
+			failed.errorMessage = "Download returned an empty file.";
+			return failed;
+		}
+		// See looksLikeBlockPage() — a blocked download arrives as a successful one, so every
+		// check above passes and the block page would be stored under the requested name. Unless
+		// a web page really was what was asked for. Nothing in the app asks for one, but
+		// downloadFile() is general.
+		const QString requestPathLower = requestUrl.path().toLower();
+		const bool wantedHtml = requestPathLower.endsWith(QLatin1String(".htm"))
+			|| requestPathLower.endsWith(QLatin1String(".html"));
+		if (!wantedHtml && looksLikeBlockPage(downloaded.contentType, downloaded.bytes))
+		{
+			failed.errorMessage = "The server returned a web page instead of the file. The "
+				"vendor's site blocked the download. Open the link in a browser, save the "
+				"file, and attach it from disk.";
+			return failed;
+		}
+		// The URL said .JPG; Mouser sent WebP. Store it under what it is, or the user has to
+		// rename it by hand before anything will open it.
+		return importBytes(downloaded.bytes,
+			correctedFilename(filename, downloaded.contentType, downloaded.bytes));
 	}
 
 #else
+
+	DownloadedBytes FileStore::downloadBytes(const std::string& url, int timeoutMs)
+	{
+		PM_UNUSED(url);
+		PM_UNUSED(timeoutMs);
+		DownloadedBytes result;
+		result.errorMessage = "Downloading files requires the Qt build (QT_ENABLED).";
+		return result;
+	}
 
 	FileStoreResult FileStore::downloadFile(const std::string& url, const std::string& originalFilename)
 	{

@@ -35,6 +35,10 @@ namespace PartManager
 	{
 		int typeId = NoParentType;
 		QString name;                       // user data (the type's name) — never tr()'d
+		// **What the tree's "(n)" shows.** Every part in the category, in stock or not. It used to
+		// be inStockCount, which made adding a part with no opening stock look like nothing had
+		// happened — the count the user had just changed was not the count on screen.
+		int partCount = 0;                  // parts of any quantity, own + all descendants
 		int inStockCount = 0;               // parts with stock_qty > 0, own + all descendants
 		int matchCount = 0;                 // §7a tree filter hits, own + all descendants; 0 with no filter
 		std::vector<CategoryNode> children;
@@ -54,6 +58,17 @@ namespace PartManager
 	};
 
 	// One rendered row of the §7b part table.
+	// Which of the four §3 file slots a part actually carries. A bitmask rather than four bools
+	// because the table paints them as one strip of glyphs and sorts on the whole set: "show me
+	// the parts that still have nothing attached" is the question this column exists to answer.
+	enum PartAttachment
+	{
+		AttachmentDatasheet = 1 << 0,
+		AttachmentKicadSymbol = 1 << 1,
+		AttachmentKicadFootprint = 1 << 2,
+		Attachment3DModel = 1 << 3,
+	};
+
 	struct PartRow
 	{
 		int partId = 0;
@@ -68,6 +83,9 @@ namespace PartManager
 		// The part's type, which decides the placeholder glyph when `imagePath` is empty —
 		// which is the normal state, not an exception (a CSV import brings no photos at all).
 		QString typeName;
+		// OR of PartAttachment. Painted as the "Files" column's glyph strip, so a part missing
+		// its footprint is visible from the list instead of only from inside the editor.
+		int attachments = 0;
 	};
 
 	// One label/value line of the §7c preview panel.
@@ -92,6 +110,10 @@ namespace PartManager
 		// the panel can still show what the part will look like once its library is generated.
 		QString kicadSymbolPath;
 		QString kicadFootprintPath;
+		// §13's 3D model, empty when the part has none. A STEP file here is a path to convert,
+		// not to draw — the viewer decides that, because the answer depends on a cache the
+		// controller has no business knowing about.
+		QString model3DPath;
 		QString typeName;
 	};
 
@@ -100,9 +122,11 @@ namespace PartManager
 	// inStockCount comes back as that count plus every descendant's. Children are sorted
 	// by name; a row whose parent is missing (or which sits in a parent cycle) becomes a root.
 	// matchByType is the same thing for the §7a tree filter's per-type hit counts.
+	// partCountByType is the same shape again, for the total the tree label shows.
 	std::vector<CategoryNode> buildCategoryTree(const std::vector<PartType>& types,
 		const std::map<int, int>& inStockByType,
-		const std::map<int, int>& matchByType = std::map<int, int>());
+		const std::map<int, int>& matchByType = std::map<int, int>(),
+		const std::map<int, int>& partCountByType = std::map<int, int>());
 
 	// Parse error for a §7a filter box, empty when the text parses (or is blank). The box is
 	// a filter, so this exists only to explain a typo — a valid query that matches nothing

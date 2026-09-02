@@ -264,8 +264,20 @@ namespace PartManager
 		{
 			// A circle's extent is its radius, and a pad's its size — using the centre alone
 			// would clip exactly the parts a footprint is mostly made of.
-			const double padX = (shape.kind == KicadShapeKind::Circle) ? shape.radius : shape.sizeX / 2.0;
-			const double padY = (shape.kind == KicadShapeKind::Circle) ? shape.radius : shape.sizeY / 2.0;
+			double padX = (shape.kind == KicadShapeKind::Circle) ? shape.radius : shape.sizeX / 2.0;
+			double padY = (shape.kind == KicadShapeKind::Circle) ? shape.radius : shape.sizeY / 2.0;
+			if (shape.rotationDegrees != 0.0)
+			{
+				// The upright box of a turned pad. At 90 degrees this is the swap; in between it
+				// is genuinely wider than either side, which is what a footprint measured on the
+				// unrotated size would clip off.
+				constexpr double DegreesToRadians = 3.14159265358979323846 / 180.0;
+				const double c = std::abs(std::cos(shape.rotationDegrees * DegreesToRadians));
+				const double s = std::abs(std::sin(shape.rotationDegrees * DegreesToRadians));
+				const double halfX = padX, halfY = padY;
+				padX = halfX * c + halfY * s;
+				padY = halfX * s + halfY * c;
+			}
 			for (const KicadPoint& point : shape.points)
 			{
 				if (!any)
@@ -462,6 +474,9 @@ namespace PartManager
 				shape.points = { pointOf(*at) };
 				shape.sizeX = size->number(1);
 				shape.sizeY = size->number(2);
+				// "(at -1.05 -0.96 90)" — the optional third number turns the pad. Every
+				// side-entry package in the KiCad library uses it.
+				shape.rotationDegrees = at->number(3);
 				shape.label = node.text(1);
 				// The shape is the fourth atom: "(pad "1" smd roundrect ...)". Only round and
 				// oval need distinguishing; every other shape is close enough to a rectangle
@@ -470,10 +485,126 @@ namespace PartManager
 				shape.roundPad = (padShape == "circle" || padShape == "oval");
 				shape.filled = true;
 				if (const Node* layers = node.find("layers")) { shape.layer = layers->text(1); }
+
+				// The third atom is the pad type: "(pad "1" thru_hole circle ...)". Authoritative,
+				// unlike the layer list — a through-hole pad is usually on "*.Cu" but a file is
+				// free to spell its layers out one by one.
+				const std::string& padType = node.text(2);
+				shape.throughHole = (padType == "thru_hole" || padType == "np_thru_hole");
+				if (const Node* drill = node.find("drill"))
+				{
+					// Two forms: "(drill 0.9)" and "(drill oval 0.9 1.6)". Taking atom 1 blindly
+					// reads the oval one as a diameter of zero, i.e. a hole that is not there.
+					shape.drillDiameter = (drill->text(1) == "oval")
+						? drill->number(2)
+						: drill->number(1);
+				}
 				drawing.shapes.push_back(std::move(shape));
+			}
+			else if (kind == "model")
+			{
+				// Where the part's 3D model sits relative to this footprint. A model file's own
+				// origin is not where the part goes: vendor libraries commonly author around the
+				// top of the body and put the correction here.
+				KicadModelPlacement placement;
+				placement.present = true;
+
+				// Two spellings, two units. "(offset (xyz ...))" is the current one and is in
+				// millimetres; "(at (xyz ...))" is the legacy one and is in *inches*. Reading
+				// the legacy form as millimetres divides the correction by 25.4, which lands
+				// near enough to zero to pass for "no offset" while the part sinks into the board.
+				if (const Node* offset = node.find("offset"))
+				{
+					if (const Node* xyz = offset->find("xyz"))
+					{
+						placement.offsetX = xyz->number(1);
+						placement.offsetY = xyz->number(2);
+						placement.offsetZ = xyz->number(3);
+					}
+				}
+				else if (const Node* at = node.find("at"))
+				{
+					if (const Node* xyz = at->find("xyz"))
+					{
+						constexpr double MmPerInch = 25.4;
+						placement.offsetX = xyz->number(1) * MmPerInch;
+						placement.offsetY = xyz->number(2) * MmPerInch;
+						placement.offsetZ = xyz->number(3) * MmPerInch;
+					}
+				}
+
+				if (const Node* scale = node.find("scale"))
+				{
+					if (const Node* xyz = scale->find("xyz"))
+					{
+						// A zero scale is a model that cannot be seen; treat a missing or absurd
+						// value as "unscaled" rather than collapsing the part to a point.
+						placement.scaleX = xyz->number(1) != 0.0 ? xyz->number(1) : 1.0;
+						placement.scaleY = xyz->number(2) != 0.0 ? xyz->number(2) : 1.0;
+						placement.scaleZ = xyz->number(3) != 0.0 ? xyz->number(3) : 1.0;
+					}
+				}
+
+				if (const Node* rotate = node.find("rotate"))
+				{
+					if (const Node* xyz = rotate->find("xyz"))
+					{
+						// Negated here, once, so no renderer has to remember the convention.
+						placement.rotateX = -xyz->number(1);
+						placement.rotateY = -xyz->number(2);
+						placement.rotateZ = -xyz->number(3);
+					}
+				}
+
+				// A footprint may name several models. The first is the part; the rest are
+				// alternates a viewer with no way to choose between them should leave alone.
+				if (!drawing.model3D.present)
+				{
+					drawing.model3D = placement;
+				}
 			}
 		}
 		return drawing;
+	}
+
+	bool KicadGeometry::arcCircle(const KicadPoint& start, const KicadPoint& mid,
+		const KicadPoint& end, KicadPoint& outCentre, double& outRadius,
+		double& outStartAngle, double& outSpanAngle)
+	{
+		const double ax = start.x, ay = start.y;
+		const double bx = mid.x, by = mid.y;
+		const double cx = end.x, cy = end.y;
+		const double d = 2.0 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+		if (std::abs(d) < 1e-12) { return false; }
+
+		const double aSq = ax * ax + ay * ay;
+		const double bSq = bx * bx + by * by;
+		const double cSq = cx * cx + cy * cy;
+		outCentre.x = (aSq * (by - cy) + bSq * (cy - ay) + cSq * (ay - by)) / d;
+		outCentre.y = (aSq * (cx - bx) + bSq * (ax - cx) + cSq * (bx - ax)) / d;
+		outRadius = std::hypot(ax - outCentre.x, ay - outCentre.y);
+
+		const double startAngle = std::atan2(ay - outCentre.y, ax - outCentre.x);
+		const double midAngle = std::atan2(by - outCentre.y, bx - outCentre.x);
+		const double endAngle = std::atan2(cy - outCentre.y, cx - outCentre.x);
+
+		// Sweep from start to end the way that actually passes through the middle point — the
+		// short way round is wrong for exactly the arcs that need drawing.
+		constexpr double Pi = 3.14159265358979323846;
+		double span = endAngle - startAngle;
+		while (span <= -Pi) { span += 2.0 * Pi; }
+		while (span > Pi) { span -= 2.0 * Pi; }
+		double toMid = midAngle - startAngle;
+		while (toMid <= -Pi) { toMid += 2.0 * Pi; }
+		while (toMid > Pi) { toMid -= 2.0 * Pi; }
+		if ((span >= 0.0) != (toMid >= 0.0) || std::abs(toMid) > std::abs(span))
+		{
+			span += (span >= 0.0) ? -2.0 * Pi : 2.0 * Pi;
+		}
+
+		outStartAngle = startAngle;
+		outSpanAngle = span;
+		return true;
 	}
 
 }

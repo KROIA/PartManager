@@ -81,6 +81,10 @@ namespace PartManager
 		// reported once at the end — a datasheet URL Mouser published but no longer serves must
 		// not make it look like the part was not created.
 		void applyPendingFiles(int partId, Part& part);
+		// §5c: right after Create, offer the KiCad symbol and footprint for the part just made.
+		// Not part of the pending-file pass above — those slots take a path or a URL, and this one
+		// produces converted bytes that only exist once the lookup has run.
+		void fetchEcadModel(const Part& part);
 
 		Ui::NewPartDialog* m_ui;
 		PartEditorController m_controller;

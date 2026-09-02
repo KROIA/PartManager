@@ -45,6 +45,18 @@ namespace PartManager
 		std::string originalFilename;
 	};
 
+	// One HTTP GET's answer, held in memory. Not every download belongs in the store: the Mouser
+	// search dialog shows a row thumbnail per result, and writing 25 throwaway pictures into a
+	// content-addressed store for a search the user may abandon is a leak, not a cache.
+	struct PART_MANAGER_API DownloadedBytes
+	{
+		bool ok = false;
+		std::string errorMessage;
+		std::string contentType;
+		std::string bytes;
+		int status = 0;
+	};
+
 	// Content-addressed store rooted at one database folder's filestore/ path.
 	class PART_MANAGER_API FileStore
 	{
@@ -104,6 +116,13 @@ namespace PartManager
 
 		// The file extension (with dot, lowercase) `bytes` look like, empty when unrecognised.
 		static std::string sniffExtension(const std::string& bytes);
+
+		// GETs `url` into memory. The transport half of downloadFile() on its own — same WinHTTP
+		// -then-Qt cascade and the same browser-shaped headers, which is the only reason Mouser
+		// answers at all (see the comment in the .cpp). No block-page check and no extension
+		// correction: those belong to storing a file, and a caller that only wants pixels does its
+		// own judging. Blocking, so a UI caller runs it on a worker thread.
+		static DownloadedBytes downloadBytes(const std::string& url, int timeoutMs = 15000);
 
 		// Downloads `url` into the store. `originalFilename` may be empty — the URL's last
 		// path segment is used then. Requires the Qt build; fails cleanly otherwise.

@@ -1,10 +1,20 @@
 #include "ui/PartManager_MouserSearchDialog.h"
 #include "ui_PartManager_MouserSearchDialog.h"
 
+#include "controllers/PartManager_MainWindowController.h"
+#include "easyeda/PartManager_EasyEdaClient.h"
+#include "filestore/PartManager_FileStore.h"
+#include "widgets/PartManager_AttachmentIconPainter.h"
+
 #include <QApplication>
 #include <QDesktopServices>
 #include <QHeaderView>
+#include <QIcon>
+#include <QImage>
+#include <QPointer>
+#include <QRunnable>
 #include <QTableWidgetItem>
+#include <QThreadPool>
 #include <QUrl>
 
 namespace PartManager
@@ -22,10 +32,37 @@ namespace PartManager
 		// ever wanted; only the Next/Previous chrome would be missing.
 		constexpr int KeywordRecords = 25;
 
+		// Row picture height. Mouser's `lrg` variant is around 800 px wide, so it is scaled down
+		// hard — but it is the same URL the part will be given on "Use this part", so the bytes
+		// pulled for the list are not a second, throwaway fetch.
+		constexpr int ThumbnailSize = 48;
+
+		// At most this many product photos are pulled at once. The pool would otherwise open one
+		// connection per core against Mouser's CDN for a single keystroke, which is a burst they
+		// have no reason to tolerate and the user cannot see the benefit of anyway.
+		constexpr int ThumbnailThreads = 4;
+
+		// A thumbnail is decoration, so it may not hold the dialog's close for its full 15 s.
+		constexpr int ThumbnailTimeoutMs = 8000;
+
+		// Which picture a row shows, kept on the item so a late download can find its rows again
+		// without consulting m_results — which by then may describe a different search entirely.
+		constexpr int RoleImageUrl = Qt::UserRole + 1;
+		// Same idea for the EasyEDA answer, which arrives even later than the picture.
+		constexpr int RoleMpn = Qt::UserRole + 2;
+		constexpr int RoleHasDatasheet = Qt::UserRole + 3;
+
+		// The file glyphs are shown before the part exists, so they say what the import *will*
+		// bring rather than what is attached — which is exactly the question at this point.
+		// Matches the part list's glyphs, and the 52 px row here has room to spare for them.
+		constexpr int FileGlyphSize = 18;
+
 		// Mouser's own column order, minus everything the search step cannot act on.
 		enum Column
 		{
-			ColumnMouserNumber = 0,
+			ColumnThumbnail = 0,
+			ColumnFiles,
+			ColumnMouserNumber,
 			ColumnMpn,
 			ColumnManufacturer,
 			ColumnDescription,
@@ -54,19 +91,34 @@ namespace PartManager
 			}
 			return price;
 		}
+
+		// One pool for every search dialog ever opened, deliberately not a member owned by the
+		// dialog: QThreadPool's destructor calls waitForDone(), so a pool that died with the
+		// dialog would hold its close until the last download timed out.
+		QThreadPool& thumbnailPool()
+		{
+			static QThreadPool pool;
+			pool.setMaxThreadCount(ThumbnailThreads);
+			return pool;
+		}
 	}
 
 	MouserSearchDialog::MouserSearchDialog(QWidget* parent)
 		: QDialog(parent)
 		, m_ui(new Ui::MouserSearchDialog)
+		, m_thumbnailPool(&thumbnailPool())
 	{
 		m_ui->setupUi(this);
 
 		m_ui->resultsTable->setColumnCount(ColumnCount);
 		m_ui->resultsTable->setHorizontalHeaderLabels(QStringList()
-			<< tr("Mouser #") << tr("MPN") << tr("Manufacturer") << tr("Description")
-			<< tr("Category") << tr("In stock") << tr("Price"));
+			<< QString() << tr("Files") << tr("Mouser #") << tr("MPN") << tr("Manufacturer")
+			<< tr("Description") << tr("Category") << tr("In stock") << tr("Price"));
+		m_ui->resultsTable->setIconSize(QSize(ThumbnailSize, ThumbnailSize));
+		m_ui->resultsTable->verticalHeader()->setDefaultSectionSize(ThumbnailSize + 4);
 		m_ui->resultsTable->horizontalHeader()->setStretchLastSection(false);
+		m_ui->resultsTable->horizontalHeader()->setSectionResizeMode(ColumnThumbnail, QHeaderView::Fixed);
+		m_ui->resultsTable->setColumnWidth(ColumnThumbnail, ThumbnailSize + 8);
 		m_ui->resultsTable->horizontalHeader()->setSectionResizeMode(ColumnDescription, QHeaderView::Stretch);
 
 		connect(m_ui->searchButton, &QPushButton::clicked, this, &MouserSearchDialog::search);
@@ -93,6 +145,11 @@ namespace PartManager
 
 	MouserSearchDialog::~MouserSearchDialog()
 	{
+		// Drops everything still queued. The at most ThumbnailThreads downloads already running
+		// are left to finish on their own — they touch nothing but their own local buffer, and
+		// their result is posted back through a QPointer that is null by then. Waiting for them
+		// instead would hold the dialog's close for up to the download timeout.
+		m_thumbnailPool->clear();
 		delete m_ui;
 	}
 
@@ -190,6 +247,8 @@ namespace PartManager
 			const int row = static_cast<int>(i);
 			// Mouser's own data, so no tr() — only the app's chrome is translated.
 			const QString cells[ColumnCount] = {
+				QString(),   // the picture column carries no text
+				QString(),   // nor the file-glyph one
 				toQt(dto.mouserPartNumber),
 				toQt(dto.manufacturerPartNumber),
 				toQt(dto.manufacturer),
@@ -204,10 +263,186 @@ namespace PartManager
 				item->setToolTip(cells[column]);
 				m_ui->resultsTable->setItem(row, column, item);
 			}
+
+			// The same URL "Use this part" would hand to the download step, so the picture the
+			// user picked the row by is byte-for-byte the one the part ends up carrying.
+			const QString imageUrl = toQt(MouserSearchService::previewImageUrl(dto.imagePath));
+			QTableWidgetItem* picture = m_ui->resultsTable->item(row, ColumnThumbnail);
+			picture->setData(RoleImageUrl, imageUrl);
+			picture->setToolTip(QString());
+			requestThumbnail(imageUrl);
+
+			// The datasheet answer needs no request at all — it is either in the response or
+			// derivable from the manufacturer (MouserSearchService::datasheetUrlFor).
+			const MouserPartPrefill prefill = MouserSearchService::toPrefill(dto);
+			const QString mpn = toQt(dto.manufacturerPartNumber);
+			QTableWidgetItem* files = m_ui->resultsTable->item(row, ColumnFiles);
+			files->setData(RoleMpn, mpn);
+			files->setData(RoleHasDatasheet, !prefill.datasheetUrl.empty());
+			files->setTextAlignment(Qt::AlignCenter);
+			requestEcadAvailability(mpn, toQt(dto.manufacturer));
+			applyFileGlyphs(mpn);
 		}
 		m_ui->resultsTable->resizeColumnsToContents();
+		m_ui->resultsTable->setColumnWidth(ColumnThumbnail, ThumbnailSize + 8);
+		m_ui->resultsTable->setColumnWidth(ColumnFiles, 4 * FileGlyphSize + 3 * 3 + 12);
 		m_ui->resultsTable->horizontalHeader()->setSectionResizeMode(ColumnDescription, QHeaderView::Stretch);
 		updateButtons();
+	}
+
+	void MouserSearchDialog::requestThumbnail(const QString& url)
+	{
+		if (url.isEmpty())
+		{
+			return;
+		}
+		if (m_thumbnails.contains(url))
+		{
+			applyThumbnail(url);
+			return;
+		}
+		// A series shares one stock photo, so the same URL usually appears on several rows of one
+		// result set — without this it would be fetched once per row.
+		if (m_thumbnailsInFlight.contains(url))
+		{
+			return;
+		}
+		m_thumbnailsInFlight.insert(url);
+
+		// QPointer, not `this`: the download outlives a dialog the user closed mid-search, and the
+		// queued call is what would then land on freed memory. A null guard simply drops it.
+		const QPointer<MouserSearchDialog> alive(this);
+		QThreadPool* const pool = m_thumbnailPool;
+		pool->start(QRunnable::create([alive, url]()
+			{
+				// Qt's own network stack is served Mouser's block page where WinHTTP is served the
+				// file, so this goes through FileStore rather than a QNetworkAccessManager here.
+				const DownloadedBytes downloaded =
+					FileStore::downloadBytes(url.toStdString(), ThumbnailTimeoutMs);
+
+				// QImage, not QPixmap: a pixmap may only be created and touched on the GUI thread.
+				// The decode and the expensive smooth scale still happen out here; only the cheap
+				// conversion is left for the other side.
+				QImage decoded;
+				if (downloaded.ok && downloaded.status == 200)
+				{
+					// loadFromData sniffs the format, which matters here: every one of these is
+					// served as WebP behind a `.JPG` name (see FileStore::correctedFilename).
+					if (decoded.loadFromData(reinterpret_cast<const uchar*>(downloaded.bytes.data()),
+						static_cast<int>(downloaded.bytes.size())))
+					{
+						decoded = decoded.scaled(ThumbnailSize, ThumbnailSize,
+							Qt::KeepAspectRatio, Qt::SmoothTransformation);
+					}
+					else
+					{
+						decoded = QImage();
+					}
+				}
+
+				QMetaObject::invokeMethod(qApp, [alive, url, decoded]()
+					{
+						if (alive.isNull())
+						{
+							return;
+						}
+						alive->m_thumbnailsInFlight.remove(url);
+						// A null pixmap is cached too — a dead URL is then tried once, not once
+						// per search for the rest of the session.
+						alive->m_thumbnails.insert(url, QPixmap::fromImage(decoded));
+						alive->applyThumbnail(url);
+					}, Qt::QueuedConnection);
+			}));
+	}
+
+	void MouserSearchDialog::applyThumbnail(const QString& url)
+	{
+		const QPixmap picture = m_thumbnails.value(url);
+		if (picture.isNull())
+		{
+			return;
+		}
+		const QIcon icon(picture);
+		for (int row = 0; row < m_ui->resultsTable->rowCount(); ++row)
+		{
+			QTableWidgetItem* item = m_ui->resultsTable->item(row, ColumnThumbnail);
+			if (item != nullptr && item->data(RoleImageUrl).toString() == url)
+			{
+				item->setIcon(icon);
+			}
+		}
+	}
+
+	void MouserSearchDialog::requestEcadAvailability(const QString& mpn, const QString& manufacturer)
+	{
+		if (mpn.isEmpty() || m_ecadByMpn.contains(mpn) || m_ecadInFlight.contains(mpn))
+		{
+			return;
+		}
+		m_ecadInFlight.insert(mpn);
+
+		const QPointer<MouserSearchDialog> alive(this);
+		const std::string needle = mpn.toStdString();
+		const std::string maker = manufacturer.toStdString();
+		m_thumbnailPool->start(QRunnable::create([alive, mpn, needle, maker]()
+			{
+				EasyEdaClient client;
+				// Deliberately not lookup(): that would also fetch the component, which is a
+				// second request for a question a glyph answers with one bit. bestMatch() applies
+				// the same exact-match rule the import will, so the glyph cannot promise a symbol
+				// the import then refuses to take.
+				const EasyEdaSearchResult found = client.search(needle);
+				const bool available = !EasyEdaClient::bestMatch(found, needle, maker).empty();
+
+				QMetaObject::invokeMethod(qApp, [alive, mpn, available]()
+					{
+						if (alive.isNull())
+						{
+							return;
+						}
+						alive->m_ecadInFlight.remove(mpn);
+						alive->m_ecadByMpn.insert(mpn, available);
+						alive->applyFileGlyphs(mpn);
+					}, Qt::QueuedConnection);
+			}));
+	}
+
+	void MouserSearchDialog::applyFileGlyphs(const QString& mpn)
+	{
+		// EasyEDA gives symbol and footprint together or not at all, so one answer sets both.
+		const bool hasEcad = m_ecadByMpn.value(mpn, false);
+
+		for (int row = 0; row < m_ui->resultsTable->rowCount(); ++row)
+		{
+			QTableWidgetItem* item = m_ui->resultsTable->item(row, ColumnFiles);
+			if (item == nullptr || item->data(RoleMpn).toString() != mpn)
+			{
+				continue;
+			}
+
+			int flags = 0;
+			if (item->data(RoleHasDatasheet).toBool()) { flags |= AttachmentDatasheet; }
+			if (hasEcad) { flags |= AttachmentKicadSymbol | AttachmentKicadFootprint; }
+			// The 3D model slot is never lit here: EasyEDA carries one, but PartManager does not
+			// convert it yet, so promising it would be a lie the import could not keep.
+			item->setData(Qt::DecorationRole,
+				AttachmentIconPainter::strip(flags, FileGlyphSize, devicePixelRatioF()));
+
+			QStringList lines;
+			lines << (item->data(RoleHasDatasheet).toBool()
+				? tr("Datasheet: yes") : tr("Datasheet: Mouser publishes none"));
+			if (m_ecadByMpn.contains(mpn))
+			{
+				lines << (hasEcad
+					? tr("KiCad symbol and footprint: EasyEDA has this part")
+					: tr("KiCad symbol and footprint: not on EasyEDA — download the model by hand"));
+			}
+			else
+			{
+				lines << tr("KiCad symbol and footprint: checking EasyEDA…");
+			}
+			item->setToolTip(lines.join(QLatin1Char('\n')));
+		}
 	}
 
 	const MouserPartDto* MouserSearchDialog::selectedDto() const

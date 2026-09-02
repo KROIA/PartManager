@@ -28,6 +28,8 @@ namespace PartManager
 {
 
 	class KicadPreviewWidget;
+	class MeshCacheBuilder;
+	class Model3DViewer;
 	class PartlistPanel;
 
 	class MainWindow : public QMainWindow
@@ -115,8 +117,12 @@ namespace PartManager
 		void setupFilters();
 		// Red border + tooltip when a filter box holds a malformed query; clears both when it doesn't.
 		void markFilterError(QLineEdit* edit, const QString& error);
-		// Adds one CategoryNode and its children under `parent` (nullptr = a tree root).
+		// Adds one CategoryNode and its children under `parent` (nullptr = a tree root). While the
+		// §7a tree filter is on, a node with no matches under it is skipped entirely.
 		void addCategoryItem(const CategoryNode& node, QTreeWidgetItem* parent);
+		// Tints the header of the column the table is sorted by. Qt's sort arrow is easy to miss
+		// among a dozen headers, so the colour carries the same information more loudly.
+		void highlightSortedColumn();
 		// Rebuilds the table's dynamic header and rows for one category.
 		void showParts(int typeId, const QString& typeName);
 
@@ -131,6 +137,11 @@ namespace PartManager
 		// rather than in the .ui, which would need them promoted there first.
 		KicadPreviewWidget* m_symbolPreview = nullptr;
 		KicadPreviewWidget* m_footprintPreview = nullptr;
+		// §13: the same part in 3D, under the other two. Shares the app's one STEP converter,
+		// which also sweeps the database in the background so most models are ready before they
+		// are ever selected.
+		Model3DViewer* m_modelPreview = nullptr;
+		MeshCacheBuilder* m_meshBuilder = nullptr;
 		// Which category the table currently shows, so an edit can re-render it in place.
 		// The part the user last picked, kept across the table refills a stock write causes.
 		int m_selectedPartId = 0;

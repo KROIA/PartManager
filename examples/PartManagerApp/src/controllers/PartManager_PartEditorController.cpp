@@ -283,6 +283,31 @@ namespace PartManager
 		return store.replaceRoleFile(*db, partId, role, sourcePath, outError);
 	}
 
+	int PartEditorController::attachRoleBytes(int partId, PartFileRole role,
+		const std::string& bytes, const std::string& filename, std::string* outError) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || partId == 0)
+		{
+			if (outError)
+			{
+				*outError = "No open database.";
+			}
+			return 0;
+		}
+		if (bytes.empty())
+		{
+			if (outError)
+			{
+				*outError = "Nothing to attach.";
+			}
+			return 0;
+		}
+
+		FileStore store = storeOf(m_handle);
+		return store.replaceRoleFileBytes(*db, partId, role, bytes, filename, outError);
+	}
+
 	int PartEditorController::downloadRoleFile(int partId, PartFileRole role,
 		const std::string& url, std::string* outError) const
 	{

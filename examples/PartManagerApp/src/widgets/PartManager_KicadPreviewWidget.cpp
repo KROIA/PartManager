@@ -42,50 +42,6 @@ namespace PartManager
 			return SilkColour;
 		}
 
-		// KiCad stores an arc as three points on it. Qt wants a bounding box plus two angles, so
-		// the centre has to be recovered — it is the circumcentre of the three.
-		//
-		// Returns false for collinear points, where there is no circle; the caller draws the two
-		// segments instead, which is what a zero-curvature arc looks like anyway.
-		bool arcGeometry(const KicadPoint& start, const KicadPoint& mid, const KicadPoint& end,
-			QPointF& outCentre, double& outRadius, double& outStartAngle, double& outSpanAngle)
-		{
-			const double ax = start.x, ay = start.y;
-			const double bx = mid.x, by = mid.y;
-			const double cx = end.x, cy = end.y;
-			const double d = 2.0 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
-			if (std::abs(d) < 1e-12) { return false; }
-
-			const double aSq = ax * ax + ay * ay;
-			const double bSq = bx * bx + by * by;
-			const double cSq = cx * cx + cy * cy;
-			const double ux = (aSq * (by - cy) + bSq * (cy - ay) + cSq * (ay - by)) / d;
-			const double uy = (aSq * (cx - bx) + bSq * (ax - cx) + cSq * (bx - ax)) / d;
-
-			outCentre = QPointF(ux, uy);
-			outRadius = std::hypot(ax - ux, ay - uy);
-
-			const double startAngle = std::atan2(ay - uy, ax - ux);
-			const double midAngle = std::atan2(by - uy, bx - ux);
-			const double endAngle = std::atan2(cy - uy, cx - ux);
-
-			// Sweep from start to end the way that actually passes through the middle point —
-			// the short way round is wrong for exactly the arcs that need drawing.
-			double span = endAngle - startAngle;
-			while (span <= -M_PI) { span += 2.0 * M_PI; }
-			while (span > M_PI) { span -= 2.0 * M_PI; }
-			double toMid = midAngle - startAngle;
-			while (toMid <= -M_PI) { toMid += 2.0 * M_PI; }
-			while (toMid > M_PI) { toMid -= 2.0 * M_PI; }
-			if ((span >= 0.0) != (toMid >= 0.0) || std::abs(toMid) > std::abs(span))
-			{
-				span += (span >= 0.0) ? -2.0 * M_PI : 2.0 * M_PI;
-			}
-
-			outStartAngle = startAngle;
-			outSpanAngle = span;
-			return true;
-		}
 	}
 
 	KicadPreviewWidget::KicadPreviewWidget(QWidget* parent)
@@ -224,14 +180,16 @@ namespace PartManager
 			case KicadShapeKind::Arc:
 			{
 				if (shape.points.size() < 3) { break; }
-				QPointF centre;
+				KicadPoint centre;
 				double radius = 0.0, startAngle = 0.0, spanAngle = 0.0;
 				painter.setPen(penFor(stroke, shape.strokeWidth));
 				painter.setBrush(Qt::NoBrush);
-				if (arcGeometry(shape.points[0], shape.points[1], shape.points[2],
+				// Shared with the 3D board, which walks the same arc in steps rather than
+				// handing it to drawArc — one circumcentre, two renderers.
+				if (KicadGeometry::arcCircle(shape.points[0], shape.points[1], shape.points[2],
 					centre, radius, startAngle, spanAngle))
 				{
-					const QRectF box(centre.x() - radius, centre.y() - radius, radius * 2.0, radius * 2.0);
+					const QRectF box(centre.x - radius, centre.y - radius, radius * 2.0, radius * 2.0);
 					// Qt counts sixteenths of a degree, anticlockwise.
 					painter.drawArc(box, int(-startAngle * 180.0 / M_PI * 16.0),
 						int(-spanAngle * 180.0 / M_PI * 16.0));
@@ -256,12 +214,18 @@ namespace PartManager
 			case KicadShapeKind::Pad:
 			{
 				if (shape.points.empty()) { break; }
-				const QRectF box(shape.points[0].x - shape.sizeX / 2.0,
-					shape.points[0].y - shape.sizeY / 2.0, shape.sizeX, shape.sizeY);
+				const QRectF box(-shape.sizeX / 2.0, -shape.sizeY / 2.0,
+					shape.sizeX, shape.sizeY);
 				painter.setPen(Qt::NoPen);
 				painter.setBrush(QBrush(CopperColour));
+				painter.save();
+				painter.translate(shape.points[0].x, shape.points[0].y);
+				// KiCad's angle is anticlockwise with Y up; these coordinates have Y down, which
+				// turns it into a clockwise one — and clockwise is what QPainter::rotate does.
+				painter.rotate(shape.rotationDegrees);
 				if (shape.roundPad) { painter.drawEllipse(box); }
 				else { painter.drawRect(box); }
+				painter.restore();
 				break;
 			}
 			}

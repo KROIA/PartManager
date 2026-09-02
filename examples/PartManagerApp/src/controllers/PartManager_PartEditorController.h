@@ -132,6 +132,11 @@ namespace PartManager
 		// timeout, see FileStore::downloadFile().
 		int downloadRoleFile(int partId, PartFileRole role, const std::string& url,
 			std::string* outError = nullptr) const;
+		// Same, for content that never existed as a file: the `.kicad_sym`/`.kicad_mod` text
+		// EasyEdaConverter produces (§5c). Writing it to a temp file first only to import it back
+		// would leave a copy of the part's geometry outside the store.
+		int attachRoleBytes(int partId, PartFileRole role, const std::string& bytes,
+			const std::string& filename, std::string* outError = nullptr) const;
 		// The part's row for that slot. False when it carries none.
 		bool roleFile(int partId, PartFileRole role, PartFile& outFile) const;
 		// Absolute path of the stored file — empty when there is none, or it is no longer on

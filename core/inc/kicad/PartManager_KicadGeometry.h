@@ -59,16 +59,55 @@ namespace PartManager
 		bool filled = false;
 		bool closed = false;
 		bool roundPad = false;      // circle/oval pads, as opposed to rectangular ones
+		// Pads only. A through-hole pad exists on *both* sides of the board and has a hole
+		// through it, which a flat preview can ignore and a 3D one cannot: drawn as surface
+		// copper it puts a THT part's pins on top of a board they are supposed to pass through.
+		bool throughHole = false;
+		double drillDiameter = 0.0;  // millimetres, 0 when the pad has no hole
+		// Pads only: the third number of `(at x y angle)`, degrees anticlockwise in KiCad's
+		// board view. Ignoring it draws every rotated pad at 90 degrees to itself — an SOT-23's
+		// pads come out tall and narrow instead of wide and short, which looks like a plausible
+		// footprint for a different package.
+		double rotationDegrees = 0.0;
 		double sizeX = 0.0;
 		double sizeY = 0.0;
 		std::string layer;          // footprints only: "F.Cu", "F.SilkS", "F.CrtYd", ...
 		std::string label;          // a pin's number, or a pad's
 	};
 
+	// Where a footprint's `(model ...)` entry says its 3D model goes. **A model file's own
+	// origin is not where the part sits.** Vendor libraries routinely author a STEP around the
+	// top of the body, or on its side, and put the correction here — so a viewer that loads the
+	// mesh and draws it raw plants half the library inside the board or lying down.
+	//
+	// Measured: the TNPW0603 resistor's model runs z = -0.55 .. 0 and its footprint offsets it
+	// by 0.021653543776415, which is 0.55 mm expressed in inches. Applied, the body lands on
+	// z = 0 where every other part is.
+	struct PART_MANAGER_API KicadModelPlacement
+	{
+		// False when the footprint names no model. Everything below is then the identity, so a
+		// caller may apply it unconditionally rather than branching.
+		bool present = false;
+		// Millimetres, already converted — the legacy `(at (xyz ...))` form is in *inches* and
+		// the current `(offset (xyz ...))` form is in millimetres, which is the trap: read the
+		// old one as millimetres and the correction becomes a fortieth of what it should be,
+		// close enough to zero to look like no offset at all.
+		double offsetX = 0.0, offsetY = 0.0, offsetZ = 0.0;
+		double scaleX = 1.0, scaleY = 1.0, scaleZ = 1.0;
+		// Degrees, already negated. KiCad stores these the opposite way round from the rotation
+		// it then applies — a VRML-era convention its own 3D viewer still honours, so a file's
+		// numbers only match the picture after the sign flip.
+		double rotateX = 0.0, rotateY = 0.0, rotateZ = 0.0;
+	};
+
 	struct PART_MANAGER_API KicadDrawing
 	{
 		std::vector<KicadShape> shapes;
 		std::string name;
+		// Footprints only: where the part's 3D model goes relative to this footprint. Not a
+		// shape, so it is not in `shapes` and never affects `bounds()` — it comes from the same
+		// file and there is no sense parsing that file twice to get it.
+		KicadModelPlacement model3D;
 		// Symbols measure Y upward, footprints downward. The painter needs to know which,
 		// because getting it wrong mirrors the part instead of failing visibly.
 		bool yAxisPointsUp = true;
@@ -95,6 +134,20 @@ namespace PartManager
 
 		// The drawing for a `.kicad_mod` footprint file.
 		static KicadDrawing footprint(const std::string& footprintText);
+
+		// KiCad stores an arc as three points on it. Anything that wants to draw one — a painter
+		// with a bounding box and two angles, a mesh builder walking it in steps — needs the
+		// circle behind those three points first, so the circumcentre maths lives here rather
+		// than once per renderer.
+		//
+		// `outSpanAngle` sweeps from start to end *the way that passes through the middle point*,
+		// which is the whole reason KiCad stores three: the short way round is wrong for exactly
+		// the arcs worth drawing. Angles are radians in the drawing's own coordinates.
+		//
+		// False for collinear points, where there is no circle at all — the caller draws the
+		// straight run instead, which is what a zero-curvature arc looks like anyway.
+		static bool arcCircle(const KicadPoint& start, const KicadPoint& mid, const KicadPoint& end,
+			KicadPoint& outCentre, double& outRadius, double& outStartAngle, double& outSpanAngle);
 
 		// What a part with no symbol attached yet will look like once its library is generated:
 		// the embedded base its type maps to. Shared by the editor and the main window preview

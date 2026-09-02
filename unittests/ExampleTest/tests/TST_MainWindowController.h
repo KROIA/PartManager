@@ -20,6 +20,7 @@ public:
 		ADD_TEST(TST_MainWindowController::columnsFollowEffectiveAttributeOrder);
 		ADD_TEST(TST_MainWindowController::dimensionValuesFormatWithSiPrefix);
 		ADD_TEST(TST_MainWindowController::treeMatchCountsRollUpLikeStock);
+		ADD_TEST(TST_MainWindowController::theTreeCountsPartsNotOnlyTheOnesInStock);
 		ADD_TEST(TST_MainWindowController::searchErrorOnlyReportsMalformedQueries);
 		ADD_TEST(TST_MainWindowController::previewShapesTheSelectedPartsFields);
 		ADD_TEST(TST_MainWindowController::emptyColumnConfigFallsBackToDerived);
@@ -146,18 +147,21 @@ private:
 		std::vector<PartManager::PartColumn> columns =
 			PartManager::deriveColumns({ resistance, tolerance });
 
-		// name, manufacturer, mpn, package, <attributes in declaration order>, stock_qty
-		TEST_COMPARE(columns.size(), static_cast<size_t>(7));
+		// name, manufacturer, mpn, package, <attributes in declaration order>, files, stock_qty
+		TEST_COMPARE(columns.size(), static_cast<size_t>(8));
 		TEST_COMPARE(columns[0].key.toStdString(), std::string("name"));
 		TEST_COMPARE(columns[3].key.toStdString(), std::string("package"));
 		TEST_COMPARE(columns[4].key.toStdString(), std::string("resistance"));
 		TEST_ASSERT(columns[4].isAttribute);
 		TEST_COMPARE(columns[5].key.toStdString(), std::string("tolerance"));
-		TEST_COMPARE(columns[6].key.toStdString(), std::string("stock_qty"));
+		// The attachment glyphs; a built-in like the rest, so it can be hidden or moved.
+		TEST_COMPARE(columns[6].key.toStdString(), std::string("files"));
 		TEST_ASSERT(!columns[6].isAttribute);
+		TEST_COMPARE(columns[7].key.toStdString(), std::string("stock_qty"));
+		TEST_ASSERT(!columns[7].isAttribute);
 
 		// No attributes at all still yields the built-ins.
-		TEST_COMPARE(PartManager::deriveColumns({}).size(), static_cast<size_t>(5));
+		TEST_COMPARE(PartManager::deriveColumns({}).size(), static_cast<size_t>(6));
 	}
 
 	TEST_FUNCTION(dimensionValuesFormatWithSiPrefix)
@@ -229,6 +233,43 @@ private:
 		TEST_COMPARE(roots[1].matchCount, 1);
 		// No filter at all leaves every count at zero, which is what suppresses the ": n" suffix.
 		TEST_COMPARE(PartManager::buildCategoryTree(types, inStock)[0].matchCount, 0);
+	}
+
+	// The tree's "(n)" counts parts, not in-stock parts. It used to be in-stock, and the symptom
+	// was that creating a part with no opening quantity left the number exactly where it was —
+	// the one number the user had just changed was the one that did not move.
+	TEST_FUNCTION(theTreeCountsPartsNotOnlyTheOnesInStock)
+	{
+		TEST_START;
+
+		std::vector<PartManager::PartType> types{
+			makeType(1, "Passive", PartManager::NoParentType),
+			makeType(2, "Resistor", 1)
+		};
+		// Ten resistors on the shelf, of which two are in stock; the parent holds none itself.
+		std::map<int, int> inStock{ {1, 0}, {2, 2} };
+		std::map<int, int> partCount{ {1, 0}, {2, 10} };
+
+		std::vector<PartManager::CategoryNode> roots =
+			PartManager::buildCategoryTree(types, inStock, std::map<int, int>(), partCount);
+
+		TEST_COMPARE(roots.size(), static_cast<size_t>(1));
+		// Both counts roll up through the parent, so a category shows what is underneath it.
+		TEST_COMPARE(roots[0].partCount, 10);
+		TEST_COMPARE(roots[0].inStockCount, 2);
+		TEST_COMPARE(roots[0].children[0].partCount, 10);
+
+		// A part added with zero stock moves partCount and leaves inStockCount alone — which is
+		// exactly the case the old label could not show.
+		partCount[2] = 11;
+		std::vector<PartManager::CategoryNode> after =
+			PartManager::buildCategoryTree(types, inStock, std::map<int, int>(), partCount);
+		TEST_COMPARE(after[0].partCount, 11);
+		TEST_COMPARE(after[0].inStockCount, 2);
+
+		// Not passing the map at all leaves it zero rather than falling back to inStockCount,
+		// so a caller that forgets it fails visibly instead of showing a plausible wrong number.
+		TEST_COMPARE(PartManager::buildCategoryTree(types, inStock)[0].partCount, 0);
 	}
 
 	TEST_FUNCTION(searchErrorOnlyReportsMalformedQueries)
@@ -348,8 +389,9 @@ private:
 		std::vector<PartManager::PartColumn> applied = PartManager::applyColumnConfig(derived, config);
 
 		// `name` is pinned first however the layout ordered it — the table hangs the part id and
-		// the tag chips off column 0.
-		TEST_COMPARE(applied.size(), static_cast<size_t>(6));
+		// the tag chips off column 0. Seven, not six: `files` is a built-in this saved layout
+		// predates, so it is appended by the rule the next test covers.
+		TEST_COMPARE(applied.size(), static_cast<size_t>(7));
 		TEST_COMPARE(applied[0].key.toStdString(), std::string("name"));
 		TEST_COMPARE(applied[1].key.toStdString(), std::string("stock_qty"));
 		TEST_COMPARE(applied[1].widthPx, 80);
@@ -387,12 +429,15 @@ private:
 		// The deleted attribute is dropped; everything the layout never mentioned is appended
 		// visible rather than silently disappearing.
 		auto keyAt = [&applied](size_t index) { return applied[index].key.toStdString(); };
-		TEST_COMPARE(applied.size(), static_cast<size_t>(7));
+		TEST_COMPARE(applied.size(), static_cast<size_t>(8));
 		TEST_COMPARE(keyAt(0), std::string("name"));
 		TEST_COMPARE(keyAt(1), std::string("stock_qty"));
 		TEST_COMPARE(keyAt(2), std::string("manufacturer"));
 		TEST_COMPARE(keyAt(5), std::string("resistance"));
 		TEST_COMPARE(keyAt(6), std::string("power"));
+		// `files` was added to the built-ins after this layout was saved, so it lands at the end
+		// rather than being dropped — the same rule that keeps a newly added attribute visible.
+		TEST_COMPARE(keyAt(7), std::string("files"));
 		for (const PartManager::PartColumn& column : applied)
 		{
 			TEST_ASSERT_M(column.key != QString("tolerance"), "a deleted attribute must not stay a column");
