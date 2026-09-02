@@ -21,6 +21,8 @@ int main(int argc, char* argv[])
 	// Before any widget exists, so the database selector is readable too — every screen inherits
 	// the application font.
 	PartManager::repairDefaultUiFont(app);
+	// Before the selector too — it has combo boxes of its own.
+	PartManager::installScrollGuard(app);
 
 	// AppSettings (and therefore the known-databases registry, §1b) keys off these.
 	QCoreApplication::setOrganizationName("KROIA");

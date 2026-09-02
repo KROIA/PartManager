@@ -1,11 +1,14 @@
 #include "PartManager_AppStartup.h"
 #include "settings/PartManager_Settings.h"
 
+#include <QAbstractSpinBox>
 #include <QApplication>
 #include <QColor>
+#include <QComboBox>
 #include <QFont>
 #include <QPalette>
 #include <QTranslator>
+#include <QWheelEvent>
 
 namespace PartManager
 {
@@ -32,6 +35,38 @@ namespace PartManager
 		}
 		font.setPointSizeF(font.pointSizeF() * ratio);
 		app.setFont(font);
+	}
+
+	namespace
+	{
+		// See installScrollGuard(). Lives for the application's lifetime, parented to it.
+		class ScrollGuard : public QObject
+		{
+		public:
+			explicit ScrollGuard(QObject* parent) : QObject(parent) {}
+
+		protected:
+			bool eventFilter(QObject* watched, QEvent* event) override
+			{
+				if (event->type() != QEvent::Wheel)
+				{
+					return false;
+				}
+				// Only the two value editors. A combo box's *popup* is a QAbstractItemView and
+				// not matched here, so an open drop-down still scrolls.
+				if (!qobject_cast<QComboBox*>(watched) && !qobject_cast<QAbstractSpinBox*>(watched))
+				{
+					return false;
+				}
+				event->ignore();
+				return true;
+			}
+		};
+	}
+
+	void installScrollGuard(QApplication& app)
+	{
+		app.installEventFilter(new ScrollGuard(&app));
 	}
 
 	namespace

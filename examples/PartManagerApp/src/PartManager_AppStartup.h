@@ -38,6 +38,18 @@ namespace PartManager
 	// is never touched. Call before the first widget exists, so every screen inherits it.
 	void repairDefaultUiFont(QApplication& app);
 
+	// Stops the wheel from editing values. Combo boxes and spin boxes handle a wheel by
+	// changing their value, which inside a scrolled form means scrolling past one silently
+	// edits it — and §10 autosave writes that straight to the database, so the part is changed
+	// before the user has seen it happen. The keyboard and the drop-down still work.
+	//
+	// Installed on the application rather than on each widget because the forms are built at
+	// runtime (AttributeFormWidget, the ribbon, every dialog), so there is no one place that
+	// sees them all. The filter ignores the event *and* returns true: Qt's wheel propagation
+	// walks to the parent unless the event was both consumed and accepted, so this is what
+	// hands the scroll to the scroll area instead of eating it.
+	void installScrollGuard(QApplication& app);
+
 	// §9 theme. A QPalette swap rather than a stylesheet: RibbonWidget, the item views and every
 	// dialog are ordinary Qt widgets, so they all follow a palette without any of them knowing a
 	// theme exists — a stylesheet would have to name each one. Safe to call at any time; the
