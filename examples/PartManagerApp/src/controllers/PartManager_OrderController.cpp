@@ -188,7 +188,42 @@ namespace PartManager
 		return db ? OrderRepository::closeOrder(*db, orderId) : false;
 	}
 
-	MouserCartResult OrderController::stageToCart(int orderId) const
+	MouserCartResult OrderController::readCart(int orderId) const
+	{
+		MouserCartResult result;
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		MouserOrder order;
+		if (!db || !OrderRepository::findOrder(*db, orderId, order) || order.mouserCartId.empty())
+		{
+			// No cart yet is the ordinary first-staging state, so no message: the caller shows an
+			// empty "already in cart" column rather than an error.
+			return result;
+		}
+		MouserCartClient client;
+		return client.readCart(order.mouserCartId);
+	}
+
+	bool OrderController::startNewCart(int orderId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db)
+		{
+			return false;
+		}
+		MouserOrder order;
+		if (!OrderRepository::findOrder(*db, orderId, order))
+		{
+			return false;
+		}
+		// Only the stored key is dropped. Mouser exposes no way to delete a cart or to list the
+		// ones an account has, so the old cart still exists — it is simply no longer reachable
+		// from here. The caller warns about that before getting here.
+		order.mouserCartId.clear();
+		return OrderRepository::updateOrder(*db, order);
+	}
+
+	MouserCartResult OrderController::stageItems(int orderId,
+		const std::vector<MouserCartItemRequest>& items, bool setQuantities) const
 	{
 		MouserCartResult result;
 		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
@@ -204,30 +239,47 @@ namespace PartManager
 			result.errorMessage = QObject::tr("That order no longer exists.").toStdString();
 			return result;
 		}
-
-		const StagingPlan plan = planStaging(OrderRepository::lines(*db, orderId));
-		if (plan.items.empty())
+		if (items.empty())
 		{
-			// A request with no lines would come back as a successful empty cart, which reads as
+			// A request with no lines comes back as a successful empty cart, which reads as
 			// "staged" when in fact nothing was.
-			result.errorMessage = QObject::tr("Nothing on this order can be staged: every line is "
-				"either already in or has no Mouser part number.").toStdString();
+			result.errorMessage = QObject::tr("Nothing was selected to stage.").toStdString();
 			return result;
 		}
 
 		MouserCartClient client;
-		// **insert adds, update sets** — verified against the live API 2026-09-02. Staging the
-		// same order twice with insert leaves double the quantity in the cart, which is exactly
-		// what a user does after confirming a partial arrival. So the first staging creates the
-		// cart, and every later one sets the outstanding quantity outright.
+		// **insert adds, update sets** — verified against the live API 2026-09-02. A cart that
+		// does not exist yet has to be created by insert; after that the caller's choice decides,
+		// because "set this line to 40" and "add 40 more" are both things a user may mean.
 		result = order.mouserCartId.empty()
-			? client.insertItems(std::string(), plan.items)
-			: client.updateItems(order.mouserCartId, plan.items);
+			? client.insertItems(std::string(), items)
+			: (setQuantities ? client.updateItems(order.mouserCartId, items)
+			                 : client.insertItems(order.mouserCartId, items));
 		if (result.ok && !result.cartKey.empty())
 		{
 			OrderRepository::setCartId(*db, orderId, result.cartKey);
 		}
 		return result;
+	}
+
+	MouserCartResult OrderController::stageToCart(int orderId) const
+	{
+		MouserCartResult result;
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db)
+		{
+			result.errorMessage = QObject::tr("No database is open.").toStdString();
+			return result;
+		}
+		const StagingPlan plan = planStaging(OrderRepository::lines(*db, orderId));
+		if (plan.items.empty())
+		{
+			result.errorMessage = QObject::tr("Nothing on this order can be staged: every line is "
+				"either already in or has no Mouser part number.").toStdString();
+			return result;
+		}
+		// Setting, not adding: this path re-stages a whole order, so it has to be idempotent.
+		return stageItems(orderId, plan.items, true);
 	}
 
 #else
@@ -247,6 +299,10 @@ namespace PartManager
 	bool OrderController::receive(int, int, double, const std::string&) const { return false; }
 	bool OrderController::close(int) const { return false; }
 	MouserCartResult OrderController::stageToCart(int) const { return MouserCartResult(); }
+	MouserCartResult OrderController::readCart(int) const { return MouserCartResult(); }
+	MouserCartResult OrderController::stageItems(int, const std::vector<MouserCartItemRequest>&,
+		bool) const { return MouserCartResult(); }
+	bool OrderController::startNewCart(int) const { return false; }
 
 #endif
 

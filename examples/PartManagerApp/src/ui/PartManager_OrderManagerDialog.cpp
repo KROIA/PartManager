@@ -1,6 +1,8 @@
 #include "ui/PartManager_OrderManagerDialog.h"
 #include "ui_PartManager_OrderManagerDialog.h"
 
+#include "ui/PartManager_CartStagingDialog.h"
+
 #include <QColor>
 #include <QDesktopServices>
 #include <QHeaderView>
@@ -265,7 +267,7 @@ namespace PartManager
 		m_ui->stageButton->setEnabled(hasOrder && !isClosed && canStage);
 		m_ui->stageButton->setToolTip(canStage
 			? tr("Builds the cart on mouser.com from this order's outstanding lines.")
-			: tr("Set the MOUSER_API environment variable and restart to stage carts."));
+			: tr("Set the MOUSER_CART_API environment variable and restart to stage carts."));
 
 		m_ui->openCartButton->setEnabled(hasOrder && !order.mouserCartId.empty());
 		m_ui->submittedButton->setEnabled(hasOrder && !isClosed
@@ -341,7 +343,56 @@ namespace PartManager
 			}
 		}
 
-		const MouserCartResult result = m_controller.stageToCart(orderId);
+		// Read the cart before touching it. The cart is on a real account and may already hold
+		// parts — from an earlier staging of this order, or from something added on mouser.com —
+		// and sending blindly is how someone ends up with double the resistors.
+		const MouserCartResult existing = m_controller.readCart(orderId);
+		if (!existing.errorMessage.empty())
+		{
+			// The cart could not be read, so what is in it is unknown. Staging anyway could
+			// double a line, so the choice is the user's to make with that stated.
+			if (QMessageBox::question(this, tr("Could not read your Mouser cart"),
+				tr("PartManager could not read the cart this order points at:\n\n%1\n\n"
+				   "Staging now could add to quantities that are already there. Continue anyway?")
+					.arg(QString::fromStdString(existing.errorMessage)),
+				QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+			{
+				return;
+			}
+		}
+
+		CartStagingDialog review(plan, existing, m_lines, this);
+		if (review.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+		if (review.wantsNewCart())
+		{
+			m_controller.startNewCart(orderId);
+		}
+
+		const std::vector<MouserCartItemRequest> toSet = review.itemsToSet();
+		const std::vector<MouserCartItemRequest> toAdd = review.itemsToAdd();
+		if (toSet.empty() && toAdd.empty())
+		{
+			m_ui->statusLabel->setText(tr("Nothing was staged — every line was skipped."));
+			return;
+		}
+
+		// Two calls when the selection is mixed: one request cannot carry both semantics, and
+		// sets go first so an "add" is always relative to a known quantity.
+		MouserCartResult result;
+		if (!toSet.empty())
+		{
+			result = m_controller.stageItems(orderId, toSet, true);
+		}
+		if (result.ok || toSet.empty())
+		{
+			if (!toAdd.empty())
+			{
+				result = m_controller.stageItems(orderId, toAdd, false);
+			}
+		}
 		if (!result.ok)
 		{
 			QMessageBox::warning(this, tr("Could not stage the cart"),
@@ -353,6 +404,9 @@ namespace PartManager
 		// The response lists the **whole cart**, not only what this call staged (verified live
 		// 2026-09-02). So a rejected line is only ours if we actually asked for it — otherwise a
 		// bad part somebody added on mouser.com would be reported as our failure every time.
+		std::vector<MouserCartItemRequest> sent = toSet;
+		sent.insert(sent.end(), toAdd.begin(), toAdd.end());
+
 		QStringList rejected;
 		for (const MouserCartLine& line : result.lines)
 		{
@@ -360,7 +414,7 @@ namespace PartManager
 			{
 				continue;
 			}
-			for (const MouserCartItemRequest& asked : plan.items)
+			for (const MouserCartItemRequest& asked : sent)
 			{
 				if (asked.mouserPartNumber == line.mouserPartNumber)
 				{
@@ -386,7 +440,7 @@ namespace PartManager
 			// so anything already in it would be counted as though this staging had put it there.
 			QMessageBox::information(this, tr("Staged to your Mouser cart"),
 				tr("%n line(s) staged. Open the cart on mouser.com to review and place the order — "
-				   "PartManager never checks out for you.", "", static_cast<int>(plan.items.size())));
+				   "PartManager never checks out for you.", "", static_cast<int>(sent.size())));
 		}
 		reload();
 	}

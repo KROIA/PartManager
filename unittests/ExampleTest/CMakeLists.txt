@@ -42,6 +42,7 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartlistEditorDialo
 ## The partlist editor's "Order Shortfall" opens the order view, so the whole §4 checkout tail
 ## comes along -- the editor alone would compile but not link.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_OrderManagerDialog.cpp")
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_CartStagingDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttributeFormWidget.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_DimensionLineEdit.cpp")
 

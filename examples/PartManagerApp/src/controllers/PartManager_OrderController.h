@@ -7,7 +7,7 @@
 // MouserCartClient wrapper the dialog talks to.
 //
 // **`stageToCart()` is the one call here that reaches the network**, and it is
-// the one that has never run: `MOUSER_API` was not set when this was
+// the one that has never run: `MOUSER_CART_API` was not set when this was
 // written. Everything it depends on — the request body, the response parsing,
 // the per-line rejection check — is covered offline in TST_MouserCartClient, and
 // the manual checklist for the live path is in `.claude/PROJECT_STATUS.md`.
@@ -73,13 +73,37 @@ namespace PartManager
 			const std::string& currency) const;
 		bool close(int orderId) const;
 
-		// True when MOUSER_API is set. The dialog disables staging and says why when it is
+		// True when MOUSER_CART_API is set. The dialog disables staging and says why when it is
 		// not, rather than letting the user press a button that can only fail.
 		static bool canStage();
 
-		// Builds the real Mouser cart from the order's lines and stores the CartKey (§6). Adds to
-		// the order's existing cart when it already has one. Returns the raw result so the caller
-		// can report a per-line rejection, which `ok` alone does not cover.
+		// Reads the order's existing Mouser cart, so the user can be shown what is already in it
+		// before anything is staged. `ok == false` with an empty message when the order has no
+		// cart yet, which is the normal first-staging case and not an error.
+		//
+		// **A CartKey that was never created comes back as an empty cart with no error** (checked
+		// live 2026-09-02) — Mouser echoes the key rather than rejecting it. So "empty" here can
+		// equally mean "cart is empty" or "that key is meaningless", and neither is worth
+		// distinguishing: both mean there is nothing to merge with.
+		MouserCartResult readCart(int orderId) const;
+
+		// Builds the real Mouser cart from the order's lines and stores the CartKey (§6).
+		// The staging plan is passed in rather than recomputed, so what the user reviewed and
+		// approved is exactly what gets sent.
+		//
+		// `setQuantities` picks the endpoint, and the difference is not cosmetic (verified live):
+		//   true  -> /cart/items/update, which **sets** the quantity. Re-staging is idempotent.
+		//   false -> /cart/items/insert, which **adds** to what is already there.
+		MouserCartResult stageItems(int orderId, const std::vector<MouserCartItemRequest>& items,
+			bool setQuantities) const;
+
+		// Forgets the order's CartKey so the next staging creates a fresh cart, leaving whatever
+		// was in the old one alone. The API has no "delete cart" call and no way to list carts,
+		// so an abandoned cart is only reachable by a key nobody keeps — which is why this asks
+		// the caller to have warned the user first.
+		bool startNewCart(int orderId) const;
+
+		// Convenience for the non-interactive path and the tests: plan, then stage in one call.
 		MouserCartResult stageToCart(int orderId) const;
 
 	private:

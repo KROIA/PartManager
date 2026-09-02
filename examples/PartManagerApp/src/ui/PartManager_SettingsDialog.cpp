@@ -147,8 +147,8 @@ namespace PartManager
 			? tr("Search: set (MOUSER_SEARCH_API)")
 			: tr("Search: not set — set MOUSER_SEARCH_API and restart"));
 		keys.append(MouserCartClient::hasApiKey()
-			? tr("Cart: set (MOUSER_API)")
-			: tr("Cart: not set — set MOUSER_API and restart"));
+			? tr("Cart: set (MOUSER_CART_API)")
+			: tr("Cart: not set — set MOUSER_CART_API and restart"));
 		keys.append(tr("Keys are read from the environment only and are never stored by PartManager."));
 		m_ui->apiKeyLabel->setText(keys.join(QStringLiteral("\n")));
 

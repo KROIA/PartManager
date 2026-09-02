@@ -3,7 +3,7 @@
 #include "UnitTest.h"
 #include "mouser/PartManager_MouserCartClient.h"
 
-// The Cart API's offline half (§6). `MOUSER_API` was not in the environment when this was
+// The Cart API's offline half (§6). `MOUSER_CART_API` was not in the environment when this was
 // written, so the network path has never run — everything here is fixture JSON and body building,
 // which is also the half where the mistakes actually live: a rejected line hiding inside a 200,
 // and a CartKey sent empty when it should have been omitted.
@@ -126,9 +126,9 @@ private:
 		{
 			const PartManager::MouserCartResult result = client.insertItems("", {});
 			TEST_ASSERT_M(!result.ok, "a call without a key must fail");
-			TEST_ASSERT_M(result.errorMessage.find("MOUSER_API") != std::string::npos,
+			TEST_ASSERT_M(result.errorMessage.find("MOUSER_CART_API") != std::string::npos,
 				"the message must name the variable to set: " + result.errorMessage);
-			TEST_MESSAGE("MOUSER_API is not set - the live cart path is untested, see "
+			TEST_MESSAGE("MOUSER_CART_API is not set - the live cart path is untested, see "
 				"PROJECT_STATUS.md");
 		}
 		else
@@ -136,7 +136,7 @@ private:
 			// Deliberately no network call here even when the key exists: a unit test must not
 			// create a real Mouser cart as a side effect. See PROJECT_STATUS.md for the manual
 			// checklist that does exercise it.
-			TEST_MESSAGE("MOUSER_API is set - run the manual live checklist in PROJECT_STATUS.md");
+			TEST_MESSAGE("MOUSER_CART_API is set - run the manual live checklist in PROJECT_STATUS.md");
 		}
 	}
 

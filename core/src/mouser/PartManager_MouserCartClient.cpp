@@ -22,7 +22,7 @@
 namespace PartManager
 {
 
-	const char* const MouserCartClient::ApiKeyEnvVar = "MOUSER_API";
+	const char* const MouserCartClient::ApiKeyEnvVar = "MOUSER_CART_API";
 
 	namespace
 	{

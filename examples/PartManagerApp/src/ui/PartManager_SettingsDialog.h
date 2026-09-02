@@ -7,7 +7,7 @@
 // trusts.
 //
 // **No API-key field, deliberately.** §9's Storage tab lists one, but this
-// dialog only *reports* whether `MOUSER_SEARCH_API` / `MOUSER_API` are set
+// dialog only *reports* whether `MOUSER_SEARCH_API` / `MOUSER_CART_API` are set
 // and how to set them. Writing a key into the settings file would put it in
 // plain text in the user's data folder, which is exactly what keeping it in the
 // environment avoids.

@@ -11,7 +11,7 @@
 // succeeds. `parseCartResponse()` surfaces both.
 //
 // **This is a separate key from the Search API.** It is read at runtime from
-// `MOUSER_API` and from nowhere else — never a literal, never a settings
+// `MOUSER_CART_API` and from nowhere else — never a literal, never a settings
 // file, never logged. When it is unset every request fails immediately with a
 // message that does not contain the key or any part of it.
 //
@@ -19,7 +19,7 @@
 // the user goes to mouser.com to review and pay. Nothing here touches the Order
 // API's submit endpoint, and nothing here can spend money.
 //
-// **Not yet live-tested.** `MOUSER_API` was not present in the environment
+// **Not yet live-tested.** `MOUSER_CART_API` was not present in the environment
 // when this was written, so only `parseCartResponse()` has been exercised (with
 // fixture JSON, offline). See `.claude/PROJECT_STATUS.md` for the checklist to
 // run once the key is set.
@@ -82,7 +82,7 @@ namespace PartManager
 		// The only place the key ever comes from. Deliberately not the Search API's key.
 		static const char* const ApiKeyEnvVar;
 
-		// True when MOUSER_API is set and non-empty. Does not expose the value.
+		// True when MOUSER_CART_API is set and non-empty. Does not expose the value.
 		static bool hasApiKey();
 
 		// Pure response handling, no network, no key — the offline-testable half, and currently
