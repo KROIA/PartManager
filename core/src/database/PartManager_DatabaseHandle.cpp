@@ -1,6 +1,8 @@
 #include "database/PartManager_DatabaseHandle.h"
 #include "database/PartManager_DatabaseMetadata.h"
 #include "database/PartManager_SchemaMigrator.h"
+#include "backup/PartManager_BackupManager.h"
+#include "settings/PartManager_Settings.h"
 // createNew() seeds the default type templates, which is the one place core/database reaches
 // into core/persistence (§1b says a new database ships with them). Kept to this .cpp so the
 // public header stays free of the reverse dependency.
@@ -159,6 +161,20 @@ namespace PartManager
 			// call below takes the "lower than current" branch and actually creates the domain
 			// tables (§2/§3), rather than short-circuiting to "equal" and creating nothing.
 			dbMetaValues.createdAt = openedAt;
+		}
+
+		// §9a: snapshot before migrating, the single riskiest mutation an install ever performs
+		// and the one thing autosave cannot protect against. Only when there is something to
+		// migrate — a brand-new folder (version 0) has an empty database not worth copying, and
+		// an already-current one is not being touched. Failure is deliberately not fatal: a
+		// read-only backup folder must not stop the user opening their database, and the
+		// migration itself is still safe. Retention is left generous here because these are the
+		// snapshots most worth keeping.
+		if (dbMetaValues.schemaVersion > 0 && dbMetaValues.schemaVersion < CurrentSchemaVersion)
+		{
+			const AppPreferences preferences = Settings::getPreferences();
+			BackupManager::createSnapshot(databaseFilePath(), preferences.backupFolder,
+				preferences.backupRetentionCount);
 		}
 
 		std::string refusalMessage;
