@@ -3,6 +3,7 @@
 #include "PartManager_global.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -27,6 +28,26 @@ namespace PartManager
 
 	namespace
 	{
+		// Lowercased copy with leading whitespace dropped, for the two prefix checks below.
+		std::string trimmedLower(const std::string& text, size_t limit)
+		{
+			size_t start = 0;
+			while (start < text.size()
+				&& (text[start] == ' ' || text[start] == '\t' || text[start] == '\r' || text[start] == '\n'))
+			{
+				++start;
+			}
+			std::string result = text.substr(start, limit);
+			std::transform(result.begin(), result.end(), result.begin(),
+				[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+			return result;
+		}
+
+		bool startsWith(const std::string& text, const char* prefix)
+		{
+			return text.rfind(prefix, 0) == 0;
+		}
+
 		// Reads a whole file as bytes. Returns false if it cannot be opened/read.
 		bool readWholeFile(const std::filesystem::path& path, std::string& outBytes)
 		{
@@ -80,6 +101,17 @@ namespace PartManager
 	const std::string& FileStore::rootPath() const
 	{
 		return m_rootPath;
+	}
+
+	bool FileStore::looksLikeBlockPage(const std::string& contentType, const std::string& body)
+	{
+		// "text/html; charset=utf-8" is the usual shape, so a prefix test rather than equality.
+		if (startsWith(trimmedLower(contentType, 64), "text/html"))
+		{
+			return true;
+		}
+		const std::string head = trimmedLower(body, 512);
+		return startsWith(head, "<!doctype html") || startsWith(head, "<html");
 	}
 
 	std::string FileStore::hashBytes(const std::string& bytes)
@@ -240,6 +272,7 @@ namespace PartManager
 
 		const QByteArray body = reply->readAll();
 		const int httpStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+		const QString contentType = reply->header(QNetworkRequest::ContentTypeHeader).toString();
 		const QNetworkReply::NetworkError networkError = reply->error();
 		const QString networkErrorText = reply->errorString();
 		reply->deleteLater();
@@ -262,6 +295,21 @@ namespace PartManager
 		if (body.isEmpty())
 		{
 			result.errorMessage = "Download returned an empty file.";
+			return result;
+		}
+		// See looksLikeBlockPage() — a blocked download arrives as a successful one, so every
+		// check above passes and the block page would be stored under the requested name.
+		// Unless a web page really was what was asked for. Nothing in the app asks for one, but
+		// downloadFile() is general.
+		const QString requestPath = requestUrl.path().toLower();
+		const bool wantedHtml = requestPath.endsWith(QLatin1String(".htm"))
+			|| requestPath.endsWith(QLatin1String(".html"));
+		if (!wantedHtml && looksLikeBlockPage(contentType.toStdString(), body.toStdString()))
+		{
+			result.errorMessage = "The server returned a web page instead of a file. Vendor "
+				"download sites often block automated downloads this way, answering 200 with a "
+				"block page rather than an error. Open the link in a browser, save the file, and "
+				"attach it from disk.";
 			return result;
 		}
 		return importBytes(body.toStdString(), filename);

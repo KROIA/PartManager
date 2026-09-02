@@ -73,8 +73,24 @@ namespace PartManager
 		// Absolute path of a stored file. Empty string if it is not (or no longer) on disk.
 		std::string absolutePath(const std::string& relativePath) const;
 
+		// True when a response body is a web page rather than the file that was asked for.
+		//
+		// **A blocked download arrives as a successful one.** Mouser's CDN answers an automated
+		// request for a datasheet or a product photo with HTTP 200, `Content-Type: text/html` and
+		// an "Access Denied" page — measured 2026-09-02 with no User-Agent, with a browser
+		// User-Agent, and with Accept + Referer added, all identical. Status and length checks
+		// therefore both pass, and without this the block page is stored under the requested
+		// name: a `.pdf` that is HTML, a `.jpg` that will not decode. Worse than a failure,
+		// because the part then looks complete.
+		//
+		// Content-Type first, then a sniff of the body, so a CDN that mislabels its block page as
+		// octet-stream is caught too. Pure string work, so it is testable without a network.
+		static bool looksLikeBlockPage(const std::string& contentType, const std::string& body);
+
 		// Downloads `url` into the store. `originalFilename` may be empty — the URL's last
 		// path segment is used then. Requires the Qt build; fails cleanly otherwise.
+		// A response that looksLikeBlockPage() fails rather than being stored, unless the URL
+		// asked for a `.htm`/`.html` in the first place.
 		FileStoreResult downloadFile(const std::string& url, const std::string& originalFilename = std::string());
 
 		// Per-download timeout in milliseconds. Default 15000.

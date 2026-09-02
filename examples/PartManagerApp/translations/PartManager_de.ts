@@ -716,7 +716,10 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
     </message>
     <message numerus="yes">
         <source>Your Mouser cart already holds %n line(s). “Set to” makes the cart match the number here; “Add” puts that many more in.</source>
-        <translation><numerusform>Ihr Mouser-Warenkorb enthält bereits %n Position. „Setzen auf“ gleicht den Warenkorb an die Zahl hier an; „Hinzufügen“ legt entsprechend viele zusätzlich hinein.</numerusform><numerusform>Ihr Mouser-Warenkorb enthält bereits %n Positionen. „Setzen auf“ gleicht den Warenkorb an die Zahl hier an; „Hinzufügen“ legt entsprechend viele zusätzlich hinein.</numerusform></translation>
+        <translation>
+            <numerusform>Ihr Mouser-Warenkorb enthält bereits %n Position. „Setzen auf“ gleicht den Warenkorb an die Zahl hier an; „Hinzufügen“ legt entsprechend viele zusätzlich hinein.</numerusform>
+            <numerusform>Ihr Mouser-Warenkorb enthält bereits %n Positionen. „Setzen auf“ gleicht den Warenkorb an die Zahl hier an; „Hinzufügen“ legt entsprechend viele zusätzlich hinein.</numerusform>
+        </translation>
     </message>
     <message>
         <source>Part</source>
@@ -800,15 +803,24 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
     </message>
     <message numerus="yes">
         <source>%n line(s) set to an exact quantity</source>
-        <translation><numerusform>%n Position auf eine genaue Menge gesetzt</numerusform><numerusform>%n Positionen auf eine genaue Menge gesetzt</numerusform></translation>
+        <translation>
+            <numerusform>%n Position auf eine genaue Menge gesetzt</numerusform>
+            <numerusform>%n Positionen auf eine genaue Menge gesetzt</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n line(s) added on top of the cart</source>
-        <translation><numerusform>%n Position zusätzlich in den Warenkorb gelegt</numerusform><numerusform>%n Positionen zusätzlich in den Warenkorb gelegt</numerusform></translation>
+        <translation>
+            <numerusform>%n Position zusätzlich in den Warenkorb gelegt</numerusform>
+            <numerusform>%n Positionen zusätzlich in den Warenkorb gelegt</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n line(s) skipped</source>
-        <translation><numerusform>%n Position übersprungen</numerusform><numerusform>%n Positionen übersprungen</numerusform></translation>
+        <translation>
+            <numerusform>%n Position übersprungen</numerusform>
+            <numerusform>%n Positionen übersprungen</numerusform>
+        </translation>
     </message>
     <message>
         <source>a new cart will be created</source>
@@ -1015,7 +1027,10 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
     </message>
     <message numerus="yes">
         <source>%1 — %n part(s)</source>
-        <translation><numerusform>%1 — %n Bauteil</numerusform><numerusform>%1 — %n Bauteile</numerusform></translation>
+        <translation>
+            <numerusform>%1 — %n Bauteil</numerusform>
+            <numerusform>%1 — %n Bauteile</numerusform>
+        </translation>
     </message>
     <message>
         <source>This part has no Mouser part number. Open it in the part editor and fill in the “Mouser P/N” field — it is what ordering needs, and it is not the MPN.</source>
@@ -1446,11 +1461,17 @@ Das passiert einmal pro Modell.</translation>
     </message>
     <message numerus="yes">
         <source>%n keyword match(es), most relevant first.</source>
-        <translation><numerusform>%n Stichworttreffer, der relevanteste zuerst.</numerusform><numerusform>%n Stichworttreffer, die relevantesten zuerst.</numerusform></translation>
+        <translation>
+            <numerusform>%n Stichworttreffer, der relevanteste zuerst.</numerusform>
+            <numerusform>%n Stichworttreffer, die relevantesten zuerst.</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n part-number match(es), closest first.</source>
-        <translation><numerusform>%n Artikelnummertreffer, der genaueste zuerst.</numerusform><numerusform>%n Artikelnummertreffer, die genauesten zuerst.</numerusform></translation>
+        <translation>
+            <numerusform>%n Artikelnummertreffer, der genaueste zuerst.</numerusform>
+            <numerusform>%n Artikelnummertreffer, die genauesten zuerst.</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -1493,7 +1514,10 @@ Das passiert einmal pro Modell.</translation>
     </message>
     <message numerus="yes">
         <source>“%1” — %n in stock</source>
-        <translation><numerusform>„%1“ — %n auf Lager</numerusform><numerusform>„%1“ — %n auf Lager</numerusform></translation>
+        <translation>
+            <numerusform>„%1“ — %n auf Lager</numerusform>
+            <numerusform>„%1“ — %n auf Lager</numerusform>
+        </translation>
     </message>
     <message>
         <source>That part number already exists</source>
@@ -1576,20 +1600,28 @@ Trotzdem anlegen?</translation>
         <translation>Einige Dateien konnten nicht angehängt werden</translation>
     </message>
     <message>
-        <source>The part was created. These files were not:
-
-%1
-
-You can attach them by hand in the part editor.</source>
-        <translation>Das Bauteil wurde angelegt. Diese Dateien nicht:
-
-%1
-
-Sie können sie im Bauteileditor von Hand anhängen.</translation>
-    </message>
-    <message>
         <source>Initial stock</source>
         <translation>Anfangsbestand</translation>
+    </message>
+    <message>
+        <source>The part was created. These files were not:
+
+%1</source>
+        <translation>Das Bauteil wurde angelegt. Diese Dateien nicht:
+
+%1</translation>
+    </message>
+    <message>
+        <source>You can attach them by hand in the part editor.</source>
+        <translation>Sie können sie im Bauteileditor von Hand anhängen.</translation>
+    </message>
+    <message>
+        <source>Your browser is not blocked the way these downloads are. Open the links, save the files, then attach them in the part editor.</source>
+        <translation>Ihr Browser wird nicht so blockiert wie diese Downloads. Öffnen Sie die Links, speichern Sie die Dateien und hängen Sie sie im Bauteileditor an.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Open %n link(s) in browser</source>
+        <translation><numerusform>%n Link im Browser öffnen</numerusform><numerusform>%n Links im Browser öffnen</numerusform></translation>
     </message>
 </context>
 <context>
@@ -1772,7 +1804,10 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
     </message>
     <message numerus="yes">
         <source>%n line(s) staged. Open the cart on mouser.com to review and place the order — PartManager never checks out for you.</source>
-        <translation><numerusform>%n Position übertragen. Öffnen Sie den Warenkorb auf mouser.com, um sie zu prüfen und die Bestellung aufzugeben — PartManager schließt nie für Sie ab.</numerusform><numerusform>%n Positionen übertragen. Öffnen Sie den Warenkorb auf mouser.com, um sie zu prüfen und die Bestellung aufzugeben — PartManager schließt nie für Sie ab.</numerusform></translation>
+        <translation>
+            <numerusform>%n Position übertragen. Öffnen Sie den Warenkorb auf mouser.com, um sie zu prüfen und die Bestellung aufzugeben — PartManager schließt nie für Sie ab.</numerusform>
+            <numerusform>%n Positionen übertragen. Öffnen Sie den Warenkorb auf mouser.com, um sie zu prüfen und die Bestellung aufzugeben — PartManager schließt nie für Sie ab.</numerusform>
+        </translation>
     </message>
     <message>
         <source>Mark as submitted</source>
@@ -1810,7 +1845,10 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
     </message>
     <message numerus="yes">
         <source>%n line(s) have not fully arrived and will be marked backordered. Stock is not changed — only what you confirmed as arrived was ever booked in.</source>
-        <translation><numerusform>%n Position ist nicht vollständig eingetroffen und wird als Rückstand markiert. Der Bestand ändert sich nicht — verbucht wurde immer nur, was Sie als eingetroffen bestätigt haben.</numerusform><numerusform>%n Positionen sind nicht vollständig eingetroffen und werden als Rückstand markiert. Der Bestand ändert sich nicht — verbucht wurde immer nur, was Sie als eingetroffen bestätigt haben.</numerusform></translation>
+        <translation>
+            <numerusform>%n Position ist nicht vollständig eingetroffen und wird als Rückstand markiert. Der Bestand ändert sich nicht — verbucht wurde immer nur, was Sie als eingetroffen bestätigt haben.</numerusform>
+            <numerusform>%n Positionen sind nicht vollständig eingetroffen und werden als Rückstand markiert. Der Bestand ändert sich nicht — verbucht wurde immer nur, was Sie als eingetroffen bestätigt haben.</numerusform>
+        </translation>
     </message>
     <message>
         <source>Delete this order?</source>
@@ -1900,14 +1938,6 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
         <translation>Datenblatt konnte nicht heruntergeladen werden</translation>
     </message>
     <message>
-        <source>%1
-
-The part itself is unaffected — you can attach a file by hand instead.</source>
-        <translation>%1
-
-Das Bauteil selbst ist davon nicht betroffen — Sie können stattdessen eine Datei von Hand anhängen.</translation>
-    </message>
-    <message>
         <source>Remove the datasheet</source>
         <translation>Datenblatt entfernen</translation>
     </message>
@@ -1969,10 +1999,6 @@ Das Bauteil selbst ist davon nicht betroffen — Sie können stattdessen eine Da
         <translation>Noch kein Bild angehängt.</translation>
     </message>
     <message>
-        <source>%1 — stored, but this build of Qt cannot display that image format.</source>
-        <translation>%1 — gespeichert, aber dieses Qt-Build kann dieses Bildformat nicht anzeigen.</translation>
-    </message>
-    <message>
         <source>%1 (%2 × %3)</source>
         <translation>%1 (%2 × %3)</translation>
     </message>
@@ -2020,11 +2046,14 @@ Das Bauteil selbst ist davon nicht betroffen — Sie können stattdessen eine Da
         <source>This also deletes its stock history (%n unit(s) on record), its tags, its attached files and its Mouser link. Partlists that use this part keep their line, but it becomes unresolved.
 
 This cannot be undone from inside the app — only by restoring a backup.</source>
-        <translation><numerusform>Damit werden auch die Bestandshistorie (%n Stück verbucht), die Tags, die angehängten Dateien und die Mouser-Verknüpfung gelöscht. Stücklisten, die dieses Bauteil verwenden, behalten ihre Zeile, diese ist dann aber nicht mehr zugeordnet.
+        <translation>
+            <numerusform>Damit werden auch die Bestandshistorie (%n Stück verbucht), die Tags, die angehängten Dateien und die Mouser-Verknüpfung gelöscht. Stücklisten, die dieses Bauteil verwenden, behalten ihre Zeile, diese ist dann aber nicht mehr zugeordnet.
 
-Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstellen einer Sicherung.</numerusform><numerusform>Damit werden auch die Bestandshistorie (%n Stück verbucht), die Tags, die angehängten Dateien und die Mouser-Verknüpfung gelöscht. Stücklisten, die dieses Bauteil verwenden, behalten ihre Zeile, diese ist dann aber nicht mehr zugeordnet.
+Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstellen einer Sicherung.</numerusform>
+            <numerusform>Damit werden auch die Bestandshistorie (%n Stück verbucht), die Tags, die angehängten Dateien und die Mouser-Verknüpfung gelöscht. Stücklisten, die dieses Bauteil verwenden, behalten ihre Zeile, diese ist dann aber nicht mehr zugeordnet.
 
-Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstellen einer Sicherung.</numerusform></translation>
+Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstellen einer Sicherung.</numerusform>
+        </translation>
     </message>
     <message>
         <source>Delete Part</source>
@@ -2037,6 +2066,10 @@ Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstel
     <message>
         <source>The database rejected the deletion — nothing was removed.</source>
         <translation>Die Datenbank hat das Löschen abgelehnt — es wurde nichts entfernt.</translation>
+    </message>
+    <message>
+        <source>%1 — stored, but it will not display. Either the format needs a Qt image plugin this build has not got, or the file is not really an image: a download that was blocked by the vendor can save their web page under this name. Remove it and attach the picture from disk.</source>
+        <translation>%1 — gespeichert, wird aber nicht angezeigt. Entweder braucht das Format ein Qt-Bild-Plugin, das dieses Build nicht hat, oder die Datei ist gar kein Bild: Ein vom Anbieter blockierter Download kann dessen Webseite unter diesem Namen ablegen. Entfernen Sie sie und hängen Sie das Bild von der Festplatte an.</translation>
     </message>
 </context>
 <context>
@@ -2103,7 +2136,10 @@ Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstel
     </message>
     <message numerus="yes">
         <source>%n line(s), all matched to parts already in stock.</source>
-        <translation><numerusform>%n Zeile, alle vorhandenen Bauteilen zugeordnet.</numerusform><numerusform>%n Zeilen, alle vorhandenen Bauteilen zugeordnet.</numerusform></translation>
+        <translation>
+            <numerusform>%n Zeile, alle vorhandenen Bauteilen zugeordnet.</numerusform>
+            <numerusform>%n Zeilen, alle vorhandenen Bauteilen zugeordnet.</numerusform>
+        </translation>
     </message>
     <message>
         <source>%1 of %2 lines match nothing in the inventory. They import as unresolved lines — or pick one and look it up on Mouser.</source>
@@ -2174,7 +2210,10 @@ Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstel
     </message>
     <message numerus="yes">
         <source>%1  (%n line(s))</source>
-        <translation><numerusform>%1  (%n Zeile)</numerusform><numerusform>%1  (%n Zeilen)</numerusform></translation>
+        <translation>
+            <numerusform>%1  (%n Zeile)</numerusform>
+            <numerusform>%1  (%n Zeilen)</numerusform>
+        </translation>
     </message>
     <message>
         <source>New partlist</source>
@@ -2194,7 +2233,10 @@ Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstel
     </message>
     <message numerus="yes">
         <source>“%1” and its %n line(s) will be removed. The parts themselves are not touched.</source>
-        <translation><numerusform>„%1“ und ihre %n Zeile werden entfernt. Die Bauteile selbst bleiben unangetastet.</numerusform><numerusform>„%1“ und ihre %n Zeilen werden entfernt. Die Bauteile selbst bleiben unangetastet.</numerusform></translation>
+        <translation>
+            <numerusform>„%1“ und ihre %n Zeile werden entfernt. Die Bauteile selbst bleiben unangetastet.</numerusform>
+            <numerusform>„%1“ und ihre %n Zeilen werden entfernt. Die Bauteile selbst bleiben unangetastet.</numerusform>
+        </translation>
     </message>
     <message>
         <source>This partlist no longer exists.</source>
@@ -2218,7 +2260,10 @@ Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstel
     </message>
     <message numerus="yes">
         <source>Short by %n unit(s): the list needs %1 and stock holds %2.</source>
-        <translation><numerusform>%n Stück fehlt: Die Liste braucht %1, der Bestand hält %2.</numerusform><numerusform>%n Stück fehlen: Die Liste braucht %1, der Bestand hält %2.</numerusform></translation>
+        <translation>
+            <numerusform>%n Stück fehlt: Die Liste braucht %1, der Bestand hält %2.</numerusform>
+            <numerusform>%n Stück fehlen: Die Liste braucht %1, der Bestand hält %2.</numerusform>
+        </translation>
     </message>
     <message>
         <source>Nothing to order</source>
@@ -2226,7 +2271,10 @@ Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstel
     </message>
     <message numerus="yes">
         <source>Everything that is matched to a part is already in stock. %n line(s) still point at no part and could not be checked.</source>
-        <translation><numerusform>Alles, was einem Bauteil zugeordnet ist, liegt bereits auf Lager. %n Zeile zeigt noch auf kein Bauteil und konnte nicht geprüft werden.</numerusform><numerusform>Alles, was einem Bauteil zugeordnet ist, liegt bereits auf Lager. %n Zeilen zeigen noch auf kein Bauteil und konnten nicht geprüft werden.</numerusform></translation>
+        <translation>
+            <numerusform>Alles, was einem Bauteil zugeordnet ist, liegt bereits auf Lager. %n Zeile zeigt noch auf kein Bauteil und konnte nicht geprüft werden.</numerusform>
+            <numerusform>Alles, was einem Bauteil zugeordnet ist, liegt bereits auf Lager. %n Zeilen zeigen noch auf kein Bauteil und konnten nicht geprüft werden.</numerusform>
+        </translation>
     </message>
     <message>
         <source>Every line on this list is already covered by what is in stock.</source>
@@ -2242,7 +2290,10 @@ Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstel
     </message>
     <message numerus="yes">
         <source>Not included: %n line(s) that point at no part yet.</source>
-        <translation><numerusform>Nicht enthalten: %n Zeile, die noch auf kein Bauteil zeigt.</numerusform><numerusform>Nicht enthalten: %n Zeilen, die noch auf kein Bauteil zeigen.</numerusform></translation>
+        <translation>
+            <numerusform>Nicht enthalten: %n Zeile, die noch auf kein Bauteil zeigt.</numerusform>
+            <numerusform>Nicht enthalten: %n Zeilen, die noch auf kein Bauteil zeigen.</numerusform>
+        </translation>
     </message>
     <message>
         <source>Raise a draft order?</source>
@@ -2699,7 +2750,10 @@ Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im 
     </message>
     <message numerus="yes">
         <source>%n line(s) have no Mouser part number and cannot be staged</source>
-        <translation><numerusform>%n Position hat keine Mouser-Artikelnummer und kann nicht übertragen werden</numerusform><numerusform>%n Positionen haben keine Mouser-Artikelnummer und können nicht übertragen werden</numerusform></translation>
+        <translation>
+            <numerusform>%n Position hat keine Mouser-Artikelnummer und kann nicht übertragen werden</numerusform>
+            <numerusform>%n Positionen haben keine Mouser-Artikelnummer und können nicht übertragen werden</numerusform>
+        </translation>
     </message>
     <message>
         <source>, </source>
@@ -2731,11 +2785,17 @@ Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im 
     </message>
     <message numerus="yes">
         <source>%n line(s) not matched to a part yet</source>
-        <translation><numerusform>%n Zeile noch keinem Bauteil zugeordnet</numerusform><numerusform>%n Zeilen noch keinem Bauteil zugeordnet</numerusform></translation>
+        <translation>
+            <numerusform>%n Zeile noch keinem Bauteil zugeordnet</numerusform>
+            <numerusform>%n Zeilen noch keinem Bauteil zugeordnet</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <source>%n line(s) short of the needed quantity</source>
-        <translation><numerusform>%n Zeile unter der benötigten Menge</numerusform><numerusform>%n Zeilen unter der benötigten Menge</numerusform></translation>
+        <translation>
+            <numerusform>%n Zeile unter der benötigten Menge</numerusform>
+            <numerusform>%n Zeilen unter der benötigten Menge</numerusform>
+        </translation>
     </message>
     <message>
         <source>Restock</source>
@@ -2782,6 +2842,22 @@ Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im 
         <source>%1 ⓘ</source>
         <comment>attribute with a tooltip</comment>
         <translation>%1 ⓘ</translation>
+    </message>
+    <message>
+        <source>%1
+
+The part itself is unaffected.</source>
+        <translation>%1
+
+Das Bauteil selbst ist davon nicht betroffen.</translation>
+    </message>
+    <message>
+        <source>Your browser is not blocked the way this download is. Open the link, save the file, then use “Attach file…”.</source>
+        <translation>Ihr Browser wird nicht so blockiert wie dieser Download. Öffnen Sie den Link, speichern Sie die Datei und verwenden Sie dann „Datei anhängen…“.</translation>
+    </message>
+    <message>
+        <source>Open in browser</source>
+        <translation>Im Browser öffnen</translation>
     </message>
 </context>
 <context>

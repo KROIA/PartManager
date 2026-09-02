@@ -4,6 +4,7 @@
 #include "widgets/PartManager_AttributeFormWidget.h"
 
 #include <QApplication>
+#include <QDesktopServices>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QInputDialog>
@@ -264,6 +265,7 @@ namespace PartManager
 	void NewPartDialog::applyPendingFiles(int partId, Part& part)
 	{
 		QStringList failures;
+		QStringList failedUrls;
 		for (const auto& entry : m_pending)
 		{
 			const PartFileRole role = entry.first;
@@ -288,6 +290,10 @@ namespace PartManager
 			{
 				failures.append(tr("%1: %2").arg(m_slotLabels[role] ? m_slotLabels[role]->text() : QString(),
 					toQt(error)));
+				if (!pending.url.isEmpty())
+				{
+					failedUrls.append(pending.url);
+				}
 				continue;
 			}
 			// The datasheet is the one slot with a column on `part` pointing at it, so the
@@ -298,14 +304,38 @@ namespace PartManager
 			}
 		}
 
-		if (!failures.isEmpty())
+		if (failures.isEmpty())
 		{
-			// The part itself exists and is fine — §6 is explicit that a dead vendor URL must not
-			// block creating it. Said once, at the end, rather than one modal per slot.
-			QMessageBox::warning(this, tr("Some files could not be attached"),
-				tr("The part was created. These files were not:\n\n%1\n\n"
-				   "You can attach them by hand in the part editor.")
-					.arg(failures.join(QStringLiteral("\n"))));
+			return;
+		}
+
+		// The part itself exists and is fine — §6 is explicit that a dead vendor URL must not
+		// block creating it. Said once, at the end, rather than one modal per slot.
+		QMessageBox box(QMessageBox::Warning, tr("Some files could not be attached"),
+			tr("The part was created. These files were not:\n\n%1")
+				.arg(failures.join(QStringLiteral("\n"))), QMessageBox::NoButton, this);
+		QPushButton* openButton = nullptr;
+		if (failedUrls.isEmpty())
+		{
+			box.setInformativeText(tr("You can attach them by hand in the part editor."));
+		}
+		else
+		{
+			// Mouser's CDN blocks automated downloads but not browsers, so this is the actual
+			// route to the file rather than a consolation prize.
+			box.setInformativeText(tr("Your browser is not blocked the way these downloads are. "
+				"Open the links, save the files, then attach them in the part editor."));
+			openButton = box.addButton(tr("Open %n link(s) in browser", "", failedUrls.size()),
+				QMessageBox::ActionRole);
+		}
+		box.addButton(QMessageBox::Close);
+		box.exec();
+		if (openButton != nullptr && box.clickedButton() == openButton)
+		{
+			for (const QString& url : failedUrls)
+			{
+				QDesktopServices::openUrl(QUrl(url));
+			}
 		}
 	}
 

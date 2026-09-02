@@ -34,6 +34,29 @@ namespace PartManager
 			return QString::fromStdString(text);
 		}
 
+		// A failed download that has a URL behind it is nearly always a vendor CDN refusing an
+		// automated request — and the browser it refuses to be is right there. Offering to open
+		// it turns a dead end into "save it, then Attach file…", which does work.
+		void reportDownloadFailure(QWidget* parent, const QString& title, const QString& reason,
+			const QString& url)
+		{
+			QMessageBox box(QMessageBox::Warning, title,
+				QObject::tr("%1\n\nThe part itself is unaffected.").arg(reason), QMessageBox::NoButton, parent);
+			QPushButton* openButton = nullptr;
+			if (!url.isEmpty())
+			{
+				box.setInformativeText(QObject::tr("Your browser is not blocked the way this "
+					"download is. Open the link, save the file, then use “Attach file…”."));
+				openButton = box.addButton(QObject::tr("Open in browser"), QMessageBox::ActionRole);
+			}
+			box.addButton(QMessageBox::Close);
+			box.exec();
+			if (openButton != nullptr && box.clickedButton() == openButton)
+			{
+				QDesktopServices::openUrl(QUrl(url));
+			}
+		}
+
 		// Same rule the part table's chips use: pick the readable text colour for the fill.
 		QString chipStyleSheet(const QString& color)
 		{
@@ -242,9 +265,7 @@ namespace PartManager
 		{
 			// A failed download changes nothing about the part — §6 explicitly must not block saving.
 			m_ui->statusLabel->setText(tr("Changes are saved automatically."));
-			QMessageBox::warning(this, tr("Could not download the datasheet"),
-				tr("%1\n\nThe part itself is unaffected — you can attach a file by hand instead.")
-					.arg(toQt(error)));
+			reportDownloadFailure(this, tr("Could not download the datasheet"), toQt(error), url);
 			return;
 		}
 		autosave();
@@ -307,10 +328,16 @@ namespace PartManager
 		}
 		else if (pixmap.isNull())
 		{
-			// Attached and present, but Qt cannot decode it — an SVG or a TIFF without the
-			// matching image plugin. Worth saying, because the thumbnail column stays blank.
+			// Attached and present, but it does not decode. Two very different causes, and the
+			// message used to blame the wrong one: a format Qt has no plugin for (SVG, TIFF), or
+			// — far more often — a "download" that stored a vendor CDN's HTML block page under
+			// the image's name. Downloads reject that now, but files attached before they did are
+			// still sitting in databases, so the state names both.
 			m_ui->imageStateLabel->setText(
-				tr("%1 — stored, but this build of Qt cannot display that image format.")
+				tr("%1 — stored, but it will not display. Either the format needs a Qt image "
+				   "plugin this build has not got, or the file is not really an image: a download "
+				   "that was blocked by the vendor can save their web page under this name. "
+				   "Remove it and attach the picture from disk.")
 					.arg(toQt(file.originalFilename)));
 		}
 		else
@@ -364,9 +391,7 @@ namespace PartManager
 
 		if (fileId == 0)
 		{
-			QMessageBox::warning(this, tr("Could not download the image"),
-				tr("%1\n\nThe part itself is unaffected — you can attach a file by hand instead.")
-					.arg(toQt(error)));
+			reportDownloadFailure(this, tr("Could not download the image"), toQt(error), url);
 			return;
 		}
 		updateImageState();

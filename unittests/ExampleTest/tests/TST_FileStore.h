@@ -23,6 +23,7 @@ public:
 		ADD_TEST(TST_FileStore::importReadBackAndDedup);
 		ADD_TEST(TST_FileStore::missingSourceFileFails);
 		ADD_TEST(TST_FileStore::emptyUrlFailsWithoutNetwork);
+		ADD_TEST(TST_FileStore::aBlockPageIsNotAFile);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_FileStore::attachAndDetachKeepsRowsAndFilesInSync);
 #endif
@@ -124,6 +125,40 @@ private:
 		PartManager::FileStoreResult result = store.downloadFile("");
 		TEST_ASSERT_M(!result.ok, "an empty URL cannot produce a file");
 		TEST_ASSERT_M(!result.errorMessage.empty(), "a failure must carry a message");
+	}
+
+	// The one that costs real data if it regresses: Mouser's CDN refuses automated downloads
+	// with HTTP 200 + text/html + an "Access Denied" page, so status and length checks both pass
+	// and the block page gets stored as the part's datasheet or photo.
+	TEST_FUNCTION(aBlockPageIsNotAFile)
+	{
+		TEST_START;
+
+		// The exact shape measured against www.mouser.com on 2026-09-02.
+		const std::string accessDenied =
+			"<!DOCTYPE html>\n <html lang=\"en\">\n <head><title>Access Denied</title></head>";
+		TEST_ASSERT_M(PartManager::FileStore::looksLikeBlockPage("text/html", accessDenied),
+			"the content type alone must be enough");
+		TEST_ASSERT_M(PartManager::FileStore::looksLikeBlockPage("text/html; charset=utf-8", ""),
+			"a charset parameter must not defeat the check");
+		TEST_ASSERT_M(PartManager::FileStore::looksLikeBlockPage("TEXT/HTML", ""),
+			"the content type is case-insensitive");
+		// A CDN that mislabels its block page still gets caught, which is why the body is sniffed.
+		TEST_ASSERT_M(PartManager::FileStore::looksLikeBlockPage("application/octet-stream", accessDenied),
+			"a mislabelled block page must be sniffed out of the body");
+		TEST_ASSERT_M(PartManager::FileStore::looksLikeBlockPage("", "\n\n  <HTML><body>nope</body>"),
+			"leading whitespace and upper case must not hide it");
+
+		// Real files must not trip it, or every download breaks instead of the blocked ones.
+		TEST_ASSERT_M(!PartManager::FileStore::looksLikeBlockPage("application/pdf", "%PDF-1.4 ..."),
+			"a real PDF is not a block page");
+		TEST_ASSERT_M(!PartManager::FileStore::looksLikeBlockPage("image/jpeg", "\xFF\xD8\xFF\xE0 JFIF"),
+			"a real JPEG is not a block page");
+		TEST_ASSERT_M(!PartManager::FileStore::looksLikeBlockPage("", ""),
+			"an empty response is handled as empty, not as HTML");
+		// "text/plain" starts with "text/" but is not html — the prefix must be the whole type.
+		TEST_ASSERT_M(!PartManager::FileStore::looksLikeBlockPage("text/plain", "solid cube"),
+			"text/plain is a legitimate download");
 	}
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
