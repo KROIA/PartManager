@@ -77,11 +77,18 @@ find_program(PM_LRELEASE NAMES lrelease lrelease.exe
 if(PM_LRELEASE)
     set(PM_TS "${CMAKE_CURRENT_SOURCE_DIR}/translations/PartManager_de.ts")
     set(PM_QM "${INSTALL_BIN_PATH}/translations/PartManager_de.qm")
-    add_custom_command(TARGET PartManagerApp POST_BUILD
+    ## OUTPUT/DEPENDS, not TARGET ... POST_BUILD. A POST_BUILD command only runs when the target
+    ## relinks, and editing a .ts changes no source the app compiles -- so a translation-only edit
+    ## silently shipped the previous .qm. Caught 2026-09-02 by comparing file sizes after a build
+    ## that reported success.
+    add_custom_command(OUTPUT "${PM_QM}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${INSTALL_BIN_PATH}/translations"
         COMMAND "${PM_LRELEASE}" "${PM_TS}" -qm "${PM_QM}"
+        DEPENDS "${PM_TS}"
         COMMENT "Compiling German translation (§8)"
         VERBATIM)
+    add_custom_target(PartManagerTranslations ALL DEPENDS "${PM_QM}")
+    add_dependencies(PartManagerApp PartManagerTranslations)
 else()
     message(STATUS "lrelease not found - German translation will not be built, app stays English")
 endif()
