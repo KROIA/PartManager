@@ -75,17 +75,35 @@ namespace PartManager
 
 		// True when a response body is a web page rather than the file that was asked for.
 		//
-		// **A blocked download arrives as a successful one.** Mouser's CDN answers an automated
-		// request for a datasheet or a product photo with HTTP 200, `Content-Type: text/html` and
-		// an "Access Denied" page — measured 2026-09-02 with no User-Agent, with a browser
-		// User-Agent, and with Accept + Referer added, all identical. Status and length checks
-		// therefore both pass, and without this the block page is stored under the requested
-		// name: a `.pdf` that is HTML, a `.jpg` that will not decode. Worse than a failure,
-		// because the part then looks complete.
+		// **A blocked download arrives as a successful one.** Mouser's CDN answers a request it
+		// dislikes with HTTP 200, `Content-Type: text/html` and an "Access Denied" page. Status
+		// and length checks therefore both pass, and without this the block page is stored under
+		// the requested name: a `.pdf` that is HTML, a `.jpg` that will not decode. Worse than a
+		// failure, because the part then looks complete.
+		//
+		// downloadFile() now shapes its request so Mouser answers properly (see there), so this
+		// is the backstop for the next CDN rather than the everyday path.
 		//
 		// Content-Type first, then a sniff of the body, so a CDN that mislabels its block page as
 		// octet-stream is caught too. Pure string work, so it is testable without a network.
 		static bool looksLikeBlockPage(const std::string& contentType, const std::string& body);
+
+		// The filename `bytes` should actually be stored under.
+		//
+		// **A URL's extension is not a promise.** Mouser serves every product photo as WebP —
+		// `.../hd/WL-SMCW.JPG` answers `Content-Type: image/webp` with `RIFF....WEBP` bytes —
+		// so storing it as the requested `.jpg` produces a file nothing will open until it is
+		// renamed by hand. Same trap for a `.pdf` link that redirects to an HTML landing page.
+		//
+		// The bytes decide, because they are the only party that cannot be lying: a magic-number
+		// sniff first, Content-Type only as a fallback for formats with no signature. An
+		// unrecognised format leaves the name alone rather than guessing — being wrong here
+		// renames a perfectly good file into an unopenable one.
+		static std::string correctedFilename(const std::string& filename,
+			const std::string& contentType, const std::string& bytes);
+
+		// The file extension (with dot, lowercase) `bytes` look like, empty when unrecognised.
+		static std::string sniffExtension(const std::string& bytes);
 
 		// Downloads `url` into the store. `originalFilename` may be empty — the URL's last
 		// path segment is used then. Requires the Qt build; fails cleanly otherwise.

@@ -5,8 +5,17 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+
+#ifdef _WIN32
+	#define WIN32_LEAN_AND_MEAN
+	#define NOMINMAX
+	#include <windows.h>
+	#include <winhttp.h>
+	#pragma comment(lib, "winhttp.lib")
+#endif
 
 #if QT_ENABLED
 	#include <QByteArray>
@@ -88,6 +97,9 @@ namespace PartManager
 			if (extension == ".png")  return "image/png";
 			if (extension == ".jpg" || extension == ".jpeg") return "image/jpeg";
 			if (extension == ".svg")  return "image/svg+xml";
+			// What every Mouser product photo actually is, whatever its URL claimed.
+			if (extension == ".webp") return "image/webp";
+			if (extension == ".gif")  return "image/gif";
 			if (extension == ".zip")  return "application/zip";
 			return "application/octet-stream";
 		}
@@ -112,6 +124,238 @@ namespace PartManager
 		}
 		const std::string head = trimmedLower(body, 512);
 		return startsWith(head, "<!doctype html") || startsWith(head, "<html");
+	}
+
+#ifdef _WIN32
+	namespace
+	{
+		// A downloaded response, from whichever HTTP stack fetched it.
+		struct HttpResponse
+		{
+			bool transportFailed = true;   // the request never completed; fall back to Qt
+			int status = 0;
+			std::string contentType;
+			std::string body;
+			std::string error;
+		};
+
+		// **Why this exists instead of just using Qt.** Mouser's CDN answers a request it does
+		// not like with HTTP 200 + text/html + a 13897-byte "Access Denied" page, so a download
+		// fails by silently succeeding. Getting a real answer needs all four of:
+		//
+		//   HTTP/2 ............ HTTP/1.1 is blocked no matter what else is sent
+		//   Accept ............ a browser-shaped image/pdf list
+		//   Sec-Fetch-* ....... Dest/Mode/Site, the plain subresource-fetch triple
+		//   Accept-Encoding ... omitting it is blocked; "gzip, deflate" is enough
+		//
+		// The User-Agent turned out to be irrelevant — which is why an earlier attempt at
+		// fixing this by sending a browser User-Agent got nowhere.
+		//
+		// Even with all four, Qt 5.15 is still served the block page where WinHTTP is served the
+		// file (measured 2026-09-02, same machine, same minute, HTTP/2 confirmed negotiated on
+		// both sides). Whatever the remaining discriminator is, it is below the level Qt's API
+		// exposes, so the request is handed to the platform stack instead. WinHTTP is in the
+		// Windows SDK, so this costs no new dependency.
+		//
+		// These are the headers a browser sends for an ordinary subresource fetch, not a
+		// disguise: PartManager still identifies itself in WinHttpOpen.
+		//
+		// Falls back rather than fails: transportFailed leaves the Qt path to try, so a machine
+		// where WinHTTP is unavailable or proxied differently is no worse off than before.
+		HttpResponse winHttpGet(const std::string& url, int timeoutMs)
+		{
+			HttpResponse response;
+			const std::wstring wideUrl(url.begin(), url.end());
+
+			URL_COMPONENTS parts{};
+			parts.dwStructSize = sizeof(parts);
+			wchar_t host[256] = {};
+			wchar_t path[4096] = {};
+			parts.lpszHostName = host;      parts.dwHostNameLength = ARRAYSIZE(host);
+			parts.lpszUrlPath = path;       parts.dwUrlPathLength = ARRAYSIZE(path);
+			if (!WinHttpCrackUrl(wideUrl.c_str(), 0, 0, &parts))
+			{
+				response.error = "Could not parse the URL.";
+				return response;
+			}
+
+			HINTERNET session = WinHttpOpen(L"PartManager",
+				WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+			if (!session)
+			{
+				response.error = "Could not open an HTTP session.";
+				return response;
+			}
+			WinHttpSetTimeouts(session, timeoutMs, timeoutMs, timeoutMs, timeoutMs);
+
+			// HTTP/2 has to be asked for; Mouser answers an HTTP/1.1 request with the block page
+			// even over SChannel, so this is required rather than an optimisation.
+			DWORD protocols = WINHTTP_PROTOCOL_FLAG_HTTP2;
+			WinHttpSetOption(session, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &protocols, sizeof(protocols));
+
+			HINTERNET connection = WinHttpConnect(session, host, parts.nPort, 0);
+			if (!connection)
+			{
+				response.error = "Could not connect to " + std::string(url) + ".";
+				WinHttpCloseHandle(session);
+				return response;
+			}
+
+			const DWORD flags = (parts.nScheme == INTERNET_SCHEME_HTTPS) ? WINHTTP_FLAG_SECURE : 0;
+			HINTERNET request = WinHttpOpenRequest(connection, L"GET", path, nullptr,
+				WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
+			if (!request)
+			{
+				response.error = "Could not build the request.";
+				WinHttpCloseHandle(connection);
+				WinHttpCloseHandle(session);
+				return response;
+			}
+
+			// Datasheet links are usually a chain of manufacturer/CDN redirects; WinHTTP follows
+			// them by default, and this keeps it from following one down to plain HTTP.
+			DWORD redirectPolicy = WINHTTP_OPTION_REDIRECT_POLICY_DISALLOW_HTTPS_TO_HTTP;
+			WinHttpSetOption(request, WINHTTP_OPTION_REDIRECT_POLICY,
+				&redirectPolicy, sizeof(redirectPolicy));
+
+			// The headers a browser sends for a plain subresource fetch. Without Sec-Fetch-*
+			// the block page comes back even over SChannel — measured, not assumed.
+			DWORD decompression = WINHTTP_DECOMPRESSION_FLAG_ALL;
+			WinHttpSetOption(request, WINHTTP_OPTION_DECOMPRESSION,
+				&decompression, sizeof(decompression));
+
+			static const wchar_t* const Headers =
+				L"Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,application/pdf,*/*;q=0.8\r\n"
+				L"Accept-Encoding: gzip, deflate\r\n"
+				L"Accept-Language: en-US,en;q=0.9\r\n"
+				L"Sec-Fetch-Dest: image\r\n"
+				L"Sec-Fetch-Mode: no-cors\r\n"
+				L"Sec-Fetch-Site: same-origin\r\n";
+
+			bool sent = WinHttpSendRequest(request, Headers, DWORD(-1),
+				WINHTTP_NO_REQUEST_DATA, 0, 0, 0) != FALSE;
+			if (sent)
+			{
+				sent = WinHttpReceiveResponse(request, nullptr) != FALSE;
+			}
+			if (!sent)
+			{
+				response.error = "The download did not complete.";
+				WinHttpCloseHandle(request);
+				WinHttpCloseHandle(connection);
+				WinHttpCloseHandle(session);
+				return response;
+			}
+
+			DWORD status = 0;
+			DWORD statusSize = sizeof(status);
+			WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+				WINHTTP_HEADER_NAME_BY_INDEX, &status, &statusSize, WINHTTP_NO_HEADER_INDEX);
+			response.status = static_cast<int>(status);
+
+			wchar_t contentType[256] = {};
+			DWORD contentTypeSize = sizeof(contentType);
+			if (WinHttpQueryHeaders(request, WINHTTP_QUERY_CONTENT_TYPE, WINHTTP_HEADER_NAME_BY_INDEX,
+				contentType, &contentTypeSize, WINHTTP_NO_HEADER_INDEX))
+			{
+				const std::wstring wide(contentType);
+				response.contentType.assign(wide.begin(), wide.end());
+			}
+
+			for (;;)
+			{
+				DWORD available = 0;
+				if (!WinHttpQueryDataAvailable(request, &available) || available == 0)
+				{
+					break;
+				}
+				const std::size_t offset = response.body.size();
+				response.body.resize(offset + available);
+				DWORD read = 0;
+				if (!WinHttpReadData(request, &response.body[offset], available, &read))
+				{
+					response.body.resize(offset);
+					break;
+				}
+				response.body.resize(offset + read);
+			}
+
+			response.transportFailed = false;
+			WinHttpCloseHandle(request);
+			WinHttpCloseHandle(connection);
+			WinHttpCloseHandle(session);
+			return response;
+		}
+	}
+#endif
+
+	std::string FileStore::sniffExtension(const std::string& bytes)
+	{
+		const auto begins = [&bytes](const char* magic, std::size_t length)
+			{
+				return bytes.size() >= length && std::memcmp(bytes.data(), magic, length) == 0;
+			};
+
+		if (begins("\x89PNG\r\n\x1a\n", 8))   return ".png";
+		if (begins("\xFF\xD8\xFF", 3))        return ".jpg";
+		if (begins("GIF87a", 6) || begins("GIF89a", 6)) return ".gif";
+		if (begins("BM", 2))                  return ".bmp";
+		if (begins("%PDF-", 5))               return ".pdf";
+		// WebP and every other RIFF container share the first four bytes; the form type at
+		// offset 8 is what tells them apart.
+		if (begins("RIFF", 4) && bytes.size() >= 12 && std::memcmp(bytes.data() + 8, "WEBP", 4) == 0)
+		{
+			return ".webp";
+		}
+		// A ZIP signature also covers .kicad_* archives and Office files, so this only claims
+		// ".zip" — callers that asked for one of those keep their own extension below.
+		if (begins("PK\x03\x04", 4))          return ".zip";
+		return std::string();
+	}
+
+	std::string FileStore::correctedFilename(const std::string& filename,
+		const std::string& contentType, const std::string& bytes)
+	{
+		std::string extension = sniffExtension(bytes);
+		if (extension.empty())
+		{
+			// Only formats with no usable signature reach here — SVG is the one that matters,
+			// since Mouser serves a few symbols that way.
+			const std::string type = trimmedLower(contentType, 64);
+			if (startsWith(type, "image/svg")) { extension = ".svg"; }
+			else if (startsWith(type, "image/webp")) { extension = ".webp"; }
+			else { return filename; }
+		}
+
+		const std::size_t dot = filename.find_last_of('.');
+		const std::string stem = (dot == std::string::npos) ? filename : filename.substr(0, dot);
+		std::string current;
+		if (dot != std::string::npos)
+		{
+			current = filename.substr(dot);
+			for (char& c : current) { c = static_cast<char>(std::tolower(static_cast<unsigned char>(c))); }
+		}
+		if (current == extension)
+		{
+			return filename;
+		}
+		// ".jpeg" and ".jpg" are the same format under two names; renaming between them is
+		// churn that would change the stored name for no reason.
+		if (extension == ".jpg" && current == ".jpeg")
+		{
+			return filename;
+		}
+		// A ZIP-based format the caller already named correctly keeps its name — a .kicad_sym
+		// bundle or an .xlsx is a ZIP, and calling it ".zip" would lose what it is.
+		if (extension == ".zip" && !current.empty() && current != ".zip")
+		{
+			return filename;
+		}
+		if (stem.empty())
+		{
+			return filename;
+		}
+		return stem + extension;
 	}
 
 	std::string FileStore::hashBytes(const std::string& bytes)
@@ -245,10 +489,81 @@ namespace PartManager
 			filename = "datasheet.pdf";
 		}
 
+		// Everything from here to the end of the Qt path is duplicated once for WinHTTP, because
+		// the two stacks report status, content type and body through completely different APIs.
+		// Kept as one shared tail below (finishDownload) so the block-page and extension rules
+		// cannot drift between them.
+		const auto finishDownload = [this, &filename](int status, const std::string& contentType,
+			const std::string& body, const QString& requestPath) -> FileStoreResult
+			{
+				FileStoreResult failed;
+				if (status != 0 && status != 200)
+				{
+					failed.errorMessage = "Download failed with HTTP " + std::to_string(status) + ".";
+					return failed;
+				}
+				if (body.empty())
+				{
+					failed.errorMessage = "Download returned an empty file.";
+					return failed;
+				}
+				// See looksLikeBlockPage() — a blocked download arrives as a successful one, so
+				// every check above passes and the block page would be stored under the requested
+				// name. Unless a web page really was what was asked for. Nothing in the app asks
+				// for one, but downloadFile() is general.
+				const bool wantedHtml = requestPath.endsWith(QLatin1String(".htm"))
+					|| requestPath.endsWith(QLatin1String(".html"));
+				if (!wantedHtml && looksLikeBlockPage(contentType, body))
+				{
+					failed.errorMessage = "The server returned a web page instead of the file. The "
+						"vendor's site blocked the download. Open the link in a browser, save the "
+						"file, and attach it from disk.";
+					return failed;
+				}
+				// The URL said .JPG; Mouser sent WebP. Store it under what it is, or the user has
+				// to rename it by hand before anything will open it.
+				return importBytes(body, correctedFilename(filename, contentType, body));
+			};
+
+		const QString requestPathLower = requestUrl.path().toLower();
+
+#ifdef _WIN32
+		// The only stack Mouser answers properly — see winHttpGet(). Qt stays as the fallback
+		// for anything WinHTTP cannot do, so this can only add successes, never remove them.
+		const HttpResponse windowsResponse = winHttpGet(url, m_timeoutMs);
+		if (!windowsResponse.transportFailed)
+		{
+			return finishDownload(windowsResponse.status, windowsResponse.contentType,
+				windowsResponse.body, requestPathLower);
+		}
+#endif
+
 		QNetworkAccessManager network;
 		QNetworkRequest request(requestUrl);
 		// Datasheet links are usually a chain of manufacturer/CDN redirects.
 		request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+
+		// **What actually gets past Mouser's bot filter.** Measured 2026-09-02 against
+		// www.mouser.ch/images/wurthelectronics/hd/WL-SMCW.JPG, three runs per combination:
+		//
+		//   HTTP/1.1, any headers, with or without a browser User-Agent .. 13897 B block page
+		//   HTTP/2, no headers ......................................... 13897 B block page
+		//   HTTP/2 + Accept ............................................ 13897 B block page
+		//   HTTP/2 + Accept + Sec-Fetch-* .............................. the real image
+		//
+		// All three are required together, and the User-Agent turned out to be irrelevant —
+		// which is why the previous attempt at fixing this by adding a browser User-Agent got
+		// nowhere. Qt 5 negotiates HTTP/2 only when asked, so it is off unless this is set.
+		//
+		// These are the headers a browser sends for a plain subresource fetch, not a
+		// disguise: PartManager still identifies itself and still obeys robots-level intent.
+		request.setAttribute(QNetworkRequest::Http2AllowedAttribute, true);
+		request.setRawHeader("Accept",
+			"image/avif,image/webp,image/apng,image/svg+xml,image/*,application/pdf,*/*;q=0.8");
+		request.setRawHeader("Sec-Fetch-Dest", "image");
+		request.setRawHeader("Sec-Fetch-Mode", "no-cors");
+		request.setRawHeader("Sec-Fetch-Site", "same-origin");
+
 		QNetworkReply* reply = network.get(request);
 
 		// ponytail: same synchronous-with-timeout nested QEventLoop as MouserClient::post() —
@@ -282,37 +597,13 @@ namespace PartManager
 			result.errorMessage = "Download timed out after " + std::to_string(m_timeoutMs) + " ms.";
 			return result;
 		}
-		if (httpStatus != 0 && httpStatus != 200)
-		{
-			result.errorMessage = "Download failed with HTTP " + std::to_string(httpStatus) + ".";
-			return result;
-		}
 		if (networkError != QNetworkReply::NoError)
 		{
 			result.errorMessage = "Download failed: " + networkErrorText.toStdString();
 			return result;
 		}
-		if (body.isEmpty())
-		{
-			result.errorMessage = "Download returned an empty file.";
-			return result;
-		}
-		// See looksLikeBlockPage() — a blocked download arrives as a successful one, so every
-		// check above passes and the block page would be stored under the requested name.
-		// Unless a web page really was what was asked for. Nothing in the app asks for one, but
-		// downloadFile() is general.
-		const QString requestPath = requestUrl.path().toLower();
-		const bool wantedHtml = requestPath.endsWith(QLatin1String(".htm"))
-			|| requestPath.endsWith(QLatin1String(".html"));
-		if (!wantedHtml && looksLikeBlockPage(contentType.toStdString(), body.toStdString()))
-		{
-			result.errorMessage = "The server returned a web page instead of a file. Vendor "
-				"download sites often block automated downloads this way, answering 200 with a "
-				"block page rather than an error. Open the link in a browser, save the file, and "
-				"attach it from disk.";
-			return result;
-		}
-		return importBytes(body.toStdString(), filename);
+		return finishDownload(httpStatus, contentType.toStdString(), body.toStdString(),
+			requestPathLower);
 	}
 
 #else

@@ -24,6 +24,7 @@ public:
 		ADD_TEST(TST_FileStore::missingSourceFileFails);
 		ADD_TEST(TST_FileStore::emptyUrlFailsWithoutNetwork);
 		ADD_TEST(TST_FileStore::aBlockPageIsNotAFile);
+		ADD_TEST(TST_FileStore::theBytesDecideTheExtension);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_FileStore::attachingCopiesAndKeepsNoPathToTheOriginal);
 		ADD_TEST(TST_FileStore::attachAndDetachKeepsRowsAndFilesInSync);
@@ -160,6 +161,53 @@ private:
 		// "text/plain" starts with "text/" but is not html — the prefix must be the whole type.
 		TEST_ASSERT_M(!PartManager::FileStore::looksLikeBlockPage("text/plain", "solid cube"),
 			"text/plain is a legitimate download");
+	}
+
+	// Mouser serves every product photo as WebP no matter what the URL's extension claims, so a
+	// photo downloaded from ".../hd/WL-SMCW.JPG" is stored as a .jpg that nothing can open until
+	// it is renamed by hand. The bytes decide the name.
+	TEST_FUNCTION(theBytesDecideTheExtension)
+	{
+		TEST_START;
+
+		// The exact first twelve bytes measured from www.mouser.ch on 2026-09-02.
+		const std::string webp("RIFF\xfa\x5a\x00\x00WEBPVP8 ", 16);
+		TEST_COMPARE(PartManager::FileStore::sniffExtension(webp), std::string(".webp"));
+		TEST_COMPARE(
+			PartManager::FileStore::correctedFilename("WL-SMCW.JPG", "image/webp", webp),
+			std::string("WL-SMCW.webp"));
+
+		// A RIFF container that is not WebP must not be claimed as one.
+		TEST_COMPARE(PartManager::FileStore::sniffExtension(std::string("RIFF\x00\x00\x00\x00WAVEfmt ", 16)),
+			std::string());
+
+		TEST_COMPARE(PartManager::FileStore::sniffExtension("%PDF-1.4"), std::string(".pdf"));
+		TEST_COMPARE(PartManager::FileStore::sniffExtension(std::string("\x89PNG\r\n\x1a\n", 8)),
+			std::string(".png"));
+		TEST_COMPARE(PartManager::FileStore::sniffExtension("\xFF\xD8\xFF\xE0 JFIF"), std::string(".jpg"));
+
+		// A correct name is left exactly as it is — including .jpeg, which is .jpg under another
+		// spelling and must not be churned into one.
+		TEST_COMPARE(PartManager::FileStore::correctedFilename("photo.png", "image/png",
+			std::string("\x89PNG\r\n\x1a\n", 8)), std::string("photo.png"));
+		TEST_COMPARE(PartManager::FileStore::correctedFilename("photo.jpeg", "image/jpeg",
+			"\xFF\xD8\xFF\xE0 JFIF"), std::string("photo.jpeg"));
+
+		// A datasheet link that really does answer with a PDF keeps its name.
+		TEST_COMPARE(PartManager::FileStore::correctedFilename("ds.pdf", "application/pdf", "%PDF-1.7"),
+			std::string("ds.pdf"));
+
+		// An unrecognised format must be left alone rather than guessed at: renaming a good file
+		// into an unopenable one is worse than the wrong extension we were handed.
+		TEST_COMPARE(PartManager::FileStore::correctedFilename("model.stp", "application/step",
+			"ISO-10303-21;"), std::string("model.stp"));
+		// A ZIP-based format the caller already named correctly must not become ".zip" — that
+		// would lose what the file is.
+		TEST_COMPARE(PartManager::FileStore::correctedFilename("lib.kicad_sym", "",
+			std::string("PK\x03\x04zzzz", 8)), std::string("lib.kicad_sym"));
+		// SVG has no signature, so the content type is what identifies it.
+		TEST_COMPARE(PartManager::FileStore::correctedFilename("sym.png", "image/svg+xml", "<svg/>"),
+			std::string("sym.svg"));
 	}
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
