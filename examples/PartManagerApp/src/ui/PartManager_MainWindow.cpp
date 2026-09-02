@@ -7,10 +7,8 @@
 #include "ui/PartManager_MouserSearchDialog.h"
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
-#include "ui/PartManager_PartlistEditorDialog.h"
-#include "ui/PartManager_PartlistImportDialog.h"
-#include "ui/PartManager_PartlistManagerDialog.h"
 #include "ui/PartManager_OrderManagerDialog.h"
+#include "widgets/PartManager_PartlistPanel.h"
 #include "ui/PartManager_KicadLibraryDialog.h"
 #include "ui/PartManager_Model3DDialog.h"
 #include "ui/PartManager_SettingsDialog.h"
@@ -29,6 +27,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QPixmap>
+#include <QPixmapCache>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QTableWidgetItem>
@@ -51,6 +51,35 @@ namespace PartManager
 
 		// A negative count means the book-keeping is off (§3) — it is shown, never hidden.
 		const QColor NegativeStockColor(0xC0, 0x39, 0x2B);
+
+		// Big enough to tell an SOIC from an electrolytic at a glance, small enough that the
+		// table still reads as a table.
+		constexpr int ThumbnailSize = 28;
+
+		// One scaled thumbnail per stored image, shared by every row and every refill. Without
+		// the cache a category of a few hundred parts decodes a few hundred JPEGs on every
+		// keystroke of the table filter. QPixmapCache is size-bounded and evicts itself.
+		QPixmap thumbnailFor(const QString& path)
+		{
+			const QString key = QStringLiteral("pm-thumb-%1-%2").arg(ThumbnailSize).arg(path);
+			QPixmap cached;
+			if (QPixmapCache::find(key, &cached))
+			{
+				return cached;
+			}
+			QPixmap source(path);
+			if (source.isNull())
+			{
+				// A null pixmap is cached too — a broken or non-image file must not be re-decoded
+				// once per refill for the rest of the session.
+				QPixmapCache::insert(key, source);
+				return source;
+			}
+			const QPixmap scaled = source.scaled(ThumbnailSize, ThumbnailSize,
+				Qt::KeepAspectRatio, Qt::SmoothTransformation);
+			QPixmapCache::insert(key, scaled);
+			return scaled;
+		}
 	}
 
 	MainWindow::MainWindow(std::unique_ptr<DatabaseHandle> handle, QWidget* parent)
@@ -68,12 +97,32 @@ namespace PartManager
 
 		setupFilters();
 		m_ui->partTable->setItemDelegateForColumn(0, new TagChipDelegate(this));
+		// Rows are sized for the thumbnail whether or not a given part has one, so the grid does
+		// not jump about as images are attached.
+		m_ui->partTable->setIconSize(QSize(ThumbnailSize, ThumbnailSize));
+		m_ui->partTable->verticalHeader()->setDefaultSectionSize(ThumbnailSize + 6);
 		// Only the table grows with the window; both side panels keep their width and can be
 		// collapsed to nothing, so the preview never eats the rows it is describing.
 		m_ui->bodySplitter->setStretchFactor(0, 0);
 		m_ui->bodySplitter->setStretchFactor(1, 1);
 		m_ui->bodySplitter->setStretchFactor(2, 0);
 		m_ui->bodySplitter->setSizes({ 220, 540, 240 });
+
+		// §4 lives here rather than in a pair of dialogs: the part table is the component browser
+		// the old editor's part picker was missing, so a line is added by dragging a row down into
+		// the panel. Hidden until the ribbon asks for it, so the Home tab is unchanged by default.
+		m_partlistPanel = new PartlistPanel(m_controller.handle(), m_ui->mainSplitter);
+		m_ui->mainSplitter->addWidget(m_partlistPanel);
+		m_ui->mainSplitter->setStretchFactor(0, 1);
+		m_ui->mainSplitter->setStretchFactor(1, 0);
+		m_partlistPanel->hide();
+		connect(m_partlistPanel, &PartlistPanel::hideRequested, m_partlistPanel, &QWidget::hide);
+		connect(m_partlistPanel, &PartlistPanel::stockChanged, this, &MainWindow::reloadCategories);
+
+		// The drag half of the same feature. DragOnly: the table itself accepts nothing, so a row
+		// dropped back onto it does nothing rather than reordering the category.
+		m_ui->partTable->setDragEnabled(true);
+		m_ui->partTable->setDragDropMode(QAbstractItemView::DragOnly);
 
 		connect(m_ui->categoryTree, &QTreeWidget::itemSelectionChanged,
 			this, &MainWindow::onCategorySelectionChanged);
@@ -197,6 +246,12 @@ namespace PartManager
 
 	void MainWindow::closeEvent(QCloseEvent* event)
 	{
+		// The partlist panel is a widget, not a dialog, so nothing else flushes its §10 debounce.
+		if (m_partlistPanel != nullptr)
+		{
+			m_partlistPanel->flushPendingEdits();
+		}
+
 		// §9a's "always on clean shutdown" snapshot. Unconditional rather than due-based: this is
 		// the last chance to capture the session's edits, and it costs one file copy.
 		const AppPreferences preferences = Settings::getPreferences();
@@ -379,25 +434,9 @@ namespace PartManager
 			return;
 		}
 
-		// §6 datasheet auto-download. Silent on failure on purpose: Mouser publishes an empty
-		// or dead DataSheetUrl often enough that a modal per miss would be noise, and the part
-		// itself is unaffected either way. The URL is handed to the editor regardless, so the
-		// Download button opens already holding it and a retry costs one click.
-		if (!datasheetUrl.isEmpty())
-		{
-			PartEditorController controller(m_controller.handle());
-			Part part;
-			if (controller.loadPart(partId, part))
-			{
-				QApplication::setOverrideCursor(Qt::WaitCursor);
-				const bool downloaded = controller.downloadDatasheet(part, datasheetUrl.toStdString()) != 0;
-				QApplication::restoreOverrideCursor();
-				if (downloaded)
-				{
-					controller.savePart(part);
-				}
-			}
-		}
+		// The §6 datasheet download already happened inside New Part, where every other pending
+		// attachment is applied — doing it again here would fetch the same file twice. The URL is
+		// still handed to the editor, so a retry after a dead link costs one click.
 
 		// §2d seeded the new part's tags inside insertPart(); opening the editor is what
 		// shows the user that happened, and is where everything else about it gets filled in.
@@ -409,43 +448,44 @@ namespace PartManager
 		reloadCategories();
 	}
 
+	void MainWindow::showPartlistPanel()
+	{
+		if (m_partlistPanel == nullptr)
+		{
+			return;
+		}
+		const bool wasHidden = m_partlistPanel->isHidden();
+		m_partlistPanel->show();
+		if (wasHidden)
+		{
+			// A splitter gives a freshly shown child whatever its size hint asks for, which for a
+			// grid is nearly nothing. Two fifths of the window is enough rows to work in while
+			// leaving the browser above it usable; after that the user's own drag wins.
+			const int total = m_ui->mainSplitter->height();
+			m_ui->mainSplitter->setSizes({ total * 3 / 5, total * 2 / 5 });
+		}
+	}
+
 	void MainWindow::onNewPartlist()
 	{
 		// Creating and opening in one step, the same shortcut New Part takes — an empty list
-		// named "New partlist" is nothing anyone wants to look at in the overview first.
-		PartlistController controller(m_controller.handle());
-		Partlist partlist;
-		partlist.name = tr("New partlist").toStdString();
-		partlist.source = PartlistSource::Manual;
-		const int id = controller.create(partlist);
-		if (id == NoPartlistId)
-		{
-			QMessageBox::warning(this, tr("Could not create the partlist"),
-				tr("The database rejected the new partlist."));
-			return;
-		}
-		PartlistEditorDialog editor(controller, id, this);
-		editor.exec();
+		// named "New partlist" is nothing anyone wants to look at in an overview first.
+		showPartlistPanel();
+		m_partlistPanel->createPartlist();
 	}
 
 	void MainWindow::onImportPartlist()
 	{
-		PartlistController controller(m_controller.handle());
-		PartlistImportDialog import(controller, this);
-		if (import.exec() != QDialog::Accepted)
-		{
-			return;
-		}
-		// Straight into the editor, like the other two partlist entry points: an import that
-		// left rows unresolved is exactly what the user has to look at next.
-		PartlistEditorDialog editor(controller, import.createdPartlistId(), this);
-		editor.exec();
+		showPartlistPanel();
+		m_partlistPanel->importPartlist();
 	}
 
 	void MainWindow::onManagePartlists()
 	{
-		PartlistManagerDialog dialog(m_controller.handle(), this);
-		dialog.exec();
+		// The panel's own selector is the overview the manager dialog used to be — one screen
+		// instead of a popup that opened a second popup.
+		showPartlistPanel();
+		m_partlistPanel->reloadPartlists();
 	}
 
 	void MainWindow::onManageOrders()
@@ -609,6 +649,16 @@ namespace PartManager
 					}
 					cell->setData(TagChipDelegate::TagsRole, tags);
 					cell->setData(Qt::UserRole, row.partId);
+					// The product photo, so a part is identifiable without reading the row. It is
+					// just another attachment (role='image'), set in New Part or the editor.
+					if (!row.imagePath.isEmpty())
+					{
+						const QPixmap thumbnail = thumbnailFor(row.imagePath);
+						if (!thumbnail.isNull())
+						{
+							cell->setData(Qt::DecorationRole, thumbnail);
+						}
+					}
 				}
 				if (columns[static_cast<size_t>(columnIndex)].key == "stock_qty" && row.stockQty < 0)
 				{
@@ -685,6 +735,33 @@ namespace PartManager
 				: tr("Opens %1 on mouser.com.").arg(QString::fromStdString(mouserNumber)));
 		}
 		m_ui->previewTakeOutButton->setEnabled(hasPart);
+
+		// The part's photo at panel size — the same attachment the table shows a thumbnail of.
+		// Loaded straight rather than through thumbnailFor(), which caches at table scale. Set
+		// before the empty-state return, so deselecting clears the previous part's picture
+		// instead of leaving it under a blank panel.
+		QPixmap graphic;
+		if (!preview.imagePath.isEmpty())
+		{
+			graphic.load(preview.imagePath);
+		}
+		if (graphic.isNull())
+		{
+			m_ui->previewGraphicLabel->setPixmap(QPixmap());
+			m_ui->previewGraphicLabel->setText(hasPart ? tr("[ no image ]") : QString());
+			m_ui->previewGraphicLabel->setToolTip(hasPart
+				? tr("Attach a photo in the part editor, or import the part from Mouser — its "
+					 "product photo is downloaded automatically.")
+				: QString());
+		}
+		else
+		{
+			m_ui->previewGraphicLabel->setPixmap(graphic.scaled(
+				m_ui->previewGraphicLabel->width(), m_ui->previewGraphicLabel->maximumHeight(),
+				Qt::KeepAspectRatio, Qt::SmoothTransformation));
+			m_ui->previewGraphicLabel->setToolTip(QString());
+		}
+
 		if (!hasPart)
 		{
 			return;

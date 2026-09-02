@@ -1,98 +1,80 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <!DOCTYPE TS>
 <TS version="2.1" language="de_DE">
 <context>
     <name>ColumnsDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_ColumnsDialog.ui" line="14"/>
         <source>Customize Columns</source>
         <translation>Spalten anpassen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ColumnsDialog.ui" line="30"/>
         <source>Tick a column to show it, drag it to change its position.</source>
-        <translation type="unfinished"></translation>
+        <translation>Spalte ankreuzen, um sie anzuzeigen; ziehen, um ihre Position zu ändern.</translation>
     </message>
 </context>
 <context>
     <name>DatabaseSelectorDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="14"/>
         <source>PartManager — Select a database</source>
         <translation>PartManager — Datenbank auswählen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="20"/>
         <source>Select a database to open — you can switch anytime from the right-click menu.</source>
-        <translation type="unfinished"></translation>
+        <translation>Datenbank zum Öffnen auswählen — Sie können jederzeit über das Kontextmenü wechseln.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="40"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="45"/>
         <source>Schema</source>
         <translation>Schema</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="50"/>
         <source>Description</source>
         <translation>Beschreibung</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="55"/>
         <source>Last opened</source>
         <translation>Zuletzt geöffnet</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="60"/>
         <source>Entry file</source>
         <translation>Eintragsdatei</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="78"/>
-        <source>No databases known yet — use &quot;New Database...&quot; to create one, or &quot;Browse for existing...&quot; to add one you already have.</source>
-        <translation type="unfinished"></translation>
+        <source>No databases known yet — use "New Database..." to create one, or "Browse for existing..." to add one you already have.</source>
+        <translation>Noch keine Datenbanken bekannt — mit „Neue Datenbank…“ eine anlegen oder mit „Vorhandene suchen…“ eine bestehende hinzufügen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="90"/>
         <source>New Database...</source>
         <translation>Neue Datenbank...</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="97"/>
         <source>Browse for existing...</source>
         <translation>Vorhandene suchen...</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="104"/>
         <source>Remove from list</source>
         <translation>Aus der Liste entfernen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="107"/>
         <source>Forgets this database. Nothing is deleted from disk.</source>
-        <translation type="unfinished"></translation>
+        <translation>Vergisst diese Datenbank. Auf der Festplatte wird nichts gelöscht.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="114"/>
         <source>Manage Databases...</source>
         <translation>Datenbanken verwalten...</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="117"/>
         <source>Descriptions, schema versions and the known-databases list.</source>
-        <translation type="unfinished"></translation>
+        <translation>Beschreibungen, Schemaversionen und die Liste der bekannten Datenbanken.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="137"/>
         <source>Open Selected</source>
         <translation>Auswahl öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.ui" line="147"/>
         <source>Quit</source>
         <translation>Beenden</translation>
     </message>
@@ -100,137 +82,113 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="14"/>
         <source>PartManager</source>
-        <translation type="unfinished"></translation>
+        <translation>PartManager</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="40"/>
         <source>Search all categories...</source>
         <translation>Alle Kategorien durchsuchen...</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="43"/>
         <source>Searches every category and shows the hit count next to each one.
-Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</source>
-        <translation type="unfinished"></translation>
+Terms are ANDed: free text (use "quotes" for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</source>
+        <translation>Durchsucht alle Kategorien und zeigt die Trefferzahl neben jeder an.
+Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), tag:name oder ein Attributvergleich wie resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="54"/>
         <source>CATEGORIES</source>
         <translation>KATEGORIEN</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="94"/>
         <source>Select a category</source>
         <translation>Kategorie auswählen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="120"/>
         <source>Filter this table...</source>
         <translation>Diese Tabelle filtern...</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="123"/>
         <source>Filters the rows of the selected category only.
-Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</source>
-        <translation type="unfinished"></translation>
+Terms are ANDed: free text (use "quotes" for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</source>
+        <translation>Filtert nur die Zeilen der ausgewählten Kategorie.
+Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), tag:name oder ein Attributvergleich wie resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="174"/>
         <source>PREVIEW</source>
         <translation>VORSCHAU</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="208"/>
         <source>[ footprint / 3D preview ]</source>
-        <translation type="unfinished"></translation>
+        <translation>[ Footprint- / 3D-Vorschau ]</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="230"/>
         <source>Select a part to preview it.</source>
         <translation>Bauteil auswählen, um es anzuzeigen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="305"/>
         <source>Open Part</source>
         <translation>Bauteil öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="312"/>
         <source>Take Out</source>
         <translation>Entnehmen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="319"/>
         <source>Open on Mouser</source>
         <translation>Bei Mouser öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.ui" line="325"/>
-        <source>Opens this part&apos;s page on mouser.com. Needs a Mouser P/N, which you can set in the part editor.</source>
-        <translation type="unfinished"></translation>
+        <source>Opens this part's page on mouser.com. Needs a Mouser P/N, which you can set in the part editor.</source>
+        <translation>Öffnet die Seite dieses Bauteils auf mouser.com. Benötigt eine Mouser-Art.-Nr., die Sie im Bauteileditor eintragen können.</translation>
     </message>
 </context>
 <context>
     <name>ManageDatabasesDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="14"/>
         <source>Manage Databases</source>
         <translation>Datenbanken verwalten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="20"/>
-        <source>Every database PartManager knows about. Editing a description writes the database folder&apos;s README.md; nothing here ever deletes a database from disk.</source>
-        <translation type="unfinished"></translation>
+        <source>Every database PartManager knows about. Editing a description writes the database folder's README.md; nothing here ever deletes a database from disk.</source>
+        <translation>Alle PartManager bekannten Datenbanken. Eine bearbeitete Beschreibung wird in die README.md des Datenbankordners geschrieben; hier wird nie eine Datenbank von der Festplatte gelöscht.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="43"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="48"/>
         <source>Schema</source>
         <translation>Schema</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="53"/>
         <source>Description</source>
         <translation>Beschreibung</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="58"/>
         <source>Last opened</source>
         <translation>Zuletzt geöffnet</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="63"/>
         <source>Entry file</source>
         <translation>Eintragsdatei</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="71"/>
-        <source>No databases known yet — use &quot;New Database...&quot; or &quot;Browse for existing...&quot; on the selector to add one.</source>
-        <translation type="unfinished"></translation>
+        <source>No databases known yet — use "New Database..." or "Browse for existing..." on the selector to add one.</source>
+        <translation>Noch keine Datenbanken bekannt — im Auswahlfenster mit „Neue Datenbank…“ oder „Vorhandene suchen…“ eine hinzufügen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="83"/>
         <source>Edit description...</source>
         <translation>Beschreibung bearbeiten...</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="90"/>
         <source>Remove from list</source>
         <translation>Aus der Liste entfernen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="93"/>
         <source>Forgets this database. Its folder and all its files stay untouched on disk.</source>
-        <translation type="unfinished"></translation>
+        <translation>Vergisst diese Datenbank. Ihr Ordner und alle Dateien bleiben unangetastet auf der Festplatte.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.ui" line="113"/>
         <source>Close</source>
         <translation>Schließen</translation>
     </message>
@@ -238,47 +196,38 @@ Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an 
 <context>
     <name>ManageTagsDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.ui" line="14"/>
         <source>Manage Tags</source>
         <translation>Tags verwalten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.ui" line="23"/>
         <source>Tags are a shared vocabulary — every part picks from this list.</source>
-        <translation type="unfinished"></translation>
+        <translation>Tags sind ein gemeinsames Vokabular — jedes Bauteil wählt aus dieser Liste.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.ui" line="43"/>
-        <source>No tags yet — &quot;New Tag...&quot; creates the first one.</source>
-        <translation type="unfinished"></translation>
+        <source>No tags yet — "New Tag..." creates the first one.</source>
+        <translation>Noch keine Tags — „Neues Tag…“ legt das erste an.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.ui" line="55"/>
         <source>New Tag...</source>
         <translation>Neuer Tag...</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.ui" line="62"/>
         <source>Rename...</source>
         <translation>Umbenennen...</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.ui" line="69"/>
         <source>Colour...</source>
         <translation>Farbe...</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.ui" line="76"/>
         <source>Delete</source>
         <translation>Löschen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.ui" line="79"/>
         <source>Removes the tag from every part that carries it.</source>
         <translation>Entfernt den Tag von jedem Bauteil, das ihn trägt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.ui" line="99"/>
         <source>Close</source>
         <translation>Schließen</translation>
     </message>
@@ -286,37 +235,30 @@ Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an 
 <context>
     <name>MouserSearchDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.ui" line="14"/>
         <source>Search Mouser</source>
         <translation>Mouser durchsuchen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.ui" line="25"/>
         <source>Part number, link or keyword</source>
         <translation>Bauteilnummer, Link oder Stichwort</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.ui" line="32"/>
-        <source>595-LM358DR, a mouser.com product link, or &quot;10k 0603 resistor&quot;…</source>
-        <translation type="unfinished"></translation>
+        <source>595-LM358DR, a mouser.com product link, or "10k 0603 resistor"…</source>
+        <translation>595-LM358DR, ein mouser.com-Produktlink oder „10k 0603 Widerstand“…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.ui" line="39"/>
         <source>Search</source>
         <translation>Suchen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.ui" line="82"/>
         <source>Open on Mouser</source>
         <translation>Bei Mouser öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.ui" line="105"/>
         <source>Use this part</source>
         <translation>Dieses Bauteil verwenden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.ui" line="115"/>
         <source>Cancel</source>
         <translation>Abbrechen</translation>
     </message>
@@ -324,110 +266,207 @@ Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an 
 <context>
     <name>NewPartDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="14"/>
         <source>New Part</source>
         <translation>Neues Bauteil</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="23"/>
         <source>Blank form — fields marked * must be filled before the part can be created.</source>
-        <translation type="unfinished"></translation>
+        <translation>Leeres Formular — mit * markierte Felder müssen ausgefüllt sein, bevor das Bauteil angelegt werden kann.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="48"/>
         <source>Identity</source>
         <translation>Stammdaten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="54"/>
         <source>Component type</source>
         <translation>Bauteiltyp</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="64"/>
         <source>Name *</source>
         <translation>Name *</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="74"/>
         <source>Manufacturer</source>
         <translation>Hersteller</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="84"/>
         <source>MPN</source>
         <translation>MPN</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="94"/>
         <source>Package</source>
         <translation>Gehäuse</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="104"/>
         <source>Description</source>
         <translation>Beschreibung</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="121"/>
         <source>Type attributes</source>
         <translation>Typ-Attribute</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="181"/>
         <source>Create Part</source>
         <translation>Bauteil anlegen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.ui" line="194"/>
         <source>Cancel</source>
         <translation>Abbrechen</translation>
+    </message>
+    <message>
+        <source>Which category template this part uses. It decides the attribute fields below and the columns the part table shows — e.g. Resistor, Capacitor, MOSFET.</source>
+        <translation>Welche Kategorievorlage dieses Bauteil verwendet. Sie bestimmt die Attributfelder unten und die Spalten der Bauteiltabelle — z. B. Widerstand, Kondensator, MOSFET.</translation>
+    </message>
+    <message>
+        <source>What you want to see in the parts table. Freely chosen — e.g. "4k7 0603 1%" or "LM358 dual op-amp".</source>
+        <translation>Was Sie in der Bauteiltabelle sehen wollen. Frei wählbar — z. B. "4k7 0603 1%" oder "LM358 Doppel-OPV".</translation>
+    </message>
+    <message>
+        <source>Who makes the part — e.g. Murata, Texas Instruments, Yageo.</source>
+        <translation>Wer das Bauteil herstellt — z. B. Murata, Texas Instruments, Yageo.</translation>
+    </message>
+    <message>
+        <source>Manufacturer Part Number — the maker's own order code, e.g. "LM358DR" or "GRM188R71H104KA93D". Ordering does not use this; that is the Mouser P/N below.</source>
+        <translation>Manufacturer Part Number — die Bestellnummer des Herstellers, z. B. "LM358DR" oder "GRM188R71H104KA93D". Zum Bestellen wird sie nicht verwendet; dafür ist die Mouser-Art.-Nr. unten da.</translation>
+    </message>
+    <message>
+        <source>Mouser P/N</source>
+        <translation>Mouser-Art.-Nr.</translation>
+    </message>
+    <message>
+        <source>Mouser's own article number, e.g. "595-LM358DR". This is what the cart orders by — the MPN will not work. Filled in automatically when the part came from a Mouser search.</source>
+        <translation>Mousers eigene Artikelnummer, z. B. "595-LM358DR". Der Warenkorb bestellt danach — die MPN funktioniert nicht. Wird automatisch ausgefüllt, wenn das Bauteil aus einer Mouser-Suche stammt.</translation>
+    </message>
+    <message>
+        <source>e.g. 595-LM358DR — required to order this part</source>
+        <translation>z. B. 595-LM358DR — zum Bestellen dieses Bauteils erforderlich</translation>
+    </message>
+    <message>
+        <source>The physical housing the part comes in — its body shape and pin arrangement, which is what decides the PCB footprint.
+
+Not the same as THT vs SMD, though the name usually implies it:
+• SMD examples: 0603, 0805, SOT-23, SOIC-8, QFN-32, TQFP-44
+• THT examples: DIP-8, TO-220, TO-92, radial 5 mm, axial 0207
+• Mechanical parts: M3x10, M2.5 standoff
+
+Mouser fills this in from its "Package / Case" column.</source>
+        <translation>Die Bauform, in der das Bauteil geliefert wird — Gehäuseform und Pinanordnung, was den Footprint auf der Leiterplatte bestimmt.
+
+Nicht dasselbe wie THT oder SMD, auch wenn der Name es meist mitliefert:
+• SMD-Beispiele: 0603, 0805, SOT-23, SOIC-8, QFN-32, TQFP-44
+• THT-Beispiele: DIP-8, TO-220, TO-92, radial 5 mm, axial 0207
+• Mechanikteile: M3x10, M2.5-Abstandsbolzen
+
+Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
+    </message>
+    <message>
+        <source>e.g. 0603, SOIC-8, TO-220, DIP-8, M3x10</source>
+        <translation>z. B. 0603, SOIC-8, TO-220, DIP-8, M3x10</translation>
+    </message>
+    <message>
+        <source>Free-text notes. Mouser's own product description lands here when the part came from a search.</source>
+        <translation>Freitextnotizen. Mousers eigene Produktbeschreibung landet hier, wenn das Bauteil aus einer Suche stammt.</translation>
+    </message>
+    <message>
+        <source>Stock</source>
+        <translation>Bestand</translation>
+    </message>
+    <message>
+        <source>How many you have on the shelf right now. A non-zero value is recorded as the part's first restock, so the stock history starts out honest.</source>
+        <translation>Wie viele Sie gerade im Regal haben. Ein Wert ungleich null wird als erster Zugang des Bauteils verbucht, damit die Bestandshistorie von Anfang an stimmt.</translation>
+    </message>
+    <message>
+        <source>Reorder threshold</source>
+        <translation>Meldebestand</translation>
+    </message>
+    <message>
+        <source>The count below which you want to reorder. 0 means never warn.</source>
+        <translation>Der Bestand, unter dem nachbestellt werden soll. 0 bedeutet: nie warnen.</translation>
+    </message>
+    <message>
+        <source>Files</source>
+        <translation>Dateien</translation>
+    </message>
+    <message>
+        <source>Attached when the part is created. Nothing is copied or downloaded until then, so Cancel really does leave no trace.</source>
+        <translation>Wird beim Anlegen des Bauteils angehängt. Bis dahin wird nichts kopiert oder heruntergeladen — Abbrechen hinterlässt also wirklich keine Spuren.</translation>
+    </message>
+    <message>
+        <source>Datasheet</source>
+        <translation>Datenblatt</translation>
+    </message>
+    <message>
+        <source>Usually a PDF. Mouser's DataSheetUrl is filled in here automatically when it publishes one — which it does not for every part.</source>
+        <translation>Meist ein PDF. Mousers DataSheetUrl wird hier automatisch eingetragen, sofern Mouser eine veröffentlicht — was nicht bei jedem Bauteil der Fall ist.</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Keine</translation>
+    </message>
+    <message>
+        <source>File…</source>
+        <translation>Datei…</translation>
+    </message>
+    <message>
+        <source>URL…</source>
+        <translation>URL…</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>Leeren</translation>
+    </message>
+    <message>
+        <source>Image</source>
+        <translation>Bild</translation>
+    </message>
+    <message>
+        <source>A photo of the part. It is shown as a thumbnail in the first column of the parts table, which is what makes a component recognisable at a glance. Mouser's product photo is filled in here automatically.</source>
+        <translation>Ein Foto des Bauteils. Es wird als Miniaturbild in der ersten Spalte der Bauteiltabelle angezeigt, wodurch ein Bauteil auf einen Blick erkennbar wird. Mousers Produktfoto wird hier automatisch eingetragen.</translation>
+    </message>
+    <message>
+        <source>3D model</source>
+        <translation>3D-Modell</translation>
+    </message>
+    <message>
+        <source>STEP, OBJ, PLY, STL, WRL or glTF. STEP is what KiCad wants; the built-in viewer draws the mesh formats directly and converts STEP when FreeCAD is installed. Mouser publishes no CAD models through its API, so this one is always a local file.</source>
+        <translation>STEP, OBJ, PLY, STL, WRL oder glTF. KiCad möchte STEP; der eingebaute Betrachter zeichnet die Mesh-Formate direkt und wandelt STEP um, wenn FreeCAD installiert ist. Mouser veröffentlicht über seine API keine CAD-Modelle, daher ist das hier immer eine lokale Datei.</translation>
     </message>
 </context>
 <context>
     <name>OrderManagerDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.ui" line="14"/>
         <source>Orders</source>
         <translation>Bestellungen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.ui" line="25"/>
         <source>Only orders that are still open</source>
         <translation>Nur offene Bestellungen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.ui" line="100"/>
         <source>Stage to Mouser Cart</source>
         <translation>In Mouser-Warenkorb übertragen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.ui" line="110"/>
         <source>Open Cart on Mouser</source>
         <translation>Warenkorb bei Mouser öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.ui" line="120"/>
         <source>Mark as Submitted</source>
         <translation>Als abgeschickt markieren</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.ui" line="130"/>
         <source>Confirm Arrival…</source>
         <translation>Eingang bestätigen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.ui" line="140"/>
         <source>Close Order</source>
         <translation>Bestellung abschließen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.ui" line="150"/>
         <source>Delete</source>
         <translation>Löschen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.ui" line="173"/>
         <source>Close</source>
         <translation>Schließen</translation>
     </message>
@@ -435,367 +474,366 @@ Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an 
 <context>
     <name>PartEditorDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="14"/>
         <source>Edit Part</source>
-        <translation type="unfinished"></translation>
+        <translation>Bauteil bearbeiten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="32"/>
         <source>Tags</source>
         <translation>Tags</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="63"/>
         <source>+ Tag</source>
         <translation>+ Tag</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="66"/>
         <source>Add one of the managed tags to this part.</source>
-        <translation type="unfinished"></translation>
+        <translation>Eines der verwalteten Tags zu diesem Bauteil hinzufügen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="106"/>
         <source>Identity</source>
         <translation>Stammdaten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="112"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="122"/>
         <source>Manufacturer</source>
         <translation>Hersteller</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="132"/>
         <source>MPN</source>
         <translation>MPN</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="139"/>
-        <source>The manufacturer&apos;s own part number. Mouser will not accept this when ordering — that is the Mouser P/N below.</source>
-        <translation type="unfinished"></translation>
+        <source>The manufacturer's own part number. Mouser will not accept this when ordering — that is the Mouser P/N below.</source>
+        <translation>Die Artikelnummer des Herstellers. Mouser akzeptiert sie beim Bestellen nicht — dafür ist die Mouser-Art.-Nr. unten da.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="146"/>
         <source>Mouser P/N</source>
         <translation>Mouser-Nr.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="155"/>
         <source>e.g. 595-DRV5053CAQLPGM — required to order this part</source>
-        <translation type="unfinished"></translation>
+        <translation>z. B. 595-DRV5053CAQLPGM — zum Bestellen dieses Bauteils erforderlich</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="158"/>
-        <source>Mouser&apos;s own article number. This is what the cart needs; the MPN above will not work. Filled in automatically for parts created from a Mouser search.</source>
-        <translation type="unfinished"></translation>
+        <source>Mouser's own article number. This is what the cart needs; the MPN above will not work. Filled in automatically for parts created from a Mouser search.</source>
+        <translation>Mousers eigene Artikelnummer. Der Warenkorb braucht sie; die MPN oben funktioniert nicht. Wird bei Bauteilen aus einer Mouser-Suche automatisch ausgefüllt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="165"/>
         <source>Open on Mouser</source>
         <translation>Bei Mouser öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="171"/>
-        <source>Opens this part&apos;s page on mouser.com in your browser.</source>
-        <translation type="unfinished"></translation>
+        <source>Opens this part's page on mouser.com in your browser.</source>
+        <translation>Öffnet die Seite dieses Bauteils auf mouser.com in Ihrem Browser.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="180"/>
         <source>Package</source>
         <translation>Gehäuse</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="190"/>
         <source>Description</source>
         <translation>Beschreibung</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="207"/>
         <source>Stock</source>
         <translation>Bestand</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="220"/>
         <source>The counted quantity. Changing it records a manual adjustment in the history below.</source>
-        <translation type="unfinished"></translation>
+        <translation>Der gezählte Bestand. Eine Änderung wird als manuelle Korrektur in der Historie unten festgehalten.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="227"/>
         <source>Reorder threshold</source>
         <translation>Meldebestand</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="244"/>
         <source>Datasheet</source>
         <translation>Datenblatt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="250"/>
         <source>No datasheet attached yet.</source>
         <translation>Noch kein Datenblatt angehängt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="262"/>
         <source>Open</source>
         <translation>Öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="265"/>
-        <source>Open the stored datasheet in the system&apos;s default viewer.</source>
-        <translation type="unfinished"></translation>
+        <source>Open the stored datasheet in the system's default viewer.</source>
+        <translation>Öffnet das gespeicherte Datenblatt im Standardprogramm des Systems.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="272"/>
         <source>Attach file…</source>
         <translation>Datei anhängen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="275"/>
-        <source>Copy a file from this computer into the database&apos;s file store.</source>
-        <translation type="unfinished"></translation>
+        <source>Copy a file from this computer into the database's file store.</source>
+        <translation>Kopiert eine Datei von diesem Rechner in den Dateispeicher der Datenbank.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="282"/>
         <source>Download…</source>
         <translation>Herunterladen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="285"/>
         <source>Fetch the datasheet from a URL. Mouser leaves this empty for most parts.</source>
-        <translation type="unfinished"></translation>
+        <translation>Holt das Datenblatt von einer URL. Bei den meisten Bauteilen lässt Mouser sie leer.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="292"/>
         <source>Remove</source>
         <translation>Entfernen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="295"/>
         <source>Detach the datasheet from this part.</source>
-        <translation type="unfinished"></translation>
+        <translation>Löst das Datenblatt von diesem Bauteil.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="320"/>
         <source>Stock history</source>
         <translation>Bestandsverlauf</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="348"/>
         <source>When</source>
         <translation>Wann</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="353"/>
         <source>Change</source>
         <translation>Ändern</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="358"/>
         <source>Result</source>
         <translation>Ergebnis</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="363"/>
         <source>Reason</source>
         <translation>Grund</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="368"/>
         <source>Note</source>
         <translation>Notiz</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="379"/>
         <source>Type attributes</source>
         <translation>Typ-Attribute</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="406"/>
         <source>Changes are saved automatically.</source>
         <translation>Änderungen werden automatisch gespeichert.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.ui" line="426"/>
         <source>Close</source>
         <translation>Schließen</translation>
+    </message>
+    <message>
+        <source>What you want to see in the parts table. Freely chosen — e.g. "4k7 0603 1%" or "LM358 dual op-amp".</source>
+        <translation>Was Sie in der Bauteiltabelle sehen wollen. Frei wählbar — z. B. "4k7 0603 1%" oder "LM358 Doppel-OPV".</translation>
+    </message>
+    <message>
+        <source>Who makes the part — e.g. Murata, Texas Instruments, Yageo.</source>
+        <translation>Wer das Bauteil herstellt — z. B. Murata, Texas Instruments, Yageo.</translation>
+    </message>
+    <message>
+        <source>Manufacturer Part Number — the maker's own order code, e.g. "LM358DR" or "GRM188R71H104KA93D". Ordering does not use this; that is the Mouser P/N below.</source>
+        <translation>Manufacturer Part Number — die Bestellnummer des Herstellers, z. B. "LM358DR" oder "GRM188R71H104KA93D". Zum Bestellen wird sie nicht verwendet; dafür ist die Mouser-Art.-Nr. unten da.</translation>
+    </message>
+    <message>
+        <source>Mouser's own article number, e.g. "595-LM358DR". This is what the cart orders by — the MPN will not work. Filled in automatically when the part came from a Mouser search.</source>
+        <translation>Mousers eigene Artikelnummer, z. B. "595-LM358DR". Der Warenkorb bestellt danach — die MPN funktioniert nicht. Wird automatisch ausgefüllt, wenn das Bauteil aus einer Mouser-Suche stammt.</translation>
+    </message>
+    <message>
+        <source>The physical housing the part comes in — its body shape and pin arrangement, which is what decides the PCB footprint.
+
+Not the same as THT vs SMD, though the name usually implies it:
+• SMD examples: 0603, 0805, SOT-23, SOIC-8, QFN-32, TQFP-44
+• THT examples: DIP-8, TO-220, TO-92, radial 5 mm, axial 0207
+• Mechanical parts: M3x10, M2.5 standoff
+
+Mouser fills this in from its "Package / Case" column.</source>
+        <translation>Die Bauform, in der das Bauteil geliefert wird — Gehäuseform und Pinanordnung, was den Footprint auf der Leiterplatte bestimmt.
+
+Nicht dasselbe wie THT oder SMD, auch wenn der Name es meist mitliefert:
+• SMD-Beispiele: 0603, 0805, SOT-23, SOIC-8, QFN-32, TQFP-44
+• THT-Beispiele: DIP-8, TO-220, TO-92, radial 5 mm, axial 0207
+• Mechanikteile: M3x10, M2.5-Abstandsbolzen
+
+Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
+    </message>
+    <message>
+        <source>e.g. 0603, SOIC-8, TO-220, DIP-8, M3x10</source>
+        <translation>z. B. 0603, SOIC-8, TO-220, DIP-8, M3x10</translation>
+    </message>
+    <message>
+        <source>Free-text notes. Mouser's own product description lands here when the part came from a search.</source>
+        <translation>Freitextnotizen. Mousers eigene Produktbeschreibung landet hier, wenn das Bauteil aus einer Suche stammt.</translation>
+    </message>
+    <message>
+        <source>Image</source>
+        <translation>Bild</translation>
+    </message>
+    <message>
+        <source>A photo of the part, shown as a thumbnail in the first column of the parts table so the component is recognisable at a glance. It is stored as an ordinary attachment (role "image"), like the datasheet.</source>
+        <translation>Ein Foto des Bauteils, das als Miniaturbild in der ersten Spalte der Bauteiltabelle erscheint, damit das Bauelement auf einen Blick erkennbar ist. Es wird wie das Datenblatt als gewöhnlicher Anhang gespeichert (Rolle "image").</translation>
+    </message>
+    <message>
+        <source>none</source>
+        <translation>keins</translation>
+    </message>
+    <message>
+        <source>No image attached yet.</source>
+        <translation>Noch kein Bild angehängt.</translation>
+    </message>
+    <message>
+        <source>Copy a picture from this computer into the database's file store.</source>
+        <translation>Kopiert ein Bild von diesem Rechner in den Dateispeicher der Datenbank.</translation>
+    </message>
+    <message>
+        <source>Fetch a picture from a URL — for example the product photo on the part's Mouser page.</source>
+        <translation>Holt ein Bild von einer URL — zum Beispiel das Produktfoto auf der Mouser-Seite des Bauteils.</translation>
+    </message>
+    <message>
+        <source>Detach the image from this part.</source>
+        <translation>Löst das Bild von diesem Bauteil.</translation>
+    </message>
+    <message>
+        <source>Delete Part</source>
+        <translation>Bauteil löschen</translation>
+    </message>
+    <message>
+        <source>Removes this part from the database for good, together with its stock history, tags, attachments and Mouser link. Partlists that reference it are left with an unresolved line. You are asked to confirm first.</source>
+        <translation>Entfernt dieses Bauteil endgültig aus der Datenbank, zusammen mit seiner Bestandshistorie, seinen Tags, seinen Anhängen und seiner Mouser-Verknüpfung. Stücklisten, die es verwenden, behalten eine nicht zugeordnete Zeile. Sie werden vorher um Bestätigung gebeten.</translation>
     </message>
 </context>
 <context>
     <name>PartManager::CartStagingDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="45"/>
         <source>Review what goes into your Mouser cart</source>
         <translation>Prüfen, was in den Mouser-Warenkorb kommt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="82"/>
         <source>This order has no Mouser cart yet — a new one will be created.</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Bestellung hat noch keinen Mouser-Warenkorb — es wird ein neuer angelegt.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="83"/>
         <source>Your Mouser cart already holds %n line(s). “Set to” makes the cart match the number here; “Add” puts that many more in.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>Ihr Mouser-Warenkorb enthält bereits %n Position. „Setzen auf“ gleicht den Warenkorb an die Zahl hier an; „Hinzufügen“ legt entsprechend viele zusätzlich hinein.</numerusform><numerusform>Ihr Mouser-Warenkorb enthält bereits %n Positionen. „Setzen auf“ gleicht den Warenkorb an die Zahl hier an; „Hinzufügen“ legt entsprechend viele zusätzlich hinein.</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="91"/>
         <source>Part</source>
         <translation>Bauteil</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="91"/>
         <source>Mouser P/N</source>
         <translation>Mouser-Nr.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="91"/>
         <source>Already in cart</source>
         <translation>Bereits im Warenkorb</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="91"/>
         <source>Order still needs</source>
         <translation>Bestellung braucht noch</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="92"/>
         <source>Action</source>
         <translation>Aktion</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="92"/>
         <source>Quantity</source>
         <translation>Menge</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="103"/>
         <source>All: Set to</source>
         <translation>Alle: Setzen auf</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="104"/>
         <source>All: Add</source>
         <translation>Alle: Hinzufügen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="105"/>
         <source>All: Skip</source>
         <translation>Alle: Überspringen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="106"/>
         <source>Start a New Cart…</source>
         <translation>Neuen Warenkorb beginnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="107"/>
         <source>Stage</source>
         <translation>Übertragen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="108"/>
         <source>Cancel</source>
         <translation>Abbrechen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="154"/>
         <source>(unnamed part)</source>
         <translation>(unbenanntes Bauteil)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="156"/>
         <source>—</source>
-        <translation type="unfinished"></translation>
+        <translation>—</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="160"/>
         <source>Set to</source>
         <translation>Setzen auf</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="161"/>
         <source>Add</source>
         <translation>Hinzufügen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="162"/>
         <source>Skip</source>
         <translation>Überspringen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="224"/>
         <source>Start a new cart?</source>
         <translation>Neuen Warenkorb beginnen?</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="225"/>
         <source>The cart this order is currently pointing at will be left as it is, and a brand-new cart will be created when you stage.
 
-Mouser&apos;s API cannot delete a cart or list the carts on your account, so PartManager will not be able to find the old one again — clear it on mouser.com if you do not want it. Continue?</source>
-        <translation type="unfinished"></translation>
+Mouser's API cannot delete a cart or list the carts on your account, so PartManager will not be able to find the old one again — clear it on mouser.com if you do not want it. Continue?</source>
+        <translation>Der Warenkorb, auf den diese Bestellung derzeit zeigt, bleibt unverändert, und beim Übertragen wird ein völlig neuer angelegt.
+
+Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Kontos auflisten, daher findet PartManager den alten nicht wieder — leeren Sie ihn auf mouser.com, falls Sie ihn nicht wollen. Fortfahren?</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="258"/>
         <source>%n line(s) set to an exact quantity</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Position auf eine genaue Menge gesetzt</numerusform><numerusform>%n Positionen auf eine genaue Menge gesetzt</numerusform></translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="259"/>
         <source>%n line(s) added on top of the cart</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Position zusätzlich in den Warenkorb gelegt</numerusform><numerusform>%n Positionen zusätzlich in den Warenkorb gelegt</numerusform></translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="260"/>
         <source>%n line(s) skipped</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Position übersprungen</numerusform><numerusform>%n Positionen übersprungen</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="263"/>
         <source>a new cart will be created</source>
-        <translation type="unfinished"></translation>
+        <translation>es wird ein neuer Warenkorb angelegt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="269"/>
         <source>sent as two requests, since Mouser sets and adds on different endpoints</source>
-        <translation type="unfinished"></translation>
+        <translation>als zwei Anfragen gesendet, da Mouser Setzen und Hinzufügen über verschiedene Endpunkte abwickelt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="271"/>
         <source>Nothing selected — nothing will be sent.</source>
         <translation>Nichts ausgewählt — es wird nichts gesendet.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_CartStagingDialog.cpp" line="272"/>
         <source>, </source>
-        <translation type="unfinished"></translation>
+        <translation>, </translation>
     </message>
 </context>
 <context>
     <name>PartManager::ColumnsDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_ColumnsDialog.cpp" line="20"/>
-        <source>Columns shown for &quot;%1&quot;.</source>
-        <translation type="unfinished"></translation>
+        <source>Columns shown for "%1".</source>
+        <translation>Für „%1“ angezeigte Spalten.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ColumnsDialog.cpp" line="33"/>
         <source>The name column always stays first.</source>
         <translation>Die Namensspalte bleibt immer vorn.</translation>
     </message>
@@ -803,47 +841,38 @@ Mouser&apos;s API cannot delete a cart or list the carts on your account, so Par
 <context>
     <name>PartManager::DatabaseSelectorDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.cpp" line="105"/>
         <source>Choose where to create the new database</source>
         <translation>Ort für die neue Datenbank wählen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.cpp" line="112"/>
         <source>New Database</source>
         <translation>Neue Datenbank</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.cpp" line="113"/>
         <source>Database name (this becomes the folder name):</source>
         <translation>Datenbankname (wird zum Ordnernamen):</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.cpp" line="123"/>
         <source>Could not create database</source>
         <translation>Datenbank konnte nicht angelegt werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.cpp" line="133"/>
         <source>Open a PartManager database</source>
         <translation>Eine PartManager-Datenbank öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.cpp" line="134"/>
         <source>PartManager databases (*.pmdb)</source>
         <translation>PartManager-Datenbanken (*.pmdb)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.cpp" line="151"/>
         <source>Remove from list</source>
         <translation>Aus der Liste entfernen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.cpp" line="152"/>
         <source>Forget this database? Its folder and all its files stay untouched on disk.</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Datenbank vergessen? Ihr Ordner und alle Dateien bleiben unangetastet auf der Festplatte.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_DatabaseSelectorDialog.cpp" line="185"/>
         <source>Could not open database</source>
         <translation>Datenbank konnte nicht geöffnet werden</translation>
     </message>
@@ -851,784 +880,626 @@ Mouser&apos;s API cannot delete a cart or list the carts on your account, so Par
 <context>
     <name>PartManager::DimensionLineEdit</name>
     <message>
-        <location filename="../src/widgets/PartManager_DimensionLineEdit.cpp" line="68"/>
         <source>not a number</source>
         <translation>keine Zahl</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_DimensionLineEdit.cpp" line="69"/>
         <source>not a valid %1 value</source>
         <translation>kein gültiger %1-Wert</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_DimensionLineEdit.cpp" line="71"/>
         <source>= %1</source>
-        <translation type="unfinished"></translation>
+        <translation>= %1</translation>
     </message>
 </context>
 <context>
     <name>PartManager::KicadLibraryDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="26"/>
         <source>KiCad Libraries</source>
         <translation>KiCad-Bibliotheken</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="41"/>
         <source>Press Generate to write the libraries.</source>
         <translation>„Erzeugen“ drücken, um die Bibliotheken zu schreiben.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="44"/>
         <source>Edited in KiCad — left untouched:</source>
         <translation>In KiCad bearbeitet — unverändert gelassen:</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="49"/>
         <source>Generate</source>
         <translation>Erzeugen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="51"/>
         <source>Regenerate It (discard my edit)</source>
         <translation>Neu erzeugen (meine Änderung verwerfen)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="52"/>
         <source>Keep My Version</source>
         <translation>Meine Version behalten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="53"/>
         <source>Open Folder</source>
         <translation>Ordner öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="54"/>
         <source>Close</source>
         <translation>Schließen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="92"/>
         <source>No KiCad category, so not generated: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Keine KiCad-Kategorie, daher nicht erzeugt: %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="104"/>
         <source>Your edit is still in the file. Regenerating discards it; keeping it stops this warning without changing anything.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ihre Änderung steht noch in der Datei. Ein Neuerzeugen verwirft sie; Behalten beendet diese Warnung, ohne etwas zu ändern.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="109"/>
         <source>Nothing — no hand-edited artifacts.</source>
         <translation>Nichts — keine manuell bearbeiteten Objekte.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="136"/>
         <source>Discard your edit?</source>
         <translation>Ihre Änderung verwerfen?</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="137"/>
-        <source>“%1” will be overwritten with PartManager&apos;s generated version. Your changes to it are lost.</source>
-        <translation type="unfinished"></translation>
+        <source>“%1” will be overwritten with PartManager's generated version. Your changes to it are lost.</source>
+        <translation>„%1“ wird mit der von PartManager erzeugten Fassung überschrieben. Ihre Änderungen daran gehen verloren.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="162"/>
         <source>Could not keep that version</source>
         <translation>Version konnte nicht behalten werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_KicadLibraryDialog.cpp" line="163"/>
         <source>“%1” could not be read back from disk.</source>
-        <translation type="unfinished"></translation>
+        <translation>„%1“ konnte nicht von der Festplatte zurückgelesen werden.</translation>
     </message>
 </context>
 <context>
     <name>PartManager::MainWindow</name>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="66"/>
         <source>PartManager — %1</source>
-        <translation type="unfinished"></translation>
+        <translation>PartManager — %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="150"/>
         <source>No part selected</source>
         <translation>Kein Bauteil ausgewählt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="151"/>
-        <source>Select a part first — the 3D viewer shows that part&apos;s model.</source>
-        <translation type="unfinished"></translation>
+        <source>Select a part first — the 3D viewer shows that part's model.</source>
+        <translation>Wählen Sie zuerst ein Bauteil — der 3D-Betrachter zeigt dessen Modell.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="239"/>
         <source>Invalid query: %1</source>
         <translation>Ungültige Abfrage: %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="287"/>
         <source>%1 (%2)</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 (%2)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="288"/>
         <source>%1 (%2 : %3)</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 (%2 : %3)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="305"/>
         <source>Select a category</source>
         <translation>Kategorie auswählen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="418"/>
-        <source>New partlist</source>
-        <translation>Neue Stückliste</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="423"/>
-        <source>Could not create the partlist</source>
-        <translation>Stückliste konnte nicht angelegt werden</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="424"/>
-        <source>The database rejected the new partlist.</source>
-        <translation>Die Datenbank hat die neue Stückliste abgelehnt.</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="500"/>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="760"/>
         <source>Restock</source>
         <translation>Auffüllen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="500"/>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="761"/>
         <source>Take Out</source>
         <translation>Entnehmen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="501"/>
         <source>Select a part in the table first.</source>
         <translation>Zuerst ein Bauteil in der Tabelle auswählen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="517"/>
         <source>Stock unchanged</source>
         <translation>Bestand unverändert</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="518"/>
         <source>The database rejected the change — nothing was recorded.</source>
-        <translation type="unfinished"></translation>
+        <translation>Die Datenbank hat die Änderung abgelehnt — es wurde nichts aufgezeichnet.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="531"/>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="763"/>
         <source>Customize Columns</source>
         <translation>Spalten anpassen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="531"/>
         <source>Select a category first.</source>
         <translation>Zuerst eine Kategorie auswählen.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="637"/>
         <source>%1 — %n part(s)</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%1 — %n Bauteil</numerusform><numerusform>%1 — %n Bauteile</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="683"/>
         <source>This part has no Mouser part number. Open it in the part editor and fill in the “Mouser P/N” field — it is what ordering needs, and it is not the MPN.</source>
-        <translation type="unfinished"></translation>
+        <translation>Dieses Bauteil hat keine Mouser-Artikelnummer. Öffnen Sie es im Bauteileditor und füllen Sie das Feld „Mouser-Art.-Nr.“ aus — sie wird zum Bestellen gebraucht und ist nicht die MPN.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="685"/>
         <source>Opens %1 on mouser.com.</source>
         <translation>Öffnet %1 auf mouser.com.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="723"/>
         <source>%1:</source>
-        <translation type="unfinished"></translation>
+        <translation>%1:</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="735"/>
         <source>Home</source>
         <translation>Start</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="737"/>
         <source>Parts</source>
         <translation>Bauteile</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="739"/>
         <source>New</source>
         <translation>Neu</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="740"/>
         <source>Stock</source>
         <translation>Bestand</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="741"/>
         <source>View</source>
         <translation>Ansicht</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="742"/>
         <source>Manage</source>
         <translation>Verwalten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="743"/>
         <source>Files</source>
         <translation>Dateien</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="744"/>
         <source>KiCad</source>
         <translation>KiCad</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="755"/>
         <source>New Part</source>
         <translation>Neues Bauteil</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="756"/>
         <source>New Partlist</source>
         <translation>Neue Stückliste</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="757"/>
         <source>Import CSV / BOM</source>
         <translation>CSV / BOM importieren</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="758"/>
         <source>Partlists</source>
         <translation>Stücklisten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="759"/>
         <source>Orders</source>
         <translation>Bestellungen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="762"/>
         <source>Refresh</source>
         <translation>Aktualisieren</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="764"/>
         <source>List / Grid</source>
         <translation>Liste / Raster</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="765"/>
         <source>3D Viewer</source>
         <translation>3D-Betrachter</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="766"/>
         <source>Edit Type Templates</source>
         <translation>Typvorlagen bearbeiten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="767"/>
         <source>Manage Tags</source>
         <translation>Tags verwalten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="768"/>
         <source>Settings</source>
         <translation>Einstellungen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="769"/>
         <source>Import from Mouser</source>
         <translation>Aus Mouser importieren</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="770"/>
         <source>Generate Libraries</source>
         <translation>Bibliotheken erzeugen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="771"/>
         <source>Attach File</source>
         <translation>Datei anhängen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MainWindow.cpp" line="772"/>
         <source>Open Datasheet</source>
         <translation>Datenblatt öffnen</translation>
+    </message>
+    <message>
+        <source>[ no image ]</source>
+        <translation>[ kein Bild ]</translation>
+    </message>
+    <message>
+        <source>Attach a photo in the part editor, or import the part from Mouser — its product photo is downloaded automatically.</source>
+        <translation>Hängen Sie im Bauteileditor ein Foto an oder importieren Sie das Bauteil von Mouser — dessen Produktfoto wird automatisch heruntergeladen.</translation>
     </message>
 </context>
 <context>
     <name>PartManager::ManageDatabasesDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="32"/>
         <source>v%1 current</source>
         <translation>v%1 aktuell</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="33"/>
         <source>v%1 needs update</source>
         <translation>v%1 benötigt Update</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="34"/>
         <source>v%1 too new</source>
         <translation>v%1 zu neu</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="35"/>
         <source>missing</source>
         <translation>fehlt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="36"/>
         <source>unreadable</source>
         <translation>nicht lesbar</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="45"/>
         <source>Schema is up to date with this copy of PartManager.</source>
-        <translation type="unfinished"></translation>
+        <translation>Das Schema ist auf dem Stand dieser PartManager-Version.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="47"/>
         <source>Opening will back up the database, then migrate schema v%1 to v%2 automatically.</source>
-        <translation type="unfinished"></translation>
+        <translation>Beim Öffnen wird die Datenbank gesichert und das Schema automatisch von v%1 auf v%2 migriert.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="50"/>
         <source>Saved by a newer PartManager (schema v%1) — this copy only supports up to v%2. Update PartManager to open it.</source>
-        <translation type="unfinished"></translation>
+        <translation>Von einem neueren PartManager gespeichert (Schema v%1) — diese Version unterstützt nur bis v%2. Aktualisieren Sie PartManager, um sie zu öffnen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="53"/>
-        <source>The entry file is gone from disk — the folder was moved, renamed or deleted. Use &quot;Remove from list&quot; to forget it.</source>
-        <translation type="unfinished"></translation>
+        <source>The entry file is gone from disk — the folder was moved, renamed or deleted. Use "Remove from list" to forget it.</source>
+        <translation>Die Einstiegsdatei ist von der Festplatte verschwunden — der Ordner wurde verschoben, umbenannt oder gelöscht. Mit „Aus Liste entfernen“ vergessen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="56"/>
         <source>The entry file could not be read, so its schema version is unknown.</source>
-        <translation type="unfinished"></translation>
+        <translation>Die Einstiegsdatei konnte nicht gelesen werden, daher ist ihre Schemaversion unbekannt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="66"/>
         <source>never</source>
         <translation>nie</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="142"/>
         <source>Edit description</source>
         <translation>Beschreibung bearbeiten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="143"/>
-        <source>Description (stored as README.md in the database&apos;s folder):</source>
-        <translation type="unfinished"></translation>
+        <source>Description (stored as README.md in the database's folder):</source>
+        <translation>Beschreibung (wird als README.md im Datenbankordner gespeichert):</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="151"/>
         <source>Could not save description</source>
         <translation>Beschreibung konnte nicht gespeichert werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="152"/>
         <source>README.md could not be written — the database folder may have been moved or is read-only.</source>
-        <translation type="unfinished"></translation>
+        <translation>README.md konnte nicht geschrieben werden — der Datenbankordner wurde möglicherweise verschoben oder ist schreibgeschützt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="166"/>
         <source>Remove from list</source>
         <translation>Aus der Liste entfernen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageDatabasesDialog.cpp" line="167"/>
         <source>Forget this database?
 
 PartManager stops listing it. Its folder, its parts and all its files stay exactly where they are on disk — nothing is deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Datenbank vergessen?
+
+PartManager führt sie nicht mehr auf. Ihr Ordner, ihre Bauteile und alle Dateien bleiben genau dort, wo sie auf der Festplatte liegen — es wird nichts gelöscht.</translation>
     </message>
 </context>
 <context>
     <name>PartManager::ManageTagsDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="101"/>
         <source>New Tag</source>
         <translation>Neuer Tag</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="101"/>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="130"/>
         <source>Tag name:</source>
         <translation>Tag-Name:</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="114"/>
         <source>Could not create tag</source>
         <translation>Tag konnte nicht angelegt werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="115"/>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="141"/>
         <source>A tag with that name already exists.</source>
         <translation>Ein Tag mit diesem Namen existiert bereits.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="130"/>
         <source>Rename Tag</source>
         <translation>Tag umbenennen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="140"/>
         <source>Could not rename tag</source>
         <translation>Tag konnte nicht umbenannt werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="155"/>
         <source>Tag colour</source>
         <translation>Tag-Farbe</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="173"/>
         <source>Delete tag</source>
         <translation>Tag löschen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_ManageTagsDialog.cpp" line="174"/>
-        <source>Delete &quot;%1&quot;? It is removed from every part that carries it.</source>
-        <translation type="unfinished"></translation>
+        <source>Delete "%1"? It is removed from every part that carries it.</source>
+        <translation>„%1“ löschen? Es wird von jedem Bauteil entfernt, das es trägt.</translation>
     </message>
 </context>
 <context>
     <name>PartManager::Model3DDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="26"/>
         <source>3D Model — %1</source>
         <translation>3D-Modell — %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="48"/>
         <source>Attach Model…</source>
         <translation>Modell anhängen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="49"/>
         <source>Remove</source>
         <translation>Entfernen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="50"/>
         <source>Open Externally</source>
         <translation>Extern öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="51"/>
         <source>Reset View</source>
         <translation>Ansicht zurücksetzen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="52"/>
         <source>Close</source>
         <translation>Schließen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="82"/>
         <source>No 3D model attached.</source>
         <translation>Kein 3D-Modell angehängt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="90"/>
         <source>“%1” is recorded but its file is missing from the filestore.</source>
-        <translation type="unfinished"></translation>
+        <translation>„%1“ ist eingetragen, aber die Datei fehlt im Dateispeicher.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="97"/>
         <source>%1  ·  %2  ·  %3 KB</source>
-        <translation type="unfinished"></translation>
+        <translation>%1  ·  %2  ·  %3 KB</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="113"/>
         <source>3D models (%1);;All files (*)</source>
         <translation>3D-Modelle (%1);;Alle Dateien (*)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="115"/>
         <source>Attach a 3D model</source>
         <translation>Ein 3D-Modell anhängen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="123"/>
         <source>Not a recognised 3D format</source>
         <translation>Kein bekanntes 3D-Format</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="124"/>
         <source>“%1” is not a file extension PartManager recognises as a 3D model. Attach it anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation>„%1“ ist keine Dateiendung, die PartManager als 3D-Modell kennt. Trotzdem anhängen?</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="134"/>
         <source>Could not attach the model</source>
         <translation>Modell konnte nicht angehängt werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="148"/>
         <source>Remove this model?</source>
         <translation>Dieses Modell entfernen?</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_Model3DDialog.cpp" line="149"/>
         <source>“%1” will no longer be attached to this part. The file is only deleted from the filestore if no other part uses it.</source>
-        <translation type="unfinished"></translation>
+        <translation>„%1“ wird nicht mehr an dieses Bauteil angehängt sein. Die Datei wird nur dann aus dem Dateispeicher gelöscht, wenn kein anderes Bauteil sie verwendet.</translation>
     </message>
 </context>
 <context>
     <name>PartManager::Model3DViewer</name>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="59"/>
         <source>Select a part with a 3D model.</source>
         <translation>Bauteil mit 3D-Modell auswählen.</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="90"/>
         <source>This model could not be loaded — the file may be damaged or use a variant of the format Qt does not read.</source>
-        <translation type="unfinished"></translation>
+        <translation>Dieses Modell konnte nicht geladen werden — die Datei ist möglicherweise beschädigt oder verwendet eine Formatvariante, die Qt nicht liest.</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="126"/>
         <source>This part has no 3D model attached.</source>
         <translation>An diesem Bauteil ist kein 3D-Modell angehängt.</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="134"/>
         <source>The model file is no longer on disk:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Die Modelldatei liegt nicht mehr auf der Festplatte:
+%1</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="175"/>
         <source>%1 files are stored and used for KiCad export, but cannot be shown here — %1 describes surfaces rather than triangles and needs a CAD kernel to draw.
 
 Attach an OBJ, STL, PLY or glTF version to see it in 3D.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1-Dateien werden gespeichert und für den KiCad-Export verwendet, können hier aber nicht angezeigt werden — %1 beschreibt Flächen statt Dreiecke und braucht zum Zeichnen einen CAD-Kern.
+
+Hängen Sie eine OBJ-, STL-, PLY- oder glTF-Fassung an, um es in 3D zu sehen.</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="178"/>
         <source>That file is not a 3D model this build recognises.</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Datei ist kein 3D-Modell, das dieses Build kennt.</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="187"/>
         <source>Loading %1…</source>
         <translation>%1 wird geladen…</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="199"/>
         <source>This STEP model is stored and will be used for KiCad export, but drawing it needs a CAD kernel to tessellate it first.
 
 Install FreeCAD and reopen this window, or attach an STL/OBJ version instead.
 
 Looked for a converter in:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Dieses STEP-Modell ist gespeichert und wird für den KiCad-Export verwendet; zum Zeichnen muss es aber zuerst ein CAD-Kern in Dreiecke zerlegen.
+
+Installieren Sie FreeCAD und öffnen Sie dieses Fenster erneut, oder hängen Sie stattdessen eine STL-/OBJ-Fassung an.
+
+Nach einem Konverter gesucht in:
+%1</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="224"/>
         <source>Could not write the conversion script to a temporary file.</source>
-        <translation type="unfinished"></translation>
+        <translation>Das Umwandlungsskript konnte nicht in eine temporäre Datei geschrieben werden.</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="232"/>
         <source>Converting %1 to a mesh…
 This happens once per model.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 wird in ein Mesh umgewandelt…
+Das passiert einmal pro Modell.</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="250"/>
         <source>The STEP model could not be converted.
 
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Das STEP-Modell konnte nicht umgewandelt werden.
+
+%1</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="252"/>
         <source>The converter exited with code %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Konverter endete mit Code %1.</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_Model3DViewer.cpp" line="260"/>
         <source>The converter could not be started:
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Konverter konnte nicht gestartet werden:
+%1</translation>
     </message>
 </context>
 <context>
     <name>PartManager::MouserSearchDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="67"/>
         <source>Mouser #</source>
         <translation>Mouser-Nr.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="67"/>
         <source>MPN</source>
         <translation>MPN</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="67"/>
         <source>Manufacturer</source>
         <translation>Hersteller</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="67"/>
         <source>Description</source>
         <translation>Beschreibung</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="68"/>
         <source>Category</source>
         <translation>Kategorie</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="68"/>
         <source>In stock</source>
         <translation>Auf Lager</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="68"/>
         <source>Price</source>
         <translation>Preis</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="86"/>
         <source>No Mouser API key. Set the %1 environment variable and restart the app.</source>
-        <translation type="unfinished"></translation>
+        <translation>Kein Mouser-API-Schlüssel. Setzen Sie die Umgebungsvariable %1 und starten Sie die App neu.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="90"/>
         <source>Enter a Mouser or manufacturer part number, paste a Mouser product link, or type a keyword.</source>
-        <translation type="unfinished"></translation>
+        <translation>Geben Sie eine Mouser- oder Herstellerartikelnummer ein, fügen Sie einen Mouser-Produktlink ein oder tippen Sie ein Stichwort.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="121"/>
         <source>Searching Mouser…</source>
         <translation>Mouser wird durchsucht…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="153"/>
         <source>Search failed: %1</source>
         <translation>Suche fehlgeschlagen: %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="165"/>
         <source>Mouser has nothing for “%1”.</source>
         <translation>Mouser hat nichts zu „%1“.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="171"/>
         <source>Showing %1 of %2 keyword matches, most relevant first.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2 Stichworttreffern, die relevantesten zuerst.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="177"/>
         <source>%n keyword match(es), most relevant first.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Stichworttreffer, der relevanteste zuerst.</numerusform><numerusform>%n Stichworttreffer, die relevantesten zuerst.</numerusform></translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_MouserSearchDialog.cpp" line="178"/>
         <source>%n part-number match(es), closest first.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Artikelnummertreffer, der genaueste zuerst.</numerusform><numerusform>%n Artikelnummertreffer, die genauesten zuerst.</numerusform></translation>
     </message>
 </context>
 <context>
     <name>PartManager::NewPartDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="85"/>
         <source>Prefilled from Mouser — check every value before creating the part.</source>
-        <translation type="unfinished"></translation>
+        <translation>Aus Mouser vorausgefüllt — prüfen Sie jeden Wert, bevor Sie das Bauteil anlegen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="86"/>
         <source>Prefilled from Mouser %1 — check every value before creating the part.</source>
-        <translation type="unfinished"></translation>
+        <translation>Aus Mouser %1 vorausgefüllt — prüfen Sie jeden Wert, bevor Sie das Bauteil anlegen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="91"/>
-        <source>Mouser&apos;s category did not map to a type template — pick one yourself.</source>
-        <translation type="unfinished"></translation>
+        <source>Mouser's category did not map to a type template — pick one yourself.</source>
+        <translation>Mousers Kategorie ließ sich keiner Typvorlage zuordnen — wählen Sie selbst eine aus.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="100"/>
         <source>Not filled in automatically: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>Nicht automatisch ausgefüllt: %1.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="100"/>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="126"/>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="143"/>
         <source>, </source>
-        <translation type="unfinished"></translation>
+        <translation>, </translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="121"/>
         <source>%1 (required)</source>
         <translation>%1 (erforderlich)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="122"/>
         <source>%1 (optional)</source>
         <translation>%1 (optional)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="126"/>
-        <source>Expected files, attachable once the part exists: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="137"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="143"/>
         <source>Still required: %1</source>
         <translation>Noch erforderlich: %1</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="168"/>
         <source>“%1” — %n in stock</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>„%1“ — %n auf Lager</numerusform><numerusform>„%1“ — %n auf Lager</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="171"/>
         <source>That part number already exists</source>
         <translation>Diese Bauteilnummer existiert bereits</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="172"/>
         <source>MPN “%1” is already used by:
 
 %2
@@ -1636,1159 +1507,1087 @@ This happens once per model.</source>
 Creating a second one means a partlist can match either copy, and stock is counted separately for each. Edit the existing part instead unless this is genuinely a different component.
 
 Create it anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation>Die MPN „%1“ wird bereits verwendet von:
+
+%2
+
+Ein zweites Bauteil bedeutet, dass eine Stückliste auf beide Kopien passen kann und der Bestand für jede getrennt gezählt wird. Bearbeiten Sie lieber das vorhandene Bauteil, außer es handelt sich wirklich um ein anderes Bauelement.
+
+Trotzdem anlegen?</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="187"/>
         <source>Could not create part</source>
         <translation>Bauteil konnte nicht angelegt werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_NewPartDialog.cpp" line="188"/>
         <source>The database rejected the new part.</source>
         <translation>Die Datenbank hat das neue Bauteil abgelehnt.</translation>
+    </message>
+    <message>
+        <source>Datasheets (*.pdf);;All files (*)</source>
+        <translation>Datenblätter (*.pdf);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp);;All files (*)</source>
+        <translation>Bilder (*.png *.jpg *.jpeg *.gif *.bmp *.webp);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>3D models (*.step *.stp *.obj *.stl *.ply *.wrl *.gltf *.glb);;All files (*)</source>
+        <translation>3D-Modelle (*.step *.stp *.obj *.stl *.ply *.wrl *.gltf *.glb);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Choose a file</source>
+        <translation>Datei auswählen</translation>
+    </message>
+    <message>
+        <source>Download from a URL</source>
+        <translation>Von einer URL herunterladen</translation>
+    </message>
+    <message>
+        <source>URL</source>
+        <translation>URL</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Keine</translation>
+    </message>
+    <message>
+        <source>File: %1</source>
+        <translation>Datei: %1</translation>
+    </message>
+    <message>
+        <source>Download: %1</source>
+        <translation>Download: %1</translation>
+    </message>
+    <message>
+        <source>Mouser publishes no datasheet link for this part — attach one yourself.</source>
+        <translation>Mouser veröffentlicht für dieses Bauteil keinen Datenblattlink — hängen Sie selbst eines an.</translation>
+    </message>
+    <message>
+        <source>This type expects: %1</source>
+        <translation>Dieser Typ erwartet: %1</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>Some files could not be attached</source>
+        <translation>Einige Dateien konnten nicht angehängt werden</translation>
+    </message>
+    <message>
+        <source>The part was created. These files were not:
+
+%1
+
+You can attach them by hand in the part editor.</source>
+        <translation>Das Bauteil wurde angelegt. Diese Dateien nicht:
+
+%1
+
+Sie können sie im Bauteileditor von Hand anhängen.</translation>
+    </message>
+    <message>
+        <source>Initial stock</source>
+        <translation>Anfangsbestand</translation>
     </message>
 </context>
 <context>
     <name>PartManager::OrderManagerDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="63"/>
         <source>Order</source>
         <translation>Bestellung</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="63"/>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="71"/>
         <source>Status</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="63"/>
         <source>Lines</source>
-        <translation type="unfinished"></translation>
+        <translation>Zeilen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="63"/>
         <source>Mouser cart</source>
         <translation>Mouser-Warenkorb</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="64"/>
         <source>Order number</source>
         <translation>Bestellnummer</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="64"/>
         <source>Created</source>
         <translation>Erstellt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="70"/>
         <source>Part</source>
         <translation>Bauteil</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="70"/>
         <source>Mouser P/N</source>
         <translation>Mouser-Nr.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="70"/>
         <source>Ordered</source>
         <translation>Bestellt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="70"/>
         <source>Received</source>
         <translation>Erhalten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="71"/>
         <source>In stock</source>
         <translation>Auf Lager</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="130"/>
         <source>#%1</source>
-        <translation type="unfinished"></translation>
+        <translation>Nr. %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="133"/>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="135"/>
         <source>—</source>
-        <translation type="unfinished"></translation>
+        <translation>—</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="154"/>
         <source>No open orders. Open a partlist and press “Order Missing Parts” to raise one.</source>
-        <translation type="unfinished"></translation>
+        <translation>Keine offenen Bestellungen. Öffnen Sie eine Stückliste und drücken Sie „Fehlende Teile bestellen“, um eine anzulegen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="155"/>
         <source>No orders yet. Open a partlist and press “Order Missing Parts” to raise one.</source>
-        <translation type="unfinished"></translation>
+        <translation>Noch keine Bestellungen. Öffnen Sie eine Stückliste und drücken Sie „Fehlende Teile bestellen“, um eine anzulegen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="179"/>
         <source>(deleted part)</source>
         <translation>(gelöschtes Bauteil)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="181"/>
         <source>— not linked to Mouser</source>
         <translation>— nicht mit Mouser verknüpft</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="192"/>
         <source>Ordered — not here yet.</source>
         <translation>Bestellt — noch nicht da.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="196"/>
         <source>Arrived, and booked into stock.</source>
         <translation>Eingetroffen und eingebucht.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="201"/>
         <source>The order was closed before this line fully arrived.</source>
-        <translation type="unfinished"></translation>
+        <translation>Die Bestellung wurde geschlossen, bevor diese Position vollständig eingetroffen ist.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="207"/>
         <source>This part cannot be put in a Mouser cart: it has no Mouser part number.
 
-Open “%1” in the part editor and fill in the “Mouser P/N” field — Mouser&apos;s own article number, which looks like 595-DRV5053CAQLPGM. The MPN (%2) is the manufacturer&apos;s number and Mouser will not accept it when ordering.
+Open “%1” in the part editor and fill in the “Mouser P/N” field — Mouser's own article number, which looks like 595-DRV5053CAQLPGM. The MPN (%2) is the manufacturer's number and Mouser will not accept it when ordering.
 
 If you created this part from a Mouser search and still see this, check you are not looking at an older duplicate of the same part.</source>
-        <translation type="unfinished"></translation>
+        <translation>Dieses Bauteil kann nicht in einen Mouser-Warenkorb gelegt werden: Es hat keine Mouser-Artikelnummer.
+
+Öffnen Sie „%1“ im Bauteileditor und füllen Sie das Feld „Mouser-Art.-Nr.“ aus — Mousers eigene Artikelnummer, die aussieht wie 595-DRV5053CAQLPGM. Die MPN (%2) ist die Nummer des Herstellers, und Mouser akzeptiert sie beim Bestellen nicht.
+
+Wenn Sie dieses Bauteil aus einer Mouser-Suche angelegt haben und das hier trotzdem sehen, prüfen Sie, ob Sie nicht auf ein älteres Duplikat desselben Bauteils schauen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="214"/>
         <source>none</source>
         <translation>keine</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="215"/>
         <source>Nothing left to order on this line.</source>
         <translation>Für diese Zeile ist nichts mehr zu bestellen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="230"/>
         <source>Editable while the order is a draft.
 
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Änderbar, solange die Bestellung ein Entwurf ist.
+
+%1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="289"/>
-        <source>Builds the cart on mouser.com from this order&apos;s outstanding lines.</source>
-        <translation type="unfinished"></translation>
+        <source>Builds the cart on mouser.com from this order's outstanding lines.</source>
+        <translation>Baut den Warenkorb auf mouser.com aus den offenen Positionen dieser Bestellung.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="290"/>
         <source>Set the MOUSER_CART_API environment variable and restart to stage carts.</source>
-        <translation type="unfinished"></translation>
+        <translation>Setzen Sie die Umgebungsvariable MOUSER_CART_API und starten Sie neu, um Warenkörbe zu übertragen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="357"/>
         <source>Some lines cannot be staged</source>
         <translation>Einige Zeilen können nicht übertragen werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="358"/>
         <source>These parts have no Mouser part number and will be left out of the cart:
 
 %1
 
 Stage the rest anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Bauteile haben keine Mouser-Artikelnummer und bleiben im Warenkorb außen vor:
+
+%1
+
+Den Rest trotzdem übertragen?</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="374"/>
         <source>Could not read your Mouser cart</source>
         <translation>Mouser-Warenkorb konnte nicht gelesen werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="375"/>
         <source>PartManager could not read the cart this order points at:
 
 %1
 
 Staging now could add to quantities that are already there. Continue anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation>PartManager konnte den Warenkorb, auf den diese Bestellung zeigt, nicht lesen:
+
+%1
+
+Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzdem fortfahren?</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="398"/>
         <source>Nothing was staged — every line was skipped.</source>
         <translation>Nichts übertragen — alle Zeilen übersprungen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="418"/>
         <source>Could not stage the cart</source>
         <translation>Warenkorb konnte nicht übertragen werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="441"/>
         <source>%1 — %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 — %2</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="453"/>
         <source>The cart was staged, but Mouser rejected some lines</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Warenkorb wurde übertragen, aber Mouser hat einige Positionen abgelehnt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="454"/>
         <source>The cart exists and the rest of the order is in it. Mouser rejected:
 
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Warenkorb existiert und der Rest der Bestellung liegt darin. Mouser hat abgelehnt:
+
+%1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="461"/>
         <source>Staged to your Mouser cart</source>
         <translation>In den Mouser-Warenkorb übertragen</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="462"/>
         <source>%n line(s) staged. Open the cart on mouser.com to review and place the order — PartManager never checks out for you.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Position übertragen. Öffnen Sie den Warenkorb auf mouser.com, um sie zu prüfen und die Bestellung aufzugeben — PartManager schließt nie für Sie ab.</numerusform><numerusform>%n Positionen übertragen. Öffnen Sie den Warenkorb auf mouser.com, um sie zu prüfen und die Bestellung aufzugeben — PartManager schließt nie für Sie ab.</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="490"/>
         <source>Mark as submitted</source>
         <translation>Als abgeschickt markieren</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="491"/>
         <source>Mouser order number (optional):</source>
         <translation>Mouser-Bestellnummer (optional):</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="514"/>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="531"/>
         <source>Confirm arrival</source>
         <translation>Eingang bestätigen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="515"/>
         <source>How many of “%1” have arrived in total?
 (%2 ordered, %3 already booked in)</source>
-        <translation type="unfinished"></translation>
+        <translation>Wie viele von „%1“ sind insgesamt eingetroffen?
+(%2 bestellt, %3 bereits verbucht)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="532"/>
         <source>Unit price actually paid (0 to skip):</source>
         <translation>Tatsächlich bezahlter Stückpreis (0 zum Überspringen):</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="542"/>
         <source>Could not record the arrival</source>
         <translation>Eingang konnte nicht erfasst werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="543"/>
         <source>The database rejected the update.</source>
         <translation>Die Datenbank hat die Aktualisierung abgelehnt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="564"/>
         <source>Close this order?</source>
         <translation>Diese Bestellung abschließen?</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="565"/>
         <source>%n line(s) have not fully arrived and will be marked backordered. Stock is not changed — only what you confirmed as arrived was ever booked in.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Position ist nicht vollständig eingetroffen und wird als Rückstand markiert. Der Bestand ändert sich nicht — verbucht wurde immer nur, was Sie als eingetroffen bestätigt haben.</numerusform><numerusform>%n Positionen sind nicht vollständig eingetroffen und werden als Rückstand markiert. Der Bestand ändert sich nicht — verbucht wurde immer nur, was Sie als eingetroffen bestätigt haben.</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="584"/>
         <source>Delete this order?</source>
         <translation>Diese Bestellung löschen?</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_OrderManagerDialog.cpp" line="585"/>
         <source>Order #%1 and its lines will be deleted. Parts that already arrived stay in stock — their stock entries are not undone.</source>
-        <translation type="unfinished"></translation>
+        <translation>Bestellung Nr. %1 und ihre Positionen werden gelöscht. Bereits eingetroffene Bauteile bleiben im Bestand — ihre Bestandsbuchungen werden nicht rückgängig gemacht.</translation>
     </message>
 </context>
 <context>
     <name>PartManager::PartEditorDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="119"/>
         <source>This part no longer exists.</source>
         <translation>Dieses Bauteil existiert nicht mehr.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="130"/>
         <source>Edit Part — %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Bauteil bearbeiten — %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="162"/>
         <source>No datasheet attached yet.</source>
         <translation>Noch kein Datenblatt angehängt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="169"/>
         <source>%1 (%2)</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 (%2)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="170"/>
-        <source>%1 — the stored file is missing from this database&apos;s file store.</source>
-        <translation type="unfinished"></translation>
+        <source>%1 — the stored file is missing from this database's file store.</source>
+        <translation>%1 — die gespeicherte Datei fehlt im Dateispeicher dieser Datenbank.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="175"/>
         <source>Replace file…</source>
         <translation>Datei ersetzen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="175"/>
         <source>Attach file…</source>
         <translation>Datei anhängen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="176"/>
         <source>Replace from URL…</source>
         <translation>Von URL ersetzen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="176"/>
         <source>Download…</source>
         <translation>Herunterladen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="184"/>
         <source>Datasheet unavailable</source>
         <translation>Datenblatt nicht verfügbar</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="185"/>
-        <source>The stored file is no longer in this database&apos;s file store.</source>
-        <translation type="unfinished"></translation>
+        <source>The stored file is no longer in this database's file store.</source>
+        <translation>Die gespeicherte Datei liegt nicht mehr im Dateispeicher dieser Datenbank.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="195"/>
         <source>Choose a datasheet</source>
-        <translation type="unfinished"></translation>
+        <translation>Datenblatt auswählen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="196"/>
         <source>Datasheets (*.pdf);;All files (*)</source>
         <translation>Datenblätter (*.pdf);;Alle Dateien (*)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="205"/>
         <source>Could not attach the datasheet</source>
         <translation>Datenblatt konnte nicht angehängt werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="216"/>
         <source>Download a datasheet</source>
-        <translation type="unfinished"></translation>
+        <translation>Datenblatt herunterladen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="216"/>
         <source>Datasheet URL</source>
         <translation>Datenblatt-URL</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="225"/>
         <source>Downloading the datasheet…</source>
         <translation>Datenblatt wird heruntergeladen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="234"/>
         <source>Changes are saved automatically.</source>
         <translation>Änderungen werden automatisch gespeichert.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="235"/>
         <source>Could not download the datasheet</source>
         <translation>Datenblatt konnte nicht heruntergeladen werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="236"/>
         <source>%1
 
 The part itself is unaffected — you can attach a file by hand instead.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1
+
+Das Bauteil selbst ist davon nicht betroffen — Sie können stattdessen eine Datei von Hand anhängen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="252"/>
         <source>Remove the datasheet</source>
-        <translation type="unfinished"></translation>
+        <translation>Datenblatt entfernen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="253"/>
-        <source>Remove &quot;%1&quot; from this part?</source>
-        <translation type="unfinished"></translation>
+        <source>Remove "%1" from this part?</source>
+        <translation>„%1“ von diesem Bauteil entfernen?</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="294"/>
         <source>Saved automatically.</source>
         <translation>Automatisch gespeichert.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="298"/>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="314"/>
         <source>Could not save — the database rejected the change.</source>
-        <translation type="unfinished"></translation>
+        <translation>Konnte nicht speichern — die Datenbank hat die Änderung abgelehnt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="312"/>
         <source>Corrected in the part editor</source>
         <translation>Im Bauteil-Editor korrigiert</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="320"/>
         <source>Stock corrected — the adjustment is in the history.</source>
-        <translation type="unfinished"></translation>
+        <translation>Bestand korrigiert — die Anpassung steht in der Historie.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="394"/>
         <source>%1 ×</source>
         <comment>tag chip with remove marker</comment>
-        <translation type="unfinished"></translation>
+        <translation>%1 ×</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="399"/>
         <source>Remove this tag from the part</source>
-        <translation type="unfinished"></translation>
+        <translation>Dieses Tag vom Bauteil entfernen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="432"/>
         <source>No tags left — create some in Manage Tags</source>
         <translation>Keine Tags übrig — in „Tags verwalten“ anlegen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="458"/>
-        <source>Enter this part&apos;s Mouser article number first — it is what the cart orders by, and it is not the same as the MPN.</source>
-        <translation type="unfinished"></translation>
+        <source>Enter this part's Mouser article number first — it is what the cart orders by, and it is not the same as the MPN.</source>
+        <translation>Tragen Sie zuerst die Mouser-Artikelnummer dieses Bauteils ein — danach bestellt der Warenkorb, und sie ist nicht dasselbe wie die MPN.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="460"/>
         <source>Opens %1 on mouser.com.</source>
         <translation>Öffnet %1 auf mouser.com.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="478"/>
         <source>Could not save the Mouser part number</source>
         <translation>Mouser-Nummer konnte nicht gespeichert werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartEditorDialog.cpp" line="479"/>
         <source>The database rejected the change.</source>
         <translation>Die Datenbank hat die Änderung abgelehnt.</translation>
     </message>
-</context>
-<context>
-    <name>PartManager::PartlistEditorDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="56"/>
-        <source>Designators</source>
-        <translation>Bezeichner</translation>
+        <source>none</source>
+        <translation>keins</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="56"/>
-        <source>Part</source>
-        <translation>Bauteil</translation>
+        <source>No image attached yet.</source>
+        <translation>Noch kein Bild angehängt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="56"/>
-        <source>Qty/unit</source>
-        <translation>Menge/Einheit</translation>
+        <source>%1 — stored, but this build of Qt cannot display that image format.</source>
+        <translation>%1 — gespeichert, aber dieses Qt-Build kann dieses Bildformat nicht anzeigen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="56"/>
-        <source>Qty total</source>
-        <translation>Menge gesamt</translation>
+        <source>%1 (%2 × %3)</source>
+        <translation>%1 (%2 × %3)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="57"/>
-        <source>In stock</source>
-        <translation>Auf Lager</translation>
+        <source>Choose an image</source>
+        <translation>Bild auswählen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="57"/>
-        <source>Still needed</source>
-        <translation>Noch benötigt</translation>
+        <source>Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp);;All files (*)</source>
+        <translation>Bilder (*.png *.jpg *.jpeg *.gif *.bmp *.webp);;Alle Dateien (*)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="105"/>
-        <source>This partlist no longer exists.</source>
-        <translation>Diese Stückliste existiert nicht mehr.</translation>
+        <source>Could not attach the image</source>
+        <translation>Bild konnte nicht angehängt werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="110"/>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="274"/>
-        <source>Partlist — %1</source>
-        <translation type="unfinished"></translation>
+        <source>Download an image</source>
+        <translation>Bild herunterladen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="148"/>
-        <source>— not matched —</source>
-        <translation>— nicht zugeordnet —</translation>
+        <source>Image URL</source>
+        <translation>Bild-URL</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="210"/>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="211"/>
-        <source>—</source>
-        <translation type="unfinished"></translation>
+        <source>Downloading the image…</source>
+        <translation>Bild wird heruntergeladen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="382"/>
-        <source>Nothing to order</source>
-        <translation>Nichts zu bestellen</translation>
+        <source>Could not download the image</source>
+        <translation>Bild konnte nicht heruntergeladen werden</translation>
+    </message>
+    <message>
+        <source>Remove the image</source>
+        <translation>Bild entfernen</translation>
+    </message>
+    <message>
+        <source>Delete this part?</source>
+        <translation>Dieses Bauteil löschen?</translation>
+    </message>
+    <message>
+        <source>“%1” will be removed from the database for good.</source>
+        <translation>„%1“ wird endgültig aus der Datenbank entfernt.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="384"/>
-        <source>Everything that is matched to a part is already in stock. %n line(s) still point at no part and could not be checked.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="387"/>
-        <source>Every line on this list is already covered by what is in stock.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="394"/>
-        <source>%1 × %2%3</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="397"/>
-        <source>  (no Mouser part number)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message numerus="yes">
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="403"/>
-        <source>Not included: %n line(s) that point at no part yet.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="407"/>
-        <source>Raise a draft order?</source>
-        <translation>Bestellentwurf anlegen?</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="408"/>
-        <source>This list is short of:
+        <source>This also deletes its stock history (%n unit(s) on record), its tags, its attached files and its Mouser link. Partlists that use this part keep their line, but it becomes unresolved.
 
-%1
+This cannot be undone from inside the app — only by restoring a backup.</source>
+        <translation><numerusform>Damit werden auch die Bestandshistorie (%n Stück verbucht), die Tags, die angehängten Dateien und die Mouser-Verknüpfung gelöscht. Stücklisten, die dieses Bauteil verwenden, behalten ihre Zeile, diese ist dann aber nicht mehr zugeordnet.
 
-Create a draft order for it?</source>
-        <translation type="unfinished"></translation>
+Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstellen einer Sicherung.</numerusform><numerusform>Damit werden auch die Bestandshistorie (%n Stück verbucht), die Tags, die angehängten Dateien und die Mouser-Verknüpfung gelöscht. Stücklisten, die dieses Bauteil verwenden, behalten ihre Zeile, diese ist dann aber nicht mehr zugeordnet.
+
+Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstellen einer Sicherung.</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="418"/>
-        <source>Could not create the order</source>
-        <translation>Bestellung konnte nicht angelegt werden</translation>
+        <source>Delete Part</source>
+        <translation>Bauteil löschen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.cpp" line="419"/>
-        <source>The database rejected the new order.</source>
-        <translation>Die Datenbank hat die neue Bestellung abgelehnt.</translation>
+        <source>Could not delete the part</source>
+        <translation>Bauteil konnte nicht gelöscht werden</translation>
+    </message>
+    <message>
+        <source>The database rejected the deletion — nothing was removed.</source>
+        <translation>Die Datenbank hat das Löschen abgelehnt — es wurde nichts entfernt.</translation>
     </message>
 </context>
 <context>
     <name>PartManager::PartlistImportDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="60"/>
         <source>Designators</source>
         <translation>Bezeichner</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="60"/>
         <source>Part number</source>
         <translation>Bauteilnummer</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="60"/>
         <source>Value / name</source>
         <translation>Wert / Name</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="61"/>
         <source>Qty / unit</source>
         <translation>Menge/Einheit</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="61"/>
         <source>Match</source>
         <translation>Treffer</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="86"/>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="246"/>
         <source>Choose a CSV or BOM file to import.</source>
         <translation>CSV- oder BOM-Datei zum Import wählen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="102"/>
         <source>Import CSV / BOM</source>
         <translation>CSV / BOM importieren</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="103"/>
         <source>Table files (*.csv *.tsv *.txt);;All files (*)</source>
         <translation>Tabellendateien (*.csv *.tsv *.txt);;Alle Dateien (*)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="112"/>
         <source>Could not read the file</source>
         <translation>Datei konnte nicht gelesen werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="113"/>
         <source>“%1” could not be opened for reading.</source>
-        <translation type="unfinished"></translation>
+        <translation>„%1“ konnte nicht zum Lesen geöffnet werden.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="143"/>
         <source>The file has no header row — nothing to map.</source>
         <translation>Die Datei hat keine Kopfzeile — nichts zuzuordnen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="163"/>
         <source>(not used)</source>
         <translation>(nicht verwendet)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="169"/>
         <source>Column %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Spalte %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="207"/>
         <source>not in the inventory yet</source>
         <translation>noch nicht im Bestand</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="247"/>
         <source>No usable rows — check the delimiter and the column mapping.</source>
-        <translation type="unfinished"></translation>
+        <translation>Keine verwertbaren Zeilen — prüfen Sie das Trennzeichen und die Spaltenzuordnung.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="251"/>
         <source>%n line(s), all matched to parts already in stock.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Zeile, alle vorhandenen Bauteilen zugeordnet.</numerusform><numerusform>%n Zeilen, alle vorhandenen Bauteilen zugeordnet.</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="257"/>
         <source>%1 of %2 lines match nothing in the inventory. They import as unresolved lines — or pick one and look it up on Mouser.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2 Zeilen passen zu nichts im Bestand. Sie werden als nicht zugeordnete Zeilen importiert — oder wählen Sie eine aus und schlagen Sie sie bei Mouser nach.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="265"/>
         <source>%1 of %2 lines match nothing in the inventory and will import as unresolved lines, to be matched by hand in the editor.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2 Zeilen passen zu nichts im Bestand und werden als nicht zugeordnete Zeilen importiert, die im Editor von Hand zuzuordnen sind.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="292"/>
         <source>No Mouser API key — set the %1 environment variable and restart the app.</source>
-        <translation type="unfinished"></translation>
+        <translation>Kein Mouser-API-Schlüssel — setzen Sie die Umgebungsvariable %1 und starten Sie die App neu.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="311"/>
         <source>Nothing to look up</source>
         <translation>Nichts nachzuschlagen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="312"/>
         <source>This line has neither a part number nor a value to search for.</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Zeile hat weder eine Artikelnummer noch einen Wert, nach dem gesucht werden könnte.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="349"/>
         <source>Imported partlist</source>
         <translation>Importierte Stückliste</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="356"/>
         <source>Could not create the partlist</source>
         <translation>Stückliste konnte nicht angelegt werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="357"/>
         <source>The database rejected the imported partlist.</source>
         <translation>Die Datenbank hat die importierte Stückliste abgelehnt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="376"/>
         <source>Could not import the lines</source>
         <translation>Zeilen konnten nicht importiert werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.cpp" line="377"/>
         <source>The partlist was created but its lines could not be written.</source>
-        <translation type="unfinished"></translation>
+        <translation>Die Stückliste wurde angelegt, aber ihre Zeilen konnten nicht geschrieben werden.</translation>
     </message>
 </context>
 <context>
-    <name>PartManager::PartlistManagerDialog</name>
+    <name>PartManager::PartlistPanel</name>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="39"/>
-        <source>Name</source>
-        <translation>Name</translation>
+        <source>Designators</source>
+        <translation>Bezeichner</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="39"/>
-        <source>Project link</source>
-        <translation>Projekt-Link</translation>
+        <source>Part</source>
+        <translation>Bauteil</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="39"/>
-        <source>Multiplier</source>
-        <translation>Multiplikator</translation>
+        <source>Qty/unit</source>
+        <translation>Menge/Einheit</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="39"/>
-        <source>Items</source>
-        <translation>Positionen</translation>
+        <source>Qty total</source>
+        <translation>Menge gesamt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="40"/>
-        <source>Source</source>
-        <translation>Herkunft</translation>
+        <source>In stock</source>
+        <translation>Auf Lager</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="40"/>
-        <source>Updated</source>
-        <translation>Geändert</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="88"/>
-        <source>—</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="89"/>
-        <source>×%1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="109"/>
-        <source>No partlists yet — “New Partlist” starts one.</source>
-        <translation type="unfinished"></translation>
+        <source>Still needed</source>
+        <translation>Noch benötigt</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="113"/>
-        <source>%n partlist(s), newest first.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <source>%1  (%n line(s))</source>
+        <translation><numerusform>%1  (%n Zeile)</numerusform><numerusform>%1  (%n Zeilen)</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="146"/>
         <source>New partlist</source>
         <translation>Neue Stückliste</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="152"/>
         <source>Could not create the partlist</source>
         <translation>Stückliste konnte nicht angelegt werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="153"/>
         <source>The database rejected the new partlist.</source>
         <translation>Die Datenbank hat die neue Stückliste abgelehnt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="187"/>
         <source>Delete this partlist?</source>
         <translation>Diese Stückliste löschen?</translation>
     </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="188"/>
-        <source>“%1” and all of its lines will be deleted. The parts themselves are not touched.</source>
-        <translation type="unfinished"></translation>
+    <message numerus="yes">
+        <source>“%1” and its %n line(s) will be removed. The parts themselves are not touched.</source>
+        <translation><numerusform>„%1“ und ihre %n Zeile werden entfernt. Die Bauteile selbst bleiben unangetastet.</numerusform><numerusform>„%1“ und ihre %n Zeilen werden entfernt. Die Bauteile selbst bleiben unangetastet.</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="197"/>
-        <source>Could not delete the partlist</source>
-        <translation>Stückliste konnte nicht gelöscht werden</translation>
+        <source>This partlist no longer exists.</source>
+        <translation>Diese Stückliste existiert nicht mehr.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.cpp" line="198"/>
-        <source>The database rejected the deletion of “%1”.</source>
-        <translation type="unfinished"></translation>
+        <source>— not matched —</source>
+        <translation>— nicht zugeordnet —</translation>
+    </message>
+    <message>
+        <source>Or drag the part straight out of the table above.</source>
+        <translation>Oder ziehen Sie das Bauteil direkt aus der Tabelle oben herunter.</translation>
+    </message>
+    <message>
+        <source>—</source>
+        <translation>—</translation>
+    </message>
+    <message>
+        <source>This line points at no part yet. Drag one out of the table above, or pick it in the Part column — until then it cannot be ordered and is left out of “Order Missing Parts”.</source>
+        <translation>Diese Zeile zeigt noch auf kein Bauteil. Ziehen Sie eines aus der Tabelle oben herunter oder wählen Sie es in der Spalte „Bauteil“ — bis dahin kann sie nicht bestellt werden und bleibt bei „Fehlende Teile bestellen“ außen vor.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Short by %n unit(s): the list needs %1 and stock holds %2.</source>
+        <translation><numerusform>%n Stück fehlt: Die Liste braucht %1, der Bestand hält %2.</numerusform><numerusform>%n Stück fehlen: Die Liste braucht %1, der Bestand hält %2.</numerusform></translation>
+    </message>
+    <message>
+        <source>Nothing to order</source>
+        <translation>Nichts zu bestellen</translation>
+    </message>
+    <message numerus="yes">
+        <source>Everything that is matched to a part is already in stock. %n line(s) still point at no part and could not be checked.</source>
+        <translation><numerusform>Alles, was einem Bauteil zugeordnet ist, liegt bereits auf Lager. %n Zeile zeigt noch auf kein Bauteil und konnte nicht geprüft werden.</numerusform><numerusform>Alles, was einem Bauteil zugeordnet ist, liegt bereits auf Lager. %n Zeilen zeigen noch auf kein Bauteil und konnten nicht geprüft werden.</numerusform></translation>
+    </message>
+    <message>
+        <source>Every line on this list is already covered by what is in stock.</source>
+        <translation>Jede Zeile dieser Liste ist bereits durch den Bestand gedeckt.</translation>
+    </message>
+    <message>
+        <source>%1 × %2%3</source>
+        <translation>%1 × %2%3</translation>
+    </message>
+    <message>
+        <source>  (no Mouser part number)</source>
+        <translation>  (keine Mouser-Artikelnummer)</translation>
+    </message>
+    <message numerus="yes">
+        <source>Not included: %n line(s) that point at no part yet.</source>
+        <translation><numerusform>Nicht enthalten: %n Zeile, die noch auf kein Bauteil zeigt.</numerusform><numerusform>Nicht enthalten: %n Zeilen, die noch auf kein Bauteil zeigen.</numerusform></translation>
+    </message>
+    <message>
+        <source>Raise a draft order?</source>
+        <translation>Bestellentwurf anlegen?</translation>
+    </message>
+    <message>
+        <source>This list is short of:
+
+%1
+
+Create a draft order for it?</source>
+        <translation>Dieser Liste fehlen:
+
+%1
+
+Dafür einen Bestellentwurf anlegen?</translation>
+    </message>
+    <message>
+        <source>Could not create the order</source>
+        <translation>Bestellung konnte nicht angelegt werden</translation>
+    </message>
+    <message>
+        <source>The database rejected the new order.</source>
+        <translation>Die Datenbank hat die neue Bestellung abgelehnt.</translation>
     </message>
 </context>
 <context>
     <name>PartManager::SettingsDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="67"/>
         <source>English</source>
         <translation>English</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="68"/>
         <source>Deutsch</source>
         <translation>Deutsch</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="69"/>
         <source>Follow system</source>
         <translation>Systemeinstellung folgen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="70"/>
         <source>Light</source>
         <translation>Hell</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="71"/>
         <source>Dark</source>
         <translation>Dunkel</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="74"/>
         <source>Taken</source>
         <translation>Erstellt am</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="74"/>
         <source>Size</source>
         <translation>Größe</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="141"/>
         <source>No database is open.</source>
         <translation>Es ist keine Datenbank geöffnet.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="147"/>
         <source>Search: set (MOUSER_SEARCH_API)</source>
-        <translation type="unfinished"></translation>
+        <translation>Suche: gesetzt (MOUSER_SEARCH_API)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="148"/>
         <source>Search: not set — set MOUSER_SEARCH_API and restart</source>
-        <translation type="unfinished"></translation>
+        <translation>Suche: nicht gesetzt — MOUSER_SEARCH_API setzen und neu starten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="150"/>
         <source>Cart: set (MOUSER_CART_API)</source>
-        <translation type="unfinished"></translation>
+        <translation>Warenkorb: gesetzt (MOUSER_CART_API)</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="151"/>
         <source>Cart: not set — set MOUSER_CART_API and restart</source>
-        <translation type="unfinished"></translation>
+        <translation>Warenkorb: nicht gesetzt — MOUSER_CART_API setzen und neu starten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="152"/>
         <source>Keys are read from the environment only and are never stored by PartManager.</source>
-        <translation type="unfinished"></translation>
+        <translation>Schlüssel werden ausschließlich aus der Umgebung gelesen und von PartManager nie gespeichert.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="206"/>
-        <source>No translation is installed for that language yet — the interface stays in English.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="211"/>
-        <source>The language applies fully after restarting PartManager.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="217"/>
         <source>KiCad library output folder</source>
         <translation>Ausgabeordner für KiCad-Bibliotheken</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="227"/>
         <source>Backup folder</source>
         <translation>Sicherungsordner</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="272"/>
         <source>Open a database to take or restore snapshots. The other settings apply anyway.</source>
-        <translation type="unfinished"></translation>
+        <translation>Öffnen Sie eine Datenbank, um Sicherungen anzulegen oder zurückzuspielen. Die übrigen Einstellungen gelten trotzdem.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="283"/>
         <source>Could not take a snapshot</source>
         <translation>Sicherung konnte nicht erstellt werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="287"/>
         <source>Snapshot written to %1</source>
         <translation>Sicherung geschrieben nach %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="301"/>
         <source>Restore this snapshot?</source>
         <translation>Diese Sicherung wiederherstellen?</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="302"/>
         <source>The database will be replaced with the snapshot from %1.
 
 Your current database is not deleted — it is renamed and left beside it, so this can be undone. PartManager will close afterwards.</source>
-        <translation type="unfinished"></translation>
+        <translation>Die Datenbank wird durch die Sicherung vom %1 ersetzt.
+
+Ihre aktuelle Datenbank wird nicht gelöscht — sie wird umbenannt und daneben liegen gelassen, sodass sich das rückgängig machen lässt. PartManager wird danach geschlossen.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="320"/>
         <source>Could not restore</source>
         <translation>Wiederherstellung fehlgeschlagen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="328"/>
         <source>Restored</source>
         <translation>Wiederhergestellt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="329"/>
         <source>The snapshot is in place. Your previous database was kept as:
 
 %1
 
 PartManager will close now — reopen it to work with the restored data.</source>
-        <translation type="unfinished"></translation>
+        <translation>Die Sicherung ist eingespielt. Ihre bisherige Datenbank wurde aufbewahrt als:
+
+%1
+
+PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederhergestellten Daten zu arbeiten.</translation>
+    </message>
+    <message>
+        <source>No translation file was found for that language (translations/PartManager_%1.qm next to the program), so the interface stays in English.</source>
+        <translation>Für diese Sprache wurde keine Übersetzungsdatei gefunden (translations/PartManager_%1.qm neben dem Programm), daher bleibt die Oberfläche auf Englisch.</translation>
+    </message>
+    <message>
+        <source>Back to English. Restart PartManager to change every window.</source>
+        <translation>Zurück auf Englisch. Starten Sie PartManager neu, damit sich jedes Fenster ändert.</translation>
+    </message>
+    <message>
+        <source>Translation loaded. Restart PartManager so every window picks it up — some text is still English, which is the untranslated remainder, not a failure.</source>
+        <translation>Übersetzung geladen. Starten Sie PartManager neu, damit jedes Fenster sie übernimmt — ein Teil des Textes ist noch englisch; das ist der nicht übersetzte Rest, kein Fehler.</translation>
     </message>
 </context>
 <context>
     <name>PartManager::StockDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.cpp" line="27"/>
         <source>Restock</source>
         <translation>Auffüllen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.cpp" line="27"/>
         <source>Take Out</source>
         <translation>Entnehmen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.cpp" line="30"/>
-        <source>Add to &quot;%1&quot; — %2 on the shelf now.</source>
-        <translation type="unfinished"></translation>
+        <source>Add to "%1" — %2 on the shelf now.</source>
+        <translation>Zu „%1“ hinzufügen — derzeit %2 im Regal.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.cpp" line="31"/>
-        <source>Take out of &quot;%1&quot; — %2 on the shelf now.</source>
-        <translation type="unfinished"></translation>
+        <source>Take out of "%1" — %2 on the shelf now.</source>
+        <translation>Aus „%1“ entnehmen — derzeit %2 im Regal.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.cpp" line="42"/>
         <source>Used in a build</source>
         <translation>Für einen Aufbau verwendet</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.cpp" line="44"/>
         <source>Lost or broken</source>
         <translation>Verloren oder defekt</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.cpp" line="87"/>
         <source>Leaves %1 in stock — more than the shelf holds, which is recorded as-is.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ergibt einen Bestand von %1 — mehr, als im Regal liegt, was so aufgezeichnet wird.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.cpp" line="88"/>
         <source>Leaves %1 in stock.</source>
         <translation>Verbleiben %1 auf Lager.</translation>
     </message>
 </context>
 <context>
-    <name>PartlistEditorDialog</name>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="14"/>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="23"/>
-        <source>Partlist</source>
-        <translation>Stückliste</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="29"/>
-        <source>Name</source>
-        <translation>Name</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="39"/>
-        <source>Project link</source>
-        <translation>Projekt-Link</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="48"/>
-        <source>github.com/…</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="55"/>
-        <source>Open</source>
-        <translation>Öffnen</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="67"/>
-        <source>Multiplier (PCB count)</source>
-        <translation>Multiplikator (Platinenanzahl)</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="87"/>
-        <source>Description</source>
-        <translation>Beschreibung</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="101"/>
-        <source>Source</source>
-        <translation>Herkunft</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="146"/>
-        <source>Add Line</source>
-        <translation>Zeile hinzufügen</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="153"/>
-        <source>Remove Line</source>
-        <translation>Zeile entfernen</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="163"/>
-        <source>Order Missing Parts…</source>
-        <translation>Fehlende Teile bestellen…</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="166"/>
-        <source>Compares what this list needs against what is in stock, and raises a draft Mouser order for the difference.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../src/ui/PartManager_PartlistEditorDialog.ui" line="186"/>
-        <source>Close</source>
-        <translation>Schließen</translation>
-    </message>
-</context>
-<context>
     <name>PartlistImportDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="14"/>
         <source>Import CSV / BOM</source>
         <translation>CSV / BOM importieren</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="28"/>
         <source>No file chosen yet…</source>
         <translation>Noch keine Datei gewählt…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="35"/>
         <source>Choose File…</source>
         <translation>Datei wählen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="46"/>
         <source>Partlist name</source>
         <translation>Name der Stückliste</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="53"/>
         <source>Named after the file unless you change it</source>
         <translation>Nach der Datei benannt, sofern nicht geändert</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="60"/>
         <source>Delimiter</source>
         <translation>Trennzeichen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="72"/>
         <source>Columns</source>
         <translation>Spalten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="78"/>
         <source>Designators</source>
         <translation>Bezeichner</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="88"/>
         <source>Part number</source>
         <translation>Bauteilnummer</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="98"/>
         <source>Quantity per unit</source>
         <translation>Menge pro Einheit</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="108"/>
         <source>Value / name</source>
         <translation>Wert / Name</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="152"/>
         <source>Look Up on Mouser…</source>
         <translation>Bei Mouser nachschlagen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="175"/>
         <source>Import</source>
         <translation>Importieren</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistImportDialog.ui" line="188"/>
         <source>Cancel</source>
         <translation>Abbrechen</translation>
     </message>
 </context>
 <context>
-    <name>PartlistManagerDialog</name>
+    <name>PartlistPanel</name>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.ui" line="14"/>
         <source>Partlists</source>
         <translation>Stücklisten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.ui" line="23"/>
-        <source>Filter…</source>
-        <translation>Filtern…</translation>
+        <source>Partlist</source>
+        <translation>Stückliste</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.ui" line="64"/>
-        <source>New Partlist</source>
-        <translation>Neue Stückliste</translation>
+        <source>Every partlist in this database. Switching here replaces what the grid below shows.</source>
+        <translation>Alle Stücklisten dieser Datenbank. Ein Wechsel hier ersetzt, was die Tabelle unten zeigt.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.ui" line="71"/>
-        <source>Delete</source>
-        <translation>Löschen</translation>
+        <source>New</source>
+        <translation>Neu</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.ui" line="94"/>
+        <source>Create an empty partlist and open it here.</source>
+        <translation>Legt eine leere Stückliste an und öffnet sie hier.</translation>
+    </message>
+    <message>
+        <source>Import CSV / BOM…</source>
+        <translation>CSV / BOM importieren…</translation>
+    </message>
+    <message>
+        <source>Read a BOM export, map its columns, and match its rows against the parts in this database.</source>
+        <translation>Liest einen BOM-Export, ordnet dessen Spalten zu und gleicht die Zeilen mit den Bauteilen dieser Datenbank ab.</translation>
+    </message>
+    <message>
+        <source>Delete List</source>
+        <translation>Liste löschen</translation>
+    </message>
+    <message>
+        <source>Deletes this partlist and its lines. The parts themselves are untouched.</source>
+        <translation>Löscht diese Stückliste und ihre Zeilen. Die Bauteile selbst bleiben unangetastet.</translation>
+    </message>
+    <message>
+        <source>Drag a part from the table above to add it as a line.</source>
+        <translation>Ziehen Sie ein Bauteil aus der Tabelle oben herunter, um es als Zeile hinzuzufügen.</translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation>Ausblenden</translation>
+    </message>
+    <message>
+        <source>Collapses this panel. The Partlists button in the ribbon brings it back.</source>
+        <translation>Klappt diese Leiste zu. Die Schaltfläche „Stücklisten“ im Menüband holt sie zurück.</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Name</translation>
+    </message>
+    <message>
+        <source>Multiplier (PCB count)</source>
+        <translation>Multiplikator (Platinenanzahl)</translation>
+    </message>
+    <message>
+        <source>How many boards you are building. Every line's needed quantity is its per-board quantity times this.</source>
+        <translation>Wie viele Platinen Sie bauen. Der Bedarf jeder Zeile ist ihre Menge pro Platine mal diesem Wert.</translation>
+    </message>
+    <message>
+        <source>Project link</source>
+        <translation>Projektlink</translation>
+    </message>
+    <message>
+        <source>github.com/…</source>
+        <translation>github.com/…</translation>
+    </message>
+    <message>
         <source>Open</source>
         <translation>Öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_PartlistManagerDialog.ui" line="107"/>
-        <source>Close</source>
-        <translation>Schließen</translation>
+        <source>Source</source>
+        <translation>Quelle</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Beschreibung</translation>
+    </message>
+    <message>
+        <source>Add Line</source>
+        <translation>Zeile hinzufügen</translation>
+    </message>
+    <message>
+        <source>Remove Line</source>
+        <translation>Zeile entfernen</translation>
+    </message>
+    <message>
+        <source>Order Missing Parts…</source>
+        <translation>Fehlende Teile bestellen…</translation>
+    </message>
+    <message>
+        <source>Compares what this list needs against what is in stock, and raises a draft Mouser order for the difference.</source>
+        <translation>Vergleicht den Bedarf dieser Liste mit dem Bestand und legt für die Differenz einen Mouser-Bestellentwurf an.</translation>
+    </message>
+    <message>
+        <source>No partlists yet. Press New to start one, or Import CSV / BOM to read an existing bill of materials.</source>
+        <translation>Noch keine Stücklisten. Mit „Neu“ eine anlegen oder mit „CSV / BOM importieren“ eine vorhandene Stückliste einlesen.</translation>
     </message>
 </context>
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../src/controllers/PartManager_KicadController.cpp" line="41"/>
         <source>One-time KiCad setup — after this, every regeneration is invisible to KiCad:
 
 1. KiCad → Preferences → Configure Paths: add the variable
@@ -2801,368 +2600,297 @@ PartManager will close now — reopen it to work with the restored data.</source
      ${%1}/footprints/&lt;Category&gt;.pretty
 
 The generated partmanager-sym-lib-table and partmanager-fp-lib-table in the folder above list every entry, so they can be pasted in rather than typed.</source>
-        <translation type="unfinished"></translation>
+        <translation>Einmalige KiCad-Einrichtung — danach ist jedes Neuerzeugen für KiCad unsichtbar:
+
+1. KiCad → Einstellungen → Pfade konfigurieren: Variable hinzufügen
+     %1  =  %2
+
+2. Einstellungen → Symbolbibliotheken verwalten → Global: hinzufügen
+     ${%1}/symbols/&lt;Kategorie&gt;.kicad_sym  für jede Bibliothek unten
+
+3. Einstellungen → Footprint-Bibliotheken verwalten → Global: hinzufügen
+     ${%1}/footprints/&lt;Kategorie&gt;.pretty
+
+Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im Ordner oben führen jeden Eintrag auf, sodass er eingefügt statt abgetippt werden kann.</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_KicadController.cpp" line="52"/>
         <source>(no database open)</source>
         <translation>(keine Datenbank offen)</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_KicadController.cpp" line="71"/>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="232"/>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="271"/>
         <source>No database is open.</source>
         <translation>Es ist keine Datenbank geöffnet.</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_MainWindowController.cpp" line="155"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_MainWindowController.cpp" line="156"/>
         <source>Manufacturer</source>
         <translation>Hersteller</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_MainWindowController.cpp" line="157"/>
         <source>MPN</source>
         <translation>MPN</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_MainWindowController.cpp" line="158"/>
         <source>Package</source>
         <translation>Gehäuse</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_MainWindowController.cpp" line="171"/>
         <source>Stock</source>
         <translation>Bestand</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_MainWindowController.cpp" line="265"/>
         <source>Yes</source>
         <translation>Ja</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_MainWindowController.cpp" line="265"/>
         <source>No</source>
         <translation>Nein</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_MainWindowController.cpp" line="317"/>
         <source>None</source>
         <translation>Keine</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_MainWindowController.cpp" line="321"/>
         <source>%1 (file missing)</source>
         <translation>%1 (Datei fehlt)</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_MainWindowController.cpp" line="347"/>
         <source>Datasheet</source>
         <translation>Datenblatt</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="15"/>
         <source>Draft</source>
         <translation>Entwurf</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="16"/>
         <source>Staged in Mouser cart</source>
         <translation>Im Mouser-Warenkorb</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="17"/>
         <source>Submitted</source>
         <translation>Abgeschickt</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="18"/>
         <source>Partially arrived</source>
         <translation>Teilweise eingetroffen</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="19"/>
         <source>Closed</source>
         <translation>Abgeschlossen</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="26"/>
         <source>Pending</source>
         <translation>Ausstehend</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="27"/>
         <source>Arrived</source>
         <translation>Eingetroffen</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="28"/>
         <source>Backordered</source>
         <translation>Rückstand</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="49"/>
         <source>%1 of %2 line(s) arrived</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2 Position(en) eingetroffen</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="55"/>
         <source>%n line(s) have no Mouser part number and cannot be staged</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Position hat keine Mouser-Artikelnummer und kann nicht übertragen werden</numerusform><numerusform>%n Positionen haben keine Mouser-Artikelnummer und können nicht übertragen werden</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="58"/>
-        <location filename="../src/controllers/PartManager_PartlistController.cpp" line="60"/>
         <source>, </source>
-        <translation type="unfinished"></translation>
+        <translation>, </translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="239"/>
         <source>That order no longer exists.</source>
         <translation>Diese Bestellung existiert nicht mehr.</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="246"/>
         <source>Nothing was selected to stage.</source>
         <translation>Es wurde nichts zum Übertragen ausgewählt.</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_OrderController.cpp" line="277"/>
         <source>Nothing on this order can be staged: every line is either already in or has no Mouser part number.</source>
-        <translation type="unfinished"></translation>
+        <translation>Von dieser Bestellung kann nichts übertragen werden: Jede Position ist entweder schon drin oder hat keine Mouser-Artikelnummer.</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_PartlistController.cpp" line="18"/>
         <source>Manual</source>
         <translation>Manuell</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_PartlistController.cpp" line="19"/>
         <source>KiCad import</source>
         <translation>KiCad-Import</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_PartlistController.cpp" line="20"/>
         <source>CSV import</source>
         <translation>CSV-Import</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/controllers/PartManager_PartlistController.cpp" line="53"/>
         <source>%n line(s) not matched to a part yet</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Zeile noch keinem Bauteil zugeordnet</numerusform><numerusform>%n Zeilen noch keinem Bauteil zugeordnet</numerusform></translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/controllers/PartManager_PartlistController.cpp" line="57"/>
         <source>%n line(s) short of the needed quantity</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
+        <translation><numerusform>%n Zeile unter der benötigten Menge</numerusform><numerusform>%n Zeilen unter der benötigten Menge</numerusform></translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_StockController.cpp" line="31"/>
         <source>Restock</source>
         <translation>Auffüllen</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_StockController.cpp" line="32"/>
         <source>Taken out</source>
         <translation>Entnommen</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_StockController.cpp" line="33"/>
         <source>Manual adjustment</source>
         <translation>Manuelle Korrektur</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_StockController.cpp" line="34"/>
         <source>Lost or broken</source>
         <translation>Verloren oder defekt</translation>
     </message>
     <message>
-        <location filename="../src/controllers/PartManager_StockController.cpp" line="35"/>
         <source>Opening balance</source>
         <translation>Anfangsbestand</translation>
     </message>
     <message>
-        <location filename="../src/main.cpp" line="47"/>
         <source>Could not open database</source>
         <translation>Datenbank konnte nicht geöffnet werden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="35"/>
         <source>%1 B</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 B</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="39"/>
         <source>%1 KB</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 KB</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.cpp" line="41"/>
         <source>%1 MB</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 MB</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_AttributeFormWidget.cpp" line="33"/>
         <source>%1 *</source>
         <comment>required attribute</comment>
-        <translation type="unfinished"></translation>
+        <translation>%1 *</translation>
     </message>
     <message>
-        <location filename="../src/widgets/PartManager_AttributeFormWidget.cpp" line="37"/>
         <source>%1 ⓘ</source>
         <comment>attribute with a tooltip</comment>
-        <translation type="unfinished"></translation>
+        <translation>%1 ⓘ</translation>
     </message>
 </context>
 <context>
     <name>SettingsDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="14"/>
         <source>Settings</source>
-        <translation type="unfinished"></translation>
+        <translation>Einstellungen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="27"/>
         <source>General</source>
         <translation>Allgemein</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="33"/>
         <source>Language</source>
         <translation>Sprache</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="43"/>
         <source>Currency</source>
         <translation>Währung</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="50"/>
         <source>CHF</source>
-        <translation type="unfinished"></translation>
+        <translation>CHF</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="57"/>
         <source>The currency is a display default only. Every recorded price keeps the currency it was quoted or paid in.</source>
-        <translation type="unfinished"></translation>
+        <translation>Die Währung ist nur eine Anzeigevorgabe. Jeder erfasste Preis behält die Währung, in der er angeboten oder bezahlt wurde.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="68"/>
         <source>Appearance</source>
         <translation>Darstellung</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="74"/>
         <source>Theme</source>
         <translation>Design</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="84"/>
         <source>The theme applies immediately, everywhere.</source>
         <translation>Das Design wird sofort überall angewendet.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="95"/>
         <source>Storage</source>
         <translation>Speicher</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="101"/>
         <source>Current database</source>
         <translation>Aktuelle Datenbank</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="118"/>
         <source>KiCad library output</source>
         <translation>KiCad-Bibliotheksausgabe</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="127"/>
         <source>kicad_libs/ inside the database folder</source>
-        <translation type="unfinished"></translation>
+        <translation>kicad_libs/ im Datenbankordner</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="134"/>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="238"/>
         <source>Browse…</source>
         <translation>Durchsuchen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="143"/>
         <source>Mouser API keys</source>
         <translation>Mouser-API-Schlüssel</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="161"/>
         <source>Backups</source>
         <translation>Sicherungen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="169"/>
         <source>Snapshot the database automatically</source>
         <translation>Datenbank automatisch sichern</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="176"/>
         <source>Every</source>
         <translation>Alle</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="183"/>
         <source> hours</source>
         <translation> Stunden</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="199"/>
         <source>Keep the newest</source>
         <translation>Behalte die neuesten</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="206"/>
         <source> snapshots</source>
         <translation> Sicherungen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="222"/>
         <source>Backup folder</source>
         <translation>Sicherungsordner</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="231"/>
         <source>backups/ inside the database folder</source>
-        <translation type="unfinished"></translation>
+        <translation>backups/ im Datenbankordner</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="270"/>
         <source>Back Up Now</source>
         <translation>Jetzt sichern</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="277"/>
         <source>Restore Selected…</source>
         <translation>Auswahl wiederherstellen…</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="287"/>
         <source>Open Backup Folder</source>
         <translation>Sicherungsordner öffnen</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_SettingsDialog.ui" line="338"/>
         <source>Close</source>
         <translation>Schließen</translation>
     </message>
@@ -3170,32 +2898,26 @@ The generated partmanager-sym-lib-table and partmanager-fp-lib-table in the fold
 <context>
     <name>StockDialog</name>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.ui" line="14"/>
         <source>Stock</source>
         <translation>Bestand</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.ui" line="32"/>
         <source>Quantity</source>
         <translation>Menge</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.ui" line="49"/>
         <source>Reason</source>
         <translation>Grund</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.ui" line="56"/>
         <source>What the history should record this as.</source>
         <translation>Wie der Verlauf dies erfassen soll.</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.ui" line="63"/>
         <source>Note</source>
         <translation>Notiz</translation>
     </message>
     <message>
-        <location filename="../src/ui/PartManager_StockDialog.ui" line="70"/>
         <source>Optional — why this happened</source>
         <translation>Optional — Grund dafür</translation>
     </message>

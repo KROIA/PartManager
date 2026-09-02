@@ -16,7 +16,11 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QHBoxLayout" name="centralLayout">
     <item>
-     <widget class="QSplitter" name="bodySplitter">
+     <widget class="QSplitter" name="mainSplitter">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <widget class="QSplitter" name="bodySplitter">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
@@ -329,6 +333,7 @@ Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an 
          </layout>
         </item>
        </layout>
+      </widget>
       </widget>
      </widget>
     </item>

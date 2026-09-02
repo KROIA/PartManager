@@ -1,12 +1,18 @@
-#include "ui/PartManager_PartlistEditorDialog.h"
-#include "ui_PartManager_PartlistEditorDialog.h"
+#include "widgets/PartManager_PartlistPanel.h"
+#include "ui_PartManager_PartlistPanel.h"
 
 #include "ui/PartManager_OrderManagerDialog.h"
+#include "ui/PartManager_PartlistImportDialog.h"
 
 #include <QComboBox>
+#include <QDataStream>
 #include <QDesktopServices>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QHeaderView>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QSpinBox>
 #include <QTableWidgetItem>
 #include <QTimer>
@@ -37,19 +43,20 @@ namespace PartManager
 		};
 	}
 
-	PartlistEditorDialog::PartlistEditorDialog(const PartlistController& controller, int partlistId,
-		QWidget* parent)
-		: QDialog(parent)
-		, m_ui(new Ui::PartlistEditorDialog)
-		, m_controller(controller)
+	const char* const PartlistPanel::PartMimeType = "application/x-qabstractitemmodeldatalist";
+
+	PartlistPanel::PartlistPanel(DatabaseHandle* handle, QWidget* parent)
+		: QWidget(parent)
+		, m_ui(new Ui::PartlistPanel)
+		, m_controller(handle)
 		, m_saveTimer(new QTimer(this))
 	{
 		m_ui->setupUi(this);
-		m_partlist.id = partlistId;
+		setAcceptDrops(true);
 
 		m_saveTimer->setSingleShot(true);
 		m_saveTimer->setInterval(HeaderSaveDebounceMs);
-		connect(m_saveTimer, &QTimer::timeout, this, &PartlistEditorDialog::autosaveHeader);
+		connect(m_saveTimer, &QTimer::timeout, this, &PartlistPanel::autosaveHeader);
 
 		m_ui->itemTable->setColumnCount(ColumnCount);
 		m_ui->itemTable->setHorizontalHeaderLabels(QStringList()
@@ -57,44 +64,242 @@ namespace PartManager
 			<< tr("In stock") << tr("Still needed"));
 		m_ui->itemTable->horizontalHeader()->setSectionResizeMode(ColumnPart, QHeaderView::Stretch);
 
-		connect(m_ui->nameEdit, &QLineEdit::textChanged, this, &PartlistEditorDialog::scheduleHeaderSave);
-		connect(m_ui->projectLinkEdit, &QLineEdit::textChanged, this, &PartlistEditorDialog::scheduleHeaderSave);
-		connect(m_ui->descriptionEdit, &QPlainTextEdit::textChanged, this, &PartlistEditorDialog::scheduleHeaderSave);
+		connect(m_ui->nameEdit, &QLineEdit::textChanged, this, &PartlistPanel::scheduleHeaderSave);
+		connect(m_ui->projectLinkEdit, &QLineEdit::textChanged, this, &PartlistPanel::scheduleHeaderSave);
+		connect(m_ui->descriptionEdit, &QPlainTextEdit::textChanged, this, &PartlistPanel::scheduleHeaderSave);
 		// The multiplier changes every row's needed quantity, so it saves immediately and reloads
 		// rather than waiting out the debounce with stale numbers on screen.
 		connect(m_ui->multiplierSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-			this, &PartlistEditorDialog::autosaveHeader);
+			this, &PartlistPanel::autosaveHeader);
 		connect(m_ui->openProjectLinkButton, &QPushButton::clicked,
-			this, &PartlistEditorDialog::openProjectLink);
+			this, &PartlistPanel::openProjectLink);
 
-		connect(m_ui->itemTable, &QTableWidget::itemChanged, this, &PartlistEditorDialog::onCellChanged);
+		connect(m_ui->itemTable, &QTableWidget::itemChanged, this, &PartlistPanel::onCellChanged);
 		connect(m_ui->itemTable, &QTableWidget::itemSelectionChanged,
-			this, &PartlistEditorDialog::updateButtons);
-		connect(m_ui->addLineButton, &QPushButton::clicked, this, &PartlistEditorDialog::addLine);
-		connect(m_ui->removeLineButton, &QPushButton::clicked, this, &PartlistEditorDialog::removeLine);
+			this, &PartlistPanel::updateButtons);
+		connect(m_ui->addLineButton, &QPushButton::clicked, this, &PartlistPanel::addLine);
+		connect(m_ui->removeLineButton, &QPushButton::clicked, this, &PartlistPanel::removeLine);
 		connect(m_ui->orderShortfallButton, &QPushButton::clicked,
-			this, &PartlistEditorDialog::orderShortfall);
-		connect(m_ui->closeButton, &QPushButton::clicked, this, &PartlistEditorDialog::accept);
+			this, &PartlistPanel::orderShortfall);
 
-		reload();
+		connect(m_ui->partlistCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+			this, [this](int)
+			{
+				if (m_loading)
+				{
+					return;
+				}
+				// Switching lists mid-word must not lose the word.
+				flushPendingEdits();
+				m_partlist.id = m_ui->partlistCombo->currentData().toInt();
+				reload();
+			});
+		connect(m_ui->newListButton, &QPushButton::clicked, this, [this]() { createPartlist(); });
+		connect(m_ui->importListButton, &QPushButton::clicked, this, &PartlistPanel::importPartlist);
+		connect(m_ui->deleteListButton, &QPushButton::clicked, this, &PartlistPanel::deletePartlist);
+		connect(m_ui->hideButton, &QPushButton::clicked, this, &PartlistPanel::hideRequested);
+
+		reloadPartlists();
 	}
 
-	PartlistEditorDialog::~PartlistEditorDialog()
+	PartlistPanel::~PartlistPanel()
 	{
 		delete m_ui;
 	}
 
-	void PartlistEditorDialog::done(int result)
+	void PartlistPanel::reloadPartlists()
+	{
+		const int wanted = m_partlist.id;
+
+		const bool wasLoading = m_loading;
+		m_loading = true;
+		m_ui->partlistCombo->clear();
+		for (const Partlist& list : m_controller.partlists())
+		{
+			// The list's name is the user's own data; the item count beside it is chrome.
+			m_ui->partlistCombo->addItem(tr("%1  (%n line(s))", "", m_controller.itemCount(list.id))
+				.arg(QString::fromStdString(list.name)), list.id);
+		}
+		const int index = m_ui->partlistCombo->findData(wanted);
+		m_ui->partlistCombo->setCurrentIndex(index >= 0 ? index : 0);
+		m_partlist.id = m_ui->partlistCombo->currentData().toInt();
+		m_loading = wasLoading;
+
+		const bool any = m_ui->partlistCombo->count() > 0;
+		m_ui->bodyWidget->setVisible(any);
+		m_ui->emptyLabel->setVisible(!any);
+		m_ui->deleteListButton->setEnabled(any);
+		m_ui->partlistCombo->setEnabled(any);
+		m_ui->dropHintLabel->setVisible(any);
+		if (any)
+		{
+			reload();
+		}
+	}
+
+	void PartlistPanel::showPartlist(int partlistId)
+	{
+		m_partlist.id = partlistId;
+		reloadPartlists();
+	}
+
+	int PartlistPanel::createPartlist()
+	{
+		Partlist partlist;
+		partlist.name = tr("New partlist").toStdString();
+		partlist.source = PartlistSource::Manual;
+		const int id = m_controller.create(partlist);
+		if (id == NoPartlistId)
+		{
+			QMessageBox::warning(this, tr("Could not create the partlist"),
+				tr("The database rejected the new partlist."));
+			return NoPartlistId;
+		}
+		showPartlist(id);
+		// The name is a placeholder, so the first thing to do with it is replace it.
+		m_ui->nameEdit->setFocus();
+		m_ui->nameEdit->selectAll();
+		return id;
+	}
+
+	void PartlistPanel::importPartlist()
+	{
+		PartlistImportDialog import(m_controller, this);
+		if (import.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+		// Straight into the grid: an import that left rows unresolved is exactly what the user
+		// has to look at next.
+		showPartlist(import.createdPartlistId());
+	}
+
+	void PartlistPanel::deletePartlist()
+	{
+		if (m_partlist.id == NoPartlistId)
+		{
+			return;
+		}
+		if (QMessageBox::question(this, tr("Delete this partlist?"),
+			tr("“%1” and its %n line(s) will be removed. The parts themselves are not touched.",
+				"", static_cast<int>(m_items.size()))
+				.arg(QString::fromStdString(m_partlist.name)),
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+		{
+			return;
+		}
+		// A pending header write would recreate the row it is being deleted from under it.
+		m_saveTimer->stop();
+		m_controller.remove(m_partlist.id);
+		m_partlist = Partlist();
+		reloadPartlists();
+	}
+
+	void PartlistPanel::flushPendingEdits()
 	{
 		if (m_saveTimer->isActive())
 		{
 			m_saveTimer->stop();
 			autosaveHeader();
 		}
-		QDialog::done(result);
 	}
 
-	void PartlistEditorDialog::reload()
+	void PartlistPanel::hideEvent(QHideEvent* event)
+	{
+		flushPendingEdits();
+		QWidget::hideEvent(event);
+	}
+
+	void PartlistPanel::closeEvent(QCloseEvent* event)
+	{
+		flushPendingEdits();
+		QWidget::closeEvent(event);
+	}
+
+	int PartlistPanel::droppedPartId(const QMimeData* mime)
+	{
+		if (mime == nullptr || !mime->hasFormat(PartMimeType))
+		{
+			return 0;
+		}
+		// Qt's own item-view payload: one (row, column, roles) triple per dragged index. The
+		// part table hangs the part id off Qt::UserRole of column 0, which is the cell the
+		// selection and the tag chips already ride on.
+		QByteArray encoded = mime->data(PartMimeType);
+		QDataStream stream(&encoded, QIODevice::ReadOnly);
+		while (!stream.atEnd())
+		{
+			int row = 0;
+			int column = 0;
+			QMap<int, QVariant> roles;
+			stream >> row >> column >> roles;
+			const int partId = roles.value(Qt::UserRole).toInt();
+			if (partId != 0)
+			{
+				return partId;
+			}
+		}
+		return 0;
+	}
+
+	void PartlistPanel::dragEnterEvent(QDragEnterEvent* event)
+	{
+		// Refused while no list is open: there would be nowhere to put the line, and a drop that
+		// silently does nothing is worse than a cursor that says no.
+		if (m_partlist.id != NoPartlistId && droppedPartId(event->mimeData()) != 0)
+		{
+			event->acceptProposedAction();
+		}
+	}
+
+	void PartlistPanel::dragMoveEvent(QDragMoveEvent* event)
+	{
+		if (m_partlist.id != NoPartlistId && droppedPartId(event->mimeData()) != 0)
+		{
+			event->acceptProposedAction();
+		}
+	}
+
+	void PartlistPanel::dropEvent(QDropEvent* event)
+	{
+		const int partId = droppedPartId(event->mimeData());
+		if (partId == 0 || m_partlist.id == NoPartlistId)
+		{
+			return;
+		}
+		event->acceptProposedAction();
+		addPart(partId);
+	}
+
+	void PartlistPanel::addPart(int partId)
+	{
+		// A part the list already carries gets one more of itself rather than a second row.
+		// Two rows for the same part are legal (a BOM really does list one resistor on several
+		// lines) but they are never what a drag means, and each row would then measure its own
+		// shortfall against the same untouched stock.
+		for (size_t i = 0; i < m_items.size(); ++i)
+		{
+			if (m_items[i].partId == partId)
+			{
+				m_items[i].quantityPerUnit += 1;
+				m_controller.saveItems(m_partlist.id, m_items);
+				reload();
+				m_ui->itemTable->selectRow(static_cast<int>(i));
+				return;
+			}
+		}
+
+		PartlistItem item;
+		item.partlistId = m_partlist.id;
+		item.partId = partId;
+		item.quantityPerUnit = 1;
+		m_items.push_back(item);
+		m_controller.saveItems(m_partlist.id, m_items);
+		reload();
+		m_ui->itemTable->selectRow(m_ui->itemTable->rowCount() - 1);
+	}
+
+	void PartlistPanel::reload()
 	{
 		m_loading = true;
 		if (!m_controller.load(m_partlist.id, m_partlist))
@@ -106,8 +311,10 @@ namespace PartManager
 			m_loading = false;
 			return;
 		}
+		m_ui->headerGroup->setEnabled(true);
+		m_ui->itemTable->setEnabled(true);
+		m_ui->addLineButton->setEnabled(true);
 
-		setWindowTitle(tr("Partlist — %1").arg(QString::fromStdString(m_partlist.name)));
 		m_ui->nameEdit->setText(QString::fromStdString(m_partlist.name));
 		m_ui->projectLinkEdit->setText(QString::fromStdString(m_partlist.projectLinkUrl));
 		m_ui->descriptionEdit->setPlainText(QString::fromStdString(m_partlist.description));
@@ -125,7 +332,7 @@ namespace PartManager
 		m_loading = false;
 	}
 
-	void PartlistEditorDialog::showLines(const std::vector<PartlistLine>& lines)
+	void PartlistPanel::showLines(const std::vector<PartlistLine>& lines)
 	{
 		const bool wasLoading = m_loading;
 		m_loading = true;
@@ -150,6 +357,9 @@ namespace PartManager
 			{
 				picker->addItem(partPickerLabel(part), part.id);
 			}
+			// The combo is still here for keyboard use and for repairing an import, but it is no
+			// longer the only way in — dragging a row out of the part table above is.
+			picker->setToolTip(tr("Or drag the part straight out of the table above."));
 			const int index = picker->findData(item.partId);
 			picker->setCurrentIndex(index >= 0 ? index : 0);
 			connect(picker, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
@@ -194,7 +404,7 @@ namespace PartManager
 		updateButtons();
 	}
 
-	void PartlistEditorDialog::refreshComputedColumns(const std::vector<PartlistLine>& lines)
+	void PartlistPanel::refreshComputedColumns(const std::vector<PartlistLine>& lines)
 	{
 		const bool wasLoading = m_loading;
 		m_loading = true;
@@ -231,14 +441,20 @@ namespace PartManager
 				if (paintUnresolved)
 				{
 					cell->setBackground(UnresolvedRowColor);
+					cell->setToolTip(tr("This line points at no part yet. Drag one out of the table "
+						"above, or pick it in the Part column — until then it cannot be ordered and "
+						"is left out of “Order Missing Parts”."));
 				}
 				else if (paintShortfall)
 				{
 					cell->setBackground(ShortfallRowColor);
+					cell->setToolTip(tr("Short by %n unit(s): the list needs %1 and stock holds %2.",
+						"", line.shortfallQty).arg(line.neededQty).arg(line.stockQty));
 				}
 				else
 				{
 					cell->setBackground(QBrush());
+					cell->setToolTip(QString());
 				}
 			}
 		}
@@ -247,7 +463,7 @@ namespace PartManager
 		m_ui->statusLabel->setText(partlistStatusSummary(lines));
 	}
 
-	void PartlistEditorDialog::scheduleHeaderSave()
+	void PartlistPanel::scheduleHeaderSave()
 	{
 		if (m_loading)
 		{
@@ -256,7 +472,7 @@ namespace PartManager
 		m_saveTimer->start();
 	}
 
-	void PartlistEditorDialog::autosaveHeader()
+	void PartlistPanel::autosaveHeader()
 	{
 		if (m_loading || m_partlist.id == NoPartlistId)
 		{
@@ -265,14 +481,26 @@ namespace PartManager
 		m_saveTimer->stop();
 
 		const int previousMultiplier = m_partlist.multiplier;
+		const std::string previousName = m_partlist.name;
 		m_partlist.name = m_ui->nameEdit->text().trimmed().toStdString();
 		m_partlist.projectLinkUrl = m_ui->projectLinkEdit->text().trimmed().toStdString();
 		m_partlist.description = m_ui->descriptionEdit->toPlainText().toStdString();
 		m_partlist.multiplier = m_ui->multiplierSpin->value();
 		m_controller.save(m_partlist);
 
-		setWindowTitle(tr("Partlist — %1").arg(QString::fromStdString(m_partlist.name)));
 		m_ui->openProjectLinkButton->setEnabled(!m_partlist.projectLinkUrl.empty());
+
+		if (m_partlist.name != previousName)
+		{
+			// The selector shows the name, so it has to follow — but rebuilding it would fire
+			// currentIndexChanged and reload the list out from under the field being typed in.
+			const bool wasLoading = m_loading;
+			m_loading = true;
+			m_ui->partlistCombo->setItemText(m_ui->partlistCombo->currentIndex(),
+				tr("%1  (%n line(s))", "", static_cast<int>(m_items.size()))
+					.arg(QString::fromStdString(m_partlist.name)));
+			m_loading = wasLoading;
+		}
 
 		if (m_partlist.multiplier != previousMultiplier)
 		{
@@ -282,7 +510,7 @@ namespace PartManager
 		}
 	}
 
-	void PartlistEditorDialog::saveLines()
+	void PartlistPanel::saveLines()
 	{
 		if (m_loading || m_partlist.id == NoPartlistId)
 		{
@@ -301,7 +529,7 @@ namespace PartManager
 		refreshComputedColumns(lines);
 	}
 
-	void PartlistEditorDialog::onCellChanged(QTableWidgetItem* item)
+	void PartlistPanel::onCellChanged(QTableWidgetItem* item)
 	{
 		if (m_loading || item == nullptr || item->column() != ColumnDesignators)
 		{
@@ -317,7 +545,7 @@ namespace PartManager
 		saveLines();
 	}
 
-	void PartlistEditorDialog::addLine()
+	void PartlistPanel::addLine()
 	{
 		if (m_partlist.id == NoPartlistId)
 		{
@@ -332,7 +560,7 @@ namespace PartManager
 		m_ui->itemTable->selectRow(m_ui->itemTable->rowCount() - 1);
 	}
 
-	void PartlistEditorDialog::removeLine()
+	void PartlistPanel::removeLine()
 	{
 		const int row = m_ui->itemTable->currentRow();
 		if (row < 0 || row >= static_cast<int>(m_items.size()))
@@ -345,13 +573,13 @@ namespace PartManager
 		reload();
 	}
 
-	void PartlistEditorDialog::updateButtons()
+	void PartlistPanel::updateButtons()
 	{
 		m_ui->removeLineButton->setEnabled(m_ui->itemTable->currentRow() >= 0
 			&& !m_items.empty());
 	}
 
-	void PartlistEditorDialog::openProjectLink()
+	void PartlistPanel::openProjectLink()
 	{
 		const QString link = m_ui->projectLinkEdit->text().trimmed();
 		if (link.isEmpty())
@@ -368,7 +596,7 @@ namespace PartManager
 		QDesktopServices::openUrl(url);
 	}
 
-	void PartlistEditorDialog::orderShortfall()
+	void PartlistPanel::orderShortfall()
 	{
 		// The grid's edits are written on the spot, but the header debounce may still be pending
 		// and the multiplier drives every needed quantity — flush it before measuring anything.
@@ -423,8 +651,10 @@ namespace PartManager
 		OrderManagerDialog dialog(m_controller.handle(), this);
 		dialog.selectOrder(orderId);
 		dialog.exec();
-		// Confirming an arrival in there restocks, which moves every shortfall on this screen.
+		// Confirming an arrival in there restocks, which moves every shortfall on this screen —
+		// and every stock count in the table above it.
 		reload();
+		emit stockChanged();
 	}
 
 }

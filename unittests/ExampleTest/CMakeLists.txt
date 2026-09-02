@@ -38,9 +38,12 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_StockDialog.cpp")
 ## The §6 Mouser prefill lands on New Part's runtime-generated attribute rows, so that whole
 ## widget stack has to come along -- the dialog alone would link but render an empty form.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_NewPartDialog.cpp")
-list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartlistEditorDialog.cpp")
-## The partlist editor's "Order Shortfall" opens the order view, so the whole §4 checkout tail
-## comes along -- the editor alone would compile but not link.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_PartlistPanel.cpp")
+## The partlist panel's CSV import and its "Order Missing Parts" both open dialogs, so the
+## whole §4/§5 tail comes along -- the panel alone would compile but not link.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartlistImportDialog.cpp")
+## ...and the import wizard's "look this row up on Mouser" opens the search dialog.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_MouserSearchDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_OrderManagerDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_CartStagingDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttributeFormWidget.cpp")

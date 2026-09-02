@@ -27,6 +27,8 @@ namespace RibbonWidget { class Ribbon; }
 namespace PartManager
 {
 
+	class PartlistPanel;
+
 	class MainWindow : public QMainWindow
 	{
 		Q_OBJECT
@@ -49,11 +51,11 @@ namespace PartManager
 		void onNewPart();
 		// Parts tab's Import from Mouser button — search, prefill, create, fetch the datasheet (§6).
 		void onNewPartFromMouser();
-		// Home tab's New Partlist button — creates an empty BOM and opens the editor on it (§4).
+		// Home tab's New Partlist button — creates an empty BOM in the panel below the table (§4).
 		void onNewPartlist();
-		// Home tab's Partlists button — the §4 overview.
+		// Home tab's Partlists button — reveals the §4 panel, which is also the list overview.
 		void onManagePartlists();
-		// Home tab's Import CSV/BOM button — column mapping, then the editor on the result (§4, §5).
+		// Home tab's Import CSV/BOM button — column mapping, then the result in the panel (§4, §5).
 		void onImportPartlist();
 		// Home tab's Orders button — the §4 order view: stage, submit, confirm arrivals, close.
 		void onManageOrders();
@@ -86,6 +88,10 @@ namespace PartManager
 		void closeEvent(QCloseEvent* event) override;
 
 	private:
+		// Reveals the §4 partlist panel under the part table, giving it a usable share of the
+		// window the first time. Everything partlist-related goes through here rather than
+		// through a dialog, so a part can be dragged out of the table straight into a BOM.
+		void showPartlistPanel();
 		// Shared tail of both New Part flows: open the editor on the fresh part, then reload.
 		// `datasheetUrl` is the §6 Mouser DataSheetUrl, empty for the manual flow.
 		void openNewPart(int partId, const QString& datasheetUrl);
@@ -113,6 +119,8 @@ namespace PartManager
 		// Non-owning view of the same connection m_controller holds open.
 		StockController m_stock;
 		RibbonWidget::Ribbon* m_ribbon = nullptr;
+		// The §4 screen, hidden until the ribbon asks for it. Owned by the splitter (Qt parent).
+		PartlistPanel* m_partlistPanel = nullptr;
 		// Which category the table currently shows, so an edit can re-render it in place.
 		// The part the user last picked, kept across the table refills a stock write causes.
 		int m_selectedPartId = 0;
