@@ -290,6 +290,14 @@ Ein Komma ODER-verknüpft Tags innerhalb eines Begriffs: tag:I2C,SPI trifft auf 
         <source>Cancel</source>
         <translation>Abbrechen</translation>
     </message>
+    <message>
+        <source>Load more</source>
+        <translation>Mehr laden</translation>
+    </message>
+    <message>
+        <source>How many further results to fetch. Mouser caps one response at 50, so a larger number is fetched in several requests.</source>
+        <translation>Wie viele weitere Ergebnisse geholt werden. Mouser begrenzt eine Antwort auf 50, größere Zahlen werden daher in mehreren Anfragen geholt.</translation>
+    </message>
 </context>
 <context>
     <name>NewPartDialog</name>
@@ -1858,6 +1866,32 @@ Die Datei liegt auf der Festplatte, daher fehlt meist ein Qt3D-Geometrie-Loader 
         <source>KiCad symbol and footprint: checking EasyEDA…</source>
         <translation>KiCad-Symbol und Footprint: EasyEDA wird geprüft…</translation>
     </message>
+    <message>
+        <source>all of them</source>
+        <translation>alle</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n more</source>
+        <translation>
+            <numerusform>%n weiteres</numerusform>
+            <numerusform>%n weitere</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n further result(s) available.</source>
+        <translation>
+            <numerusform>%n weiteres Ergebnis verfügbar.</numerusform>
+            <numerusform>%n weitere Ergebnisse verfügbar.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Fetching results %1–%2 of %3…</source>
+        <translation>Hole Ergebnisse %1–%2 von %3…</translation>
+    </message>
+    <message>
+        <source>Showing %1 of %2 — loading more failed: %3</source>
+        <translation>Zeige %1 von %2 — Nachladen fehlgeschlagen: %3</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::NewPartDialog</name>
@@ -2732,6 +2766,14 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
         <source>The partlist was created but its lines could not be written.</source>
         <translation>Die Stückliste wurde angelegt, aber ihre Zeilen konnten nicht geschrieben werden.</translation>
     </message>
+    <message>
+        <source>&lt;b&gt;Recognised headers&lt;/b&gt; — matched case-insensitively, anywhere in the name. KiCad&apos;s BOM export (&lt;i&gt;Reference; Qty; Value; Mouser Part Number; Manufacturer_Part_Number&lt;/i&gt;) maps itself.&lt;br&gt;Designators: &lt;i&gt;Reference, Designator, RefDes&lt;/i&gt; · Part number: &lt;i&gt;MPN, Part Number, Manufacturer Part, Mouser, Order Code, SKU&lt;/i&gt; · Quantity: &lt;i&gt;Qty, Quantity, Count&lt;/i&gt; · Value: &lt;i&gt;Value, Comment, Name, Description&lt;/i&gt;&lt;br&gt;Nothing here is required — any column can be picked by hand below, and the choice is remembered for the next file with the same headers.</source>
+        <translation>&lt;b&gt;Erkannte Spaltenüberschriften&lt;/b&gt; — Groß-/Kleinschreibung egal, Treffer an beliebiger Stelle im Namen. Der BOM-Export von KiCad (&lt;i&gt;Reference; Qty; Value; Mouser Part Number; Manufacturer_Part_Number&lt;/i&gt;) ordnet sich selbst zu.&lt;br&gt;Bezeichner: &lt;i&gt;Reference, Designator, RefDes&lt;/i&gt; · Teilenummer: &lt;i&gt;MPN, Part Number, Manufacturer Part, Mouser, Order Code, SKU&lt;/i&gt; · Menge: &lt;i&gt;Qty, Quantity, Count&lt;/i&gt; · Wert: &lt;i&gt;Value, Comment, Name, Description&lt;/i&gt;&lt;br&gt;Nichts davon ist Pflicht — jede Spalte lässt sich unten von Hand wählen, und die Wahl wird für die nächste Datei mit denselben Überschriften gemerkt.</translation>
+    </message>
+    <message>
+        <source>Columns are set the way you mapped this file shape last time.</source>
+        <translation>Die Spalten sind so gesetzt, wie Sie diese Dateiform zuletzt zugeordnet haben.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::PartlistPanel</name>
@@ -2989,6 +3031,54 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
         <source>Translation loaded. Restart PartManager so every window picks it up — some text is still English, which is the untranslated remainder, not a failure.</source>
         <translation>Übersetzung geladen. Starten Sie PartManager neu, damit jedes Fenster sie übernimmt — ein Teil des Textes ist noch englisch; das ist der nicht übersetzte Rest, kein Fehler.</translation>
     </message>
+    <message>
+        <source>Deleting a part leaves its datasheets, images and models in the file store — they are only removed once nothing points at them. Scanning reports what is left over; nothing is deleted until you say so.</source>
+        <translation>Beim Löschen eines Bauteils bleiben seine Datenblätter, Bilder und Modelle im Dateispeicher — sie verschwinden erst, wenn nichts mehr darauf verweist. Die Suche meldet, was übrig ist; gelöscht wird nichts, bevor Sie es sagen.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n unused file(s), %1</source>
+        <translation>
+            <numerusform>%n unbenutzte Datei, %1</numerusform>
+            <numerusform>%n unbenutzte Dateien, %1</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n obsolete mesh-cache entry/entries</source>
+        <translation>
+            <numerusform>%n veralteter Mesh-Cache-Eintrag</numerusform>
+            <numerusform>%n veraltete Mesh-Cache-Einträge</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Nothing to clean up — every stored file is still in use.</source>
+        <translation>Nichts aufzuräumen — jede gespeicherte Datei wird noch verwendet.</translation>
+    </message>
+    <message>
+        <source>Found %1. Nothing has been deleted yet.</source>
+        <translation>%1 gefunden. Bisher wurde nichts gelöscht.</translation>
+    </message>
+    <message>
+        <source> and </source>
+        <translation> und </translation>
+    </message>
+    <message>
+        <source>Delete unused files?</source>
+        <translation>Unbenutzte Dateien löschen?</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s) will be deleted from the file store. This cannot be undone — the snapshots on the Backups tab cover the database, not the file store.</source>
+        <translation>
+            <numerusform>%n Datei wird aus dem Dateispeicher gelöscht. Das lässt sich nicht rückgängig machen — die Sicherungen im Reiter „Sicherungen“ umfassen die Datenbank, nicht den Dateispeicher.</numerusform>
+            <numerusform>%n Dateien werden aus dem Dateispeicher gelöscht. Das lässt sich nicht rückgängig machen — die Sicherungen im Reiter „Sicherungen“ umfassen die Datenbank, nicht den Dateispeicher.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n file(s) deleted.</source>
+        <translation>
+            <numerusform>%n Datei gelöscht.</numerusform>
+            <numerusform>%n Dateien gelöscht.</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>PartManager::StockDialog</name>
@@ -3097,6 +3187,14 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
     <message>
         <source>Cancel</source>
         <translation>Abbrechen</translation>
+    </message>
+    <message>
+        <source>Alternative part number</source>
+        <translation>Alternative Teilenummer</translation>
+    </message>
+    <message>
+        <source>Used for rows where the first part-number column is empty.</source>
+        <translation>Wird für Zeilen verwendet, in denen die erste Teilenummernspalte leer ist.</translation>
     </message>
 </context>
 <context>
@@ -3539,6 +3637,18 @@ Das Bauteil selbst ist davon nicht betroffen.</translation>
     <message>
         <source>Close</source>
         <translation>Schließen</translation>
+    </message>
+    <message>
+        <source>Unused files</source>
+        <translation>Unbenutzte Dateien</translation>
+    </message>
+    <message>
+        <source>Scan for unused files</source>
+        <translation>Nach unbenutzten Dateien suchen</translation>
+    </message>
+    <message>
+        <source>Delete them</source>
+        <translation>Löschen</translation>
     </message>
 </context>
 <context>
