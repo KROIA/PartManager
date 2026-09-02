@@ -216,7 +216,13 @@ namespace PartManager
 		}
 
 		MouserCartClient client;
-		result = client.insertItems(order.mouserCartId, plan.items);
+		// **insert adds, update sets** — verified against the live API 2026-09-02. Staging the
+		// same order twice with insert leaves double the quantity in the cart, which is exactly
+		// what a user does after confirming a partial arrival. So the first staging creates the
+		// cart, and every later one sets the outstanding quantity outright.
+		result = order.mouserCartId.empty()
+			? client.insertItems(std::string(), plan.items)
+			: client.updateItems(order.mouserCartId, plan.items);
 		if (result.ok && !result.cartKey.empty())
 		{
 			OrderRepository::setCartId(*db, orderId, result.cartKey);

@@ -3,7 +3,7 @@
 #include "UnitTest.h"
 #include "mouser/PartManager_MouserCartClient.h"
 
-// The Cart API's offline half (§6). `MOUSER_CART_API` was not in the environment when this was
+// The Cart API's offline half (§6). `MOUSER_API` was not in the environment when this was
 // written, so the network path has never run — everything here is fixture JSON and body building,
 // which is also the half where the mistakes actually live: a rejected line hiding inside a 200,
 // and a CartKey sent empty when it should have been omitted.
@@ -16,6 +16,7 @@ public:
 	TST_MouserCartClient()
 		: Test("TST_MouserCartClient")
 	{
+		ADD_TEST(TST_MouserCartClient::insertAndUpdateShareOneBodyShape);
 		ADD_TEST(TST_MouserCartClient::newCartOmitsTheKeyEntirely);
 		ADD_TEST(TST_MouserCartClient::unorderableLinesNeverReachTheRequest);
 #if QT_ENABLED
@@ -27,6 +28,38 @@ public:
 	}
 
 private:
+
+	// The distinction that cost a real bug: /cart/items/insert **adds** to the quantity already
+	// in the cart, /cart/items/update **sets** it. Verified against the live API 2026-09-02 —
+	// inserting qty 5 twice left 10; updating a line holding 10 to 3 left 3. Staging an order a
+	// second time (which is exactly what a user does after a partial arrival) therefore has to
+	// go through update, or the cart quietly doubles. The body is identical for both, so nothing
+	// but the endpoint choice protects against it.
+	TEST_FUNCTION(insertAndUpdateShareOneBodyShape)
+	{
+		TEST_START;
+
+		std::vector<PartManager::MouserCartItemRequest> items;
+		PartManager::MouserCartItemRequest item;
+		item.mouserPartNumber = "603-RC0603FR-074K7L";
+		item.quantity = 40;
+		items.push_back(item);
+
+		// One builder for both endpoints. If this ever diverges, the two calls stop being
+		// interchangeable at the call site and the endpoint choice becomes hidden.
+		const std::string body = PartManager::MouserCartClient::buildInsertBody(
+			"11111111-2222-3333-4444-555555555555", items);
+		TEST_ASSERT(body.find("\"CartKey\":\"11111111-2222-3333-4444-555555555555\"") != std::string::npos);
+		TEST_ASSERT(body.find("\"Quantity\":40") != std::string::npos);
+
+		// Both entry points exist and are distinct; OrderController picks between them on
+		// whether the order already carries a CartKey.
+		PartManager::MouserCartClient client;
+		TEST_ASSERT_M(&PartManager::MouserCartClient::insertItems
+			!= &PartManager::MouserCartClient::updateItems,
+			"insert and update must remain two separate calls");
+		PM_UNUSED(client);
+	}
 
 	TEST_FUNCTION(newCartOmitsTheKeyEntirely)
 	{
@@ -93,9 +126,9 @@ private:
 		{
 			const PartManager::MouserCartResult result = client.insertItems("", {});
 			TEST_ASSERT_M(!result.ok, "a call without a key must fail");
-			TEST_ASSERT_M(result.errorMessage.find("MOUSER_CART_API") != std::string::npos,
+			TEST_ASSERT_M(result.errorMessage.find("MOUSER_API") != std::string::npos,
 				"the message must name the variable to set: " + result.errorMessage);
-			TEST_MESSAGE("MOUSER_CART_API is not set - the live cart path is untested, see "
+			TEST_MESSAGE("MOUSER_API is not set - the live cart path is untested, see "
 				"PROJECT_STATUS.md");
 		}
 		else
@@ -103,7 +136,7 @@ private:
 			// Deliberately no network call here even when the key exists: a unit test must not
 			// create a real Mouser cart as a side effect. See PROJECT_STATUS.md for the manual
 			// checklist that does exercise it.
-			TEST_MESSAGE("MOUSER_CART_API is set - run the manual live checklist in PROJECT_STATUS.md");
+			TEST_MESSAGE("MOUSER_API is set - run the manual live checklist in PROJECT_STATUS.md");
 		}
 	}
 

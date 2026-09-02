@@ -8,7 +8,7 @@
 // **The Mouser API keys are deliberately absent.** §9 lists an API-key field in
 // the Storage tab, but a key written here would land in a plain-text settings
 // file in the user's data folder. Both keys are read from `MOUSER_SEARCH_API` /
-// `MOUSER_CART_API` and from nowhere else; the dialog shows whether each is set
+// `MOUSER_API` and from nowhere else; the dialog shows whether each is set
 // and says how to set it, and never offers to store one.
 // @see docs/design/ARCHITECTURE.md §1b, §9, §9a
 // @see PartManager_DatabaseRegistry.h, PartManager_BackupManager.h

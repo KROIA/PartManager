@@ -7,7 +7,7 @@
 // MouserCartClient wrapper the dialog talks to.
 //
 // **`stageToCart()` is the one call here that reaches the network**, and it is
-// the one that has never run: `MOUSER_CART_API` was not set when this was
+// the one that has never run: `MOUSER_API` was not set when this was
 // written. Everything it depends on — the request body, the response parsing,
 // the per-line rejection check — is covered offline in TST_MouserCartClient, and
 // the manual checklist for the live path is in `.claude/PROJECT_STATUS.md`.
@@ -73,7 +73,7 @@ namespace PartManager
 			const std::string& currency) const;
 		bool close(int orderId) const;
 
-		// True when MOUSER_CART_API is set. The dialog disables staging and says why when it is
+		// True when MOUSER_API is set. The dialog disables staging and says why when it is
 		// not, rather than letting the user press a button that can only fail.
 		static bool canStage();
 

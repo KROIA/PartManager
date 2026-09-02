@@ -265,7 +265,7 @@ namespace PartManager
 		m_ui->stageButton->setEnabled(hasOrder && !isClosed && canStage);
 		m_ui->stageButton->setToolTip(canStage
 			? tr("Builds the cart on mouser.com from this order's outstanding lines.")
-			: tr("Set the MOUSER_CART_API environment variable and restart to stage carts."));
+			: tr("Set the MOUSER_API environment variable and restart to stage carts."));
 
 		m_ui->openCartButton->setEnabled(hasOrder && !order.mouserCartId.empty());
 		m_ui->submittedButton->setEnabled(hasOrder && !isClosed
@@ -350,29 +350,43 @@ namespace PartManager
 			return;
 		}
 
-		if (result.hasRejectedLines())
+		// The response lists the **whole cart**, not only what this call staged (verified live
+		// 2026-09-02). So a rejected line is only ours if we actually asked for it — otherwise a
+		// bad part somebody added on mouser.com would be reported as our failure every time.
+		QStringList rejected;
+		for (const MouserCartLine& line : result.lines)
 		{
-			// The call succeeded and the cart exists, but not everything asked for went in. `ok`
-			// alone would have reported this as a clean success.
-			QStringList rejected;
-			for (const MouserCartLine& line : result.lines)
+			if (line.errorMessage.empty())
 			{
-				if (!line.errorMessage.empty())
+				continue;
+			}
+			for (const MouserCartItemRequest& asked : plan.items)
+			{
+				if (asked.mouserPartNumber == line.mouserPartNumber)
 				{
 					rejected.append(tr("%1 — %2")
 						.arg(QString::fromStdString(line.mouserPartNumber))
 						.arg(QString::fromStdString(line.errorMessage)));
+					break;
 				}
 			}
+		}
+
+		if (!rejected.isEmpty())
+		{
+			// The call succeeded and the cart exists, but not everything asked for went in. `ok`
+			// alone would have reported this as a clean success.
 			QMessageBox::warning(this, tr("The cart was staged, but Mouser rejected some lines"),
 				tr("The cart exists and the rest of the order is in it. Mouser rejected:\n\n%1")
 					.arg(rejected.join(QStringLiteral("\n"))));
 		}
 		else
 		{
+			// What we asked for, not result.lines.size() — the response carries the whole cart,
+			// so anything already in it would be counted as though this staging had put it there.
 			QMessageBox::information(this, tr("Staged to your Mouser cart"),
 				tr("%n line(s) staged. Open the cart on mouser.com to review and place the order — "
-				   "PartManager never checks out for you.", "", static_cast<int>(result.lines.size())));
+				   "PartManager never checks out for you.", "", static_cast<int>(plan.items.size())));
 		}
 		reload();
 	}

@@ -22,7 +22,7 @@
 namespace PartManager
 {
 
-	const char* const MouserCartClient::ApiKeyEnvVar = "MOUSER_CART_API";
+	const char* const MouserCartClient::ApiKeyEnvVar = "MOUSER_API";
 
 	namespace
 	{
@@ -330,6 +330,14 @@ namespace PartManager
 		const std::vector<MouserCartItemRequest>& items)
 	{
 		return send("cart/items/insert", buildInsertBody(cartKey, items), true);
+	}
+
+	MouserCartResult MouserCartClient::updateItems(const std::string& cartKey,
+		const std::vector<MouserCartItemRequest>& items)
+	{
+		// Same body shape as insert; only the endpoint differs, and with it the semantics —
+		// update sets the quantity, insert adds to it.
+		return send("cart/items/update", buildInsertBody(cartKey, items), true);
 	}
 
 	MouserCartResult MouserCartClient::readCart(const std::string& cartKey)
