@@ -17,6 +17,7 @@
 
 #include "database/PartManager_DatabaseHandle.h"
 #include "domain/PartManager_Part.h"
+#include "domain/PartManager_Seller.h"
 #include "persistence/PartManager_PartlistRepository.h"
 #include <QString>
 #include <string>
@@ -66,6 +67,10 @@ namespace PartManager
 		// Every part in the database, for the editor's part picker. Sorted by name so the
 		// combo is navigable by typing.
 		std::vector<Part> allParts() const;
+
+		// Every part_seller_link row, so a BOM's distributor-number column ('Mouser Part
+		// Number') can be matched too — those numbers live nowhere in `part.mpn`.
+		std::vector<PartSellerLink> allSellerLinks() const;
 
 		// The handle this controller borrows, for a dialog that needs one of its own (the CSV
 		// import opens New Part, which talks to PartEditorController). Never owned here.

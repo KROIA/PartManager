@@ -2,6 +2,7 @@
 #include "ui_PartManager_PartlistImportDialog.h"
 
 #include "mouser/PartManager_MouserClient.h"
+#include "settings/PartManager_Settings.h"
 #include "ui/PartManager_MouserSearchDialog.h"
 #include "ui/PartManager_NewPartDialog.h"
 
@@ -14,6 +15,8 @@
 #include <QMessageBox>
 #include <QTableWidgetItem>
 #include <QTextStream>
+
+#include <cctype>
 
 namespace PartManager
 {
@@ -37,6 +40,26 @@ namespace PartManager
 			ColumnMatch,
 			ColumnCount
 		};
+
+		// The mapping's identity: the header row itself, so a file with the same columns is
+		// recognised whatever it is called and wherever it lives. Case- and space-insensitive,
+		// because a hand-edited export routinely differs from KiCad's by exactly that much.
+		std::string signatureOf(const std::vector<std::string>& headers)
+		{
+			std::string signature;
+			for (const std::string& header : headers)
+			{
+				for (const char c : header)
+				{
+					if (!std::isspace(static_cast<unsigned char>(c)))
+					{
+						signature += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+					}
+				}
+				signature += '|';
+			}
+			return signature;
+		}
 
 		// Combo entries are (label, delimiter char); AutoDetectDelimiter means "let the header decide".
 		struct DelimiterChoice { const char* label; char value; };
@@ -69,8 +92,23 @@ namespace PartManager
 		connect(m_ui->browseButton, &QPushButton::clicked, this, &PartlistImportDialog::chooseFile);
 		connect(m_ui->delimiterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
 			this, &PartlistImportDialog::reparse);
-		for (QComboBox* combo : { m_ui->designatorsCombo, m_ui->mpnCombo, m_ui->quantityCombo,
-			m_ui->valueCombo })
+		// What a file needs to look like to map itself. Shown up front rather than only after a
+		// mapping comes out wrong: KiCad's own BOM export already satisfies it, so for the file
+		// this is aimed at the hint reads as confirmation, and for anything else it says what to
+		// rename before importing.
+		m_ui->hintLabel->setText(tr(
+			"<b>Recognised headers</b> — matched case-insensitively, anywhere in the name. "
+			"KiCad's BOM export (<i>Reference; Qty; Value; Mouser Part Number; "
+			"Manufacturer_Part_Number</i>) maps itself.<br>"
+			"Designators: <i>Reference, Designator, RefDes</i> · "
+			"Part number: <i>MPN, Part Number, Manufacturer Part, Mouser, Order Code, SKU</i> · "
+			"Quantity: <i>Qty, Quantity, Count</i> · "
+			"Value: <i>Value, Comment, Name, Description</i><br>"
+			"Nothing here is required — any column can be picked by hand below, and the choice "
+			"is remembered for the next file with the same headers."));
+
+		for (QComboBox* combo : { m_ui->designatorsCombo, m_ui->mpnCombo, m_ui->mpnAltCombo,
+			m_ui->quantityCombo, m_ui->valueCombo })
 		{
 			connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged),
 				this, &PartlistImportDialog::refreshPreview);
@@ -83,6 +121,7 @@ namespace PartManager
 		connect(m_ui->cancelButton, &QPushButton::clicked, this, &PartlistImportDialog::reject);
 
 		m_parts = m_controller.allParts();
+		m_sellerLinks = m_controller.allSellerLinks();
 		m_ui->statusLabel->setText(tr("Choose a CSV or BOM file to import."));
 		updateButtons();
 	}
@@ -146,15 +185,61 @@ namespace PartManager
 
 		// Guessing again on every re-parse is deliberate: a delimiter change re-splits the header,
 		// so the column indices the user had picked no longer mean the same thing.
-		const BomColumnMapping guess = guessMapping(m_table.headers);
+		BomColumnMapping mapping = guessMapping(m_table.headers);
+
+		// A mapping the user has already corrected for this header shape beats the guess — that
+		// correction is the whole point of remembering it. The guess still runs first, so a
+		// remembered entry that predates a new column simply leaves that field at its guess.
+		ImportMappingMemory remembered;
+		const bool wasRemembered = Settings::getImportMapping(headerSignature(), remembered);
+		if (wasRemembered)
+		{
+			mapping.designators = remembered.designators;
+			mapping.mpn = remembered.mpn;
+			mapping.mpnAlt = remembered.mpnAlt;
+			mapping.quantity = remembered.quantity;
+			mapping.name = remembered.name;
+		}
+
 		m_loading = true;
-		fillColumnCombo(m_ui->designatorsCombo, guess.designators);
-		fillColumnCombo(m_ui->mpnCombo, guess.mpn);
-		fillColumnCombo(m_ui->quantityCombo, guess.quantity);
-		fillColumnCombo(m_ui->valueCombo, guess.name);
+		fillColumnCombo(m_ui->designatorsCombo, mapping.designators);
+		fillColumnCombo(m_ui->mpnCombo, mapping.mpn);
+		fillColumnCombo(m_ui->mpnAltCombo, mapping.mpnAlt);
+		fillColumnCombo(m_ui->quantityCombo, mapping.quantity);
+		fillColumnCombo(m_ui->valueCombo, mapping.name);
 		m_loading = false;
 
 		refreshPreview();
+		if (wasRemembered)
+		{
+			// Appended rather than replacing refreshPreview()'s line, which is the one that says
+			// whether the rows matched — the more important half of the answer.
+			m_ui->statusLabel->setText(m_ui->statusLabel->text() + QLatin1Char(' ')
+				+ tr("Columns are set the way you mapped this file shape last time."));
+		}
+	}
+
+	std::string PartlistImportDialog::headerSignature() const
+	{
+		return m_table.headers.empty() ? std::string() : signatureOf(m_table.headers);
+	}
+
+	void PartlistImportDialog::rememberMapping() const
+	{
+		const std::string signature = headerSignature();
+		if (signature.empty())
+		{
+			return;
+		}
+		const BomColumnMapping mapping = currentMapping();
+		ImportMappingMemory memory;
+		memory.headerSignature = signature;
+		memory.designators = mapping.designators;
+		memory.mpn = mapping.mpn;
+		memory.mpnAlt = mapping.mpnAlt;
+		memory.quantity = mapping.quantity;
+		memory.name = mapping.name;
+		Settings::rememberImportMapping(memory);
 	}
 
 	void PartlistImportDialog::fillColumnCombo(QComboBox* combo, int current)
@@ -178,6 +263,7 @@ namespace PartManager
 		BomColumnMapping mapping;
 		mapping.designators = m_ui->designatorsCombo->currentData().toInt();
 		mapping.mpn = m_ui->mpnCombo->currentData().toInt();
+		mapping.mpnAlt = m_ui->mpnAltCombo->currentData().toInt();
 		mapping.quantity = m_ui->quantityCombo->currentData().toInt();
 		mapping.name = m_ui->valueCombo->currentData().toInt();
 		return mapping;
@@ -192,7 +278,7 @@ namespace PartManager
 
 		m_rows = m_table.headers.empty()
 			? std::vector<BomRow>()
-			: buildRows(m_table, currentMapping(), m_parts);
+			: buildRows(m_table, currentMapping(), m_parts, m_sellerLinks);
 
 		m_ui->previewTable->clearContents();
 		m_ui->previewTable->setRowCount(static_cast<int>(m_rows.size()));
@@ -219,7 +305,9 @@ namespace PartManager
 
 			const QString cells[ColumnCount] = {
 				toQt(bomRow.designators),
-				toQt(bomRow.mpn),
+				// The alternative only when the primary cell is empty on this row — showing both
+				// would make the column twice as wide to say the same thing on most rows.
+				toQt(bomRow.mpn.empty() ? bomRow.mpnAlt : bomRow.mpn),
 				toQt(bomRow.name),
 				QString::number(bomRow.quantityPerUnit),
 				matchText,
@@ -305,7 +393,7 @@ namespace PartManager
 
 		// The part number if the file gave one, the value otherwise — a BOM without an MPN column
 		// still names its parts somewhere, and the search box handles a keyword too.
-		const QString query = toQt(bomRow.mpn.empty() ? bomRow.name : bomRow.mpn);
+		const QString query = toQt(bomRowIdentity(bomRow));
 		if (query.isEmpty())
 		{
 			QMessageBox::information(this, tr("Nothing to look up"),
@@ -333,6 +421,9 @@ namespace PartManager
 		// several lines of the same BOM, and matching only the selected one would leave the others
 		// orange for no reason.
 		m_parts = m_controller.allParts();
+		// The new part carries a Mouser link, which is what a 'Mouser Part Number' column matches
+		// against — re-reading only the parts would leave those rows unmatched.
+		m_sellerLinks = m_controller.allSellerLinks();
 		refreshPreview();
 		m_ui->previewTable->selectRow(row);
 	}
@@ -343,6 +434,11 @@ namespace PartManager
 		{
 			return;
 		}
+
+		// Remembered on Import rather than on every combo change: what is worth replaying is the
+		// mapping the user actually imported with, not every state they passed through on the
+		// way to it. Cancel therefore leaves the previous memory alone.
+		rememberMapping();
 
 		Partlist partlist;
 		partlist.name = m_ui->nameEdit->text().trimmed().isEmpty()

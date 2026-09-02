@@ -53,6 +53,10 @@ namespace PartManager
 		static int linkPart(SQLiteWrapper::SQLite& db, const PartSellerLink& link);
 		static bool removeLink(SQLiteWrapper::SQLite& db, int linkId);
 		static std::vector<PartSellerLink> linksForPart(SQLiteWrapper::SQLite& db, int partId);
+		// Every link in the database, for a caller that has to resolve *many* distributor numbers
+		// at once — the BOM import matches a whole file against them and would otherwise issue one
+		// query per line.
+		static std::vector<PartSellerLink> allLinks(SQLiteWrapper::SQLite& db);
 		// The part's primary link, or its only link when nothing is flagged. False when it has none.
 		static bool primaryLink(SQLiteWrapper::SQLite& db, int partId, PartSellerLink& outLink);
 		// The Mouser part number the Cart API needs (§6). Empty when the part has no Mouser link.

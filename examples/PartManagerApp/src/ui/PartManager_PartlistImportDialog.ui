@@ -93,24 +93,51 @@
        <widget class="QComboBox" name="mpnCombo"/>
       </item>
       <item row="2" column="0">
+       <widget class="QLabel" name="mpnAltLabel">
+        <property name="text">
+         <string>Alternative part number</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QComboBox" name="mpnAltCombo">
+        <property name="toolTip">
+         <string>Used for rows where the first part-number column is empty.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
        <widget class="QLabel" name="quantityLabel">
         <property name="text">
          <string>Quantity per unit</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
+      <item row="3" column="1">
        <widget class="QComboBox" name="quantityCombo"/>
       </item>
-      <item row="3" column="0">
+      <item row="4" column="0">
        <widget class="QLabel" name="valueLabel">
         <property name="text">
          <string>Value / name</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
+      <item row="4" column="1">
        <widget class="QComboBox" name="valueCombo"/>
+      </item>
+      <item row="5" column="0" colspan="2">
+       <widget class="QLabel" name="hintLabel">
+        <property name="text">
+         <string notr="true"/>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+        <property name="textFormat">
+         <enum>Qt::RichText</enum>
+        </property>
+       </widget>
       </item>
      </layout>
     </widget>

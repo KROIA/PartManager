@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <unordered_map>
 
 namespace PartManager
 {
@@ -30,7 +31,12 @@ namespace PartManager
 
 		bool headerMatches(const std::string& header, std::initializer_list<const char*> needles)
 		{
-			const std::string low = lowered(trimmed(header));
+			// `_` and `-` read as spaces. KiCad writes 'Manufacturer_Part_Number', which contains
+			// neither "part number" nor "partnumber" — without this the manufacturer column of
+			// every KiCad BOM export is unrecognised, which is precisely the file this is for.
+			std::string low = lowered(trimmed(header));
+			std::replace(low.begin(), low.end(), '_', ' ');
+			std::replace(low.begin(), low.end(), '-', ' ');
 			for (const char* needle : needles)
 			{
 				if (low.find(needle) != std::string::npos)
@@ -186,25 +192,37 @@ namespace PartManager
 	BomColumnMapping guessMapping(const std::vector<std::string>& headers)
 	{
 		BomColumnMapping mapping;
+		std::vector<int> partNumberColumns;     // in file order
+		int firstDistributorNumber = NoCsvColumn;
+
 		for (size_t i = 0; i < headers.size(); ++i)
 		{
 			const int column = static_cast<int>(i);
 			const std::string& header = headers[i];
 
-			// First match wins per field: a KiCad BOM has both "Reference" and "References",
-			// and a spreadsheet often has both "MPN" and "Mouser Part Number".
+			// First match wins per field: a KiCad BOM has both "Reference" and "References".
 			if (mapping.designators == NoCsvColumn
 				&& headerMatches(header, { "designator", "reference", "refdes" }))
 			{
 				mapping.designators = column;
 			}
-			else if (mapping.mpn == NoCsvColumn
-				// "mouser" catches the user's own "MouserNR" heading; it is a distributor number
-				// rather than a manufacturer one, but it is still what the row is identified by.
-				&& headerMatches(header, { "mpn", "part number", "partnumber", "part no",
-					"order code", "ordercode", "manufacturer part", "mouser", "sku" }))
+			else if (headerMatches(header, { "mpn", "part number", "partnumber", "part no",
+				"order code", "ordercode", "manufacturer part", "mouser", "sku" }))
 			{
-				mapping.mpn = column;
+				// Not first-wins: a KiCad BOM has *two* of these and both are wanted. They are
+				// collected here and sorted into mpn/mpnAlt below, once the whole header is known.
+				// "Manufacturer_Name" does not land here — it matches no needle — so the columns
+				// picked up really are the part numbers.
+				partNumberColumns.push_back(column);
+
+				// "mouser"/"sku"/"order code" is a *distributor* number. It is the one an order
+				// can actually be placed against, so it wins the primary slot even when the
+				// manufacturer's column comes first in the file.
+				if (firstDistributorNumber == NoCsvColumn
+					&& headerMatches(header, { "mouser", "sku", "order code", "ordercode" }))
+				{
+					firstDistributorNumber = column;
+				}
 			}
 			else if (mapping.quantity == NoCsvColumn
 				&& headerMatches(header, { "quantity", "qty", "count", "stockcount" }))
@@ -217,7 +235,26 @@ namespace PartManager
 				mapping.name = column;
 			}
 		}
+
+		if (!partNumberColumns.empty())
+		{
+			mapping.mpn = firstDistributorNumber != NoCsvColumn
+				? firstDistributorNumber : partNumberColumns.front();
+			// Whatever the primary displaced stays reachable as the alternative; a third and
+			// further part-number column is dropped, since there is nowhere left to put it.
+			for (const int column : partNumberColumns)
+			{
+				if (column != mapping.mpn) { mapping.mpnAlt = column; break; }
+			}
+		}
 		return mapping;
+	}
+
+	const std::string& bomRowIdentity(const BomRow& row)
+	{
+		if (!row.mpn.empty())    { return row.mpn; }
+		if (!row.mpnAlt.empty()) { return row.mpnAlt; }
+		return row.name;
 	}
 
 	int countDesignators(const std::string& designators)
@@ -241,8 +278,38 @@ namespace PartManager
 	}
 
 	std::vector<BomRow> buildRows(const CsvTable& table, const BomColumnMapping& mapping,
-		const std::vector<Part>& existingParts)
+		const std::vector<Part>& existingParts, const std::vector<PartSellerLink>& sellerLinks)
 	{
+		// Built once for the whole file rather than scanned per row: a 400-line BOM against a
+		// 2000-part inventory is 800 000 string compares the old way, and the preview rebuilds
+		// on every combo change. First writer wins, which keeps the old "first matching part in
+		// the vector" answer.
+		std::unordered_map<std::string, int> byPartNumber;   // part.mpn and every distributor number
+		std::unordered_map<std::string, int> byName;
+		for (const Part& part : existingParts)
+		{
+			if (!part.mpn.empty())  { byPartNumber.emplace(lowered(part.mpn), part.id); }
+			if (!part.name.empty()) { byName.emplace(lowered(part.name), part.id); }
+		}
+		// A BOM's 'Mouser Part Number' column holds 595-TXB0106IPWRQ1, which is nowhere in
+		// `part.mpn` — it lives in part_seller_link. Without this every such row imports
+		// unresolved even though the part is sitting in the inventory.
+		for (const PartSellerLink& link : sellerLinks)
+		{
+			if (!link.sellerPartNumber.empty())
+			{
+				byPartNumber.emplace(lowered(link.sellerPartNumber), link.partId);
+			}
+		}
+
+		const auto lookUp = [](const std::unordered_map<std::string, int>& index,
+			const std::string& key)
+		{
+			if (key.empty()) { return NoPartId; }
+			const auto found = index.find(lowered(key));
+			return found == index.end() ? NoPartId : found->second;
+		};
+
 		std::vector<BomRow> out;
 		out.reserve(table.rows.size());
 
@@ -251,9 +318,11 @@ namespace PartManager
 			BomRow bomRow;
 			bomRow.designators = cellAt(row, mapping.designators);
 			bomRow.mpn = cellAt(row, mapping.mpn);
+			bomRow.mpnAlt = cellAt(row, mapping.mpnAlt);
 			bomRow.name = cellAt(row, mapping.name);
 
-			if (bomRow.designators.empty() && bomRow.mpn.empty() && bomRow.name.empty())
+			if (bomRow.designators.empty() && bomRow.mpn.empty() && bomRow.mpnAlt.empty()
+				&& bomRow.name.empty())
 			{
 				continue;   // a spreadsheet's trailing empty rows, not BOM lines
 			}
@@ -285,29 +354,21 @@ namespace PartManager
 				bomRow.quantityPerUnit = std::max(1, countDesignators(bomRow.designators));
 			}
 
-			// MPN first, exactly: that is the identity a BOM and the inventory actually share.
-			// The name column is only tried afterwards, because 'Value' columns hold things like
-			// "4k7" that match far too eagerly.
-			const std::string mpnKey = lowered(bomRow.mpn);
-			const std::string nameKey = lowered(bomRow.name);
-			for (const Part& part : existingParts)
+			// Part numbers first, exactly: that is the identity a BOM and the inventory actually
+			// share. The name column is only tried afterwards, because 'Value' columns hold
+			// things like "4k7" that match far too eagerly.
+			bomRow.matchedPartId = lookUp(byPartNumber, bomRow.mpn);
+			if (bomRow.matchedPartId == NoPartId)
 			{
-				if (!mpnKey.empty() && lowered(part.mpn) == mpnKey)
-				{
-					bomRow.matchedPartId = part.id;
-					break;
-				}
+				bomRow.matchedPartId = lookUp(byPartNumber, bomRow.mpnAlt);
 			}
-			if (bomRow.matchedPartId == NoPartId && !nameKey.empty())
+			if (bomRow.matchedPartId == NoPartId)
 			{
-				for (const Part& part : existingParts)
-				{
-					if (lowered(part.mpn) == nameKey || lowered(part.name) == nameKey)
-					{
-						bomRow.matchedPartId = part.id;
-						break;
-					}
-				}
+				bomRow.matchedPartId = lookUp(byPartNumber, bomRow.name);
+			}
+			if (bomRow.matchedPartId == NoPartId)
+			{
+				bomRow.matchedPartId = lookUp(byName, bomRow.name);
 			}
 
 			// The whole original row, header-keyed, so an unresolved line can still be read back

@@ -2,6 +2,9 @@
 
 #include "UnitTest.h"
 #include "settings/PartManager_Settings.h"
+// Only for NoCsvColumn: ImportMappingMemory spells the value out as -1 to keep core/settings
+// free of a core/import dependency, and this is where the two are pinned to agree.
+#include "import/PartManager_BomCsvImport.h"
 #include "PartManager_AppStartup.h"
 #include <QApplication>
 #include <QCoreApplication>
@@ -17,6 +20,7 @@ public:
 		ADD_TEST(TST_Settings::settingsFileIsOutsideWorkingDirectory);
 		ADD_TEST(TST_Settings::knownDatabasesRoundTrip);
 		ADD_TEST(TST_Settings::preferencesRoundTripAndClamp);
+		ADD_TEST(TST_Settings::importMappingsAreRememberedByHeaderShape);
 		ADD_TEST(TST_Settings::germanTranslationIsActuallyInstalled);
 	}
 
@@ -89,6 +93,53 @@ private:
 
 		// This suite writes to the user's real settings file, so it puts it back.
 		PartManager::Settings::setPreferences(original);
+	}
+
+	// §5: the column mapping a user corrects is filed under the file's header *shape*, so
+	// re-importing next month's revision of the same BOM does not re-do the same four combos.
+	TEST_FUNCTION(importMappingsAreRememberedByHeaderShape)
+	{
+		TEST_START;
+
+		// A signature no real file produces, so this cannot disturb the user's own memory —
+		// the settings file this writes is the real one.
+		const std::string signature = "tst_settings_fixture|reference|qty|mouserpartnumber|";
+
+		PartManager::ImportMappingMemory written;
+		written.headerSignature = signature;
+		written.designators = 0;
+		written.quantity = 1;
+		written.mpn = 2;
+		written.mpnAlt = 4;
+		written.name = PartManager::NoCsvColumn;
+		PartManager::Settings::rememberImportMapping(written);
+
+		PartManager::ImportMappingMemory read;
+		TEST_ASSERT_M(PartManager::Settings::getImportMapping(signature, read),
+			"a remembered mapping must be found again under its own signature");
+		TEST_COMPARE(read.designators, 0);
+		TEST_COMPARE(read.quantity, 1);
+		TEST_COMPARE(read.mpn, 2);
+		TEST_COMPARE(read.mpnAlt, 4);
+		// "not mapped" has to survive as not-mapped; read back as 0 it would silently claim the
+		// first column of every file with this shape.
+		TEST_COMPARE(read.name, PartManager::NoCsvColumn);
+
+		// Re-importing with a corrected mapping replaces the entry rather than accumulating one
+		// more that the next lookup might find first.
+		written.mpn = 3;
+		PartManager::Settings::rememberImportMapping(written);
+		TEST_ASSERT(PartManager::Settings::getImportMapping(signature, read));
+		TEST_COMPARE(read.mpn, 3);
+
+		// A shape that has never been imported has no answer, which is what makes the dialog
+		// fall back to guessMapping().
+		PartManager::ImportMappingMemory missing;
+		TEST_ASSERT_M(!PartManager::Settings::getImportMapping(
+			"tst_settings_never_imported|", missing),
+			"an unknown header shape must not report a mapping");
+		TEST_ASSERT_M(!PartManager::Settings::getImportMapping(std::string(), missing),
+			"an empty signature is not a key");
 	}
 
 	// The German .qm is compiled by the app's CMake step, which is easy to break without anyone

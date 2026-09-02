@@ -10,6 +10,10 @@
 // Nothing reaches the database until Import is pressed — this is a §10
 // in-progress step, so there is no autosave and Cancel discards.
 //
+// The mapping the user lands on is remembered per header *shape* (see
+// Settings::ImportMappingMemory), because re-importing next month's revision of
+// the same BOM is the normal case and re-doing four combos every time is not.
+//
 // A row that matches no part imports as an **unresolved** line (§4), never as a
 // newly invented typeless part. Decided 2026-09-01: when a Mouser key is
 // present the dialog offers to look the row up and create the part properly
@@ -59,10 +63,15 @@ namespace PartManager
 	private:
 		// Fills one mapping combo with "(not used)" plus every header, and selects `current`.
 		void fillColumnCombo(QComboBox* combo, int current);
-		// Reads the four combos back into a mapping.
+		// Reads the five combos back into a mapping.
 		BomColumnMapping currentMapping() const;
 		// The preview row the user has selected, or -1.
 		int selectedRow() const;
+		// The current table's header row, lowercased and joined — what a remembered mapping is
+		// filed under. Empty while no file is loaded.
+		std::string headerSignature() const;
+		// Writes the current mapping and delimiter to the settings under headerSignature().
+		void rememberMapping() const;
 
 		Ui::PartlistImportDialog* m_ui;
 		PartlistController m_controller;
@@ -70,6 +79,7 @@ namespace PartManager
 		CsvTable m_table;
 		std::vector<BomRow> m_rows;
 		std::vector<Part> m_parts;      // the inventory, re-read after a Mouser-created part
+		std::vector<PartSellerLink> m_sellerLinks;   // so a 'Mouser Part Number' column matches
 		int m_createdPartlistId = NoPartlistId;
 		bool m_loading = false;         // guards the combo-filling pass
 	};

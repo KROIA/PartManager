@@ -1,6 +1,7 @@
 #include "controllers/PartManager_PartlistController.h"
 
 #include "persistence/PartManager_PartRepository.h"
+#include "persistence/PartManager_SellerRepository.h"
 
 #include <QObject>
 #include <QStringList>
@@ -191,6 +192,17 @@ namespace PartManager
 		std::sort(parts.begin(), parts.end(),
 			[](const Part& a, const Part& b) { return a.name < b.name; });
 		return parts;
+	}
+
+	std::vector<PartSellerLink> PartlistController::allSellerLinks() const
+	{
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		if (m_handle && m_handle->isOpen())
+		{
+			return SellerRepository::allLinks(m_handle->connection());
+		}
+#endif
+		return std::vector<PartSellerLink>();
 	}
 
 }

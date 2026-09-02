@@ -205,6 +205,17 @@ namespace PartManager
 		return result;
 	}
 
+	std::vector<PartSellerLink> SellerRepository::allLinks(SQLiteWrapper::SQLite& db)
+	{
+		std::vector<PartSellerLink> result;
+		for (const std::vector<std::string>& row : db.fetchAll(
+			std::string("SELECT ") + LinkColumns + " FROM part_seller_link ORDER BY id;"))
+		{
+			result.push_back(rowToLink(row));
+		}
+		return result;
+	}
+
 	bool SellerRepository::primaryLink(SQLiteWrapper::SQLite& db, int partId, PartSellerLink& outLink)
 	{
 		// linksForPart() already sorts is_primary first, so the front row is the answer whether

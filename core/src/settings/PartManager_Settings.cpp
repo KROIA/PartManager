@@ -88,6 +88,30 @@ namespace PartManager
 			AppSettings::Setting backupFolder;
 		};
 
+		// Keys inside one remembered-mapping QVariantMap.
+		const QString SIGNATURE_KEY = QStringLiteral("headers");
+		const QString DESIGNATORS_KEY = QStringLiteral("designators");
+		const QString MPN_KEY = QStringLiteral("mpn");
+		const QString MPN_ALT_KEY = QStringLiteral("mpnAlt");
+		const QString QUANTITY_KEY = QStringLiteral("quantity");
+		const QString NAME_KEY = QStringLiteral("name");
+
+		// §5's remembered column mappings. Its own group for the same reason the preferences
+		// have one: a list that grows with use has no business sharing a group with settings a
+		// dialog rewrites wholesale.
+		class ImportSettingsGroup : public AppSettings::SettingsGroup
+		{
+		public:
+			ImportSettingsGroup()
+				: AppSettings::SettingsGroup("Import")
+				, columnMappings("columnMappings")
+			{
+				addSetting(columnMappings);
+			}
+
+			AppSettings::ListSetting columnMappings;
+		};
+
 		// ApplicationSettings subclass owning the group above — protected addGroup() access
 		// works the same way, through ordinary inheritance.
 		class PartManagerAppSettings : public AppSettings::ApplicationSettings
@@ -98,10 +122,12 @@ namespace PartManager
 			{
 				addGroup(m_databaseGroup);
 				addGroup(m_preferencesGroup);
+				addGroup(m_importGroup);
 			}
 
 			DatabaseSettingsGroup m_databaseGroup;
 			PreferencesSettingsGroup m_preferencesGroup;
+			ImportSettingsGroup m_importGroup;
 		};
 
 		// Single process-wide instance backing this facade.
@@ -223,6 +249,80 @@ namespace PartManager
 #else
 		PM_UNUSED(preferences);
 		PM_CONSOLE("PartManager::Settings: AppSettings library not available, preferences are not persisted\n");
+#endif
+	}
+
+	bool Settings::getImportMapping(const std::string& headerSignature,
+		ImportMappingMemory& outMapping)
+	{
+		if (headerSignature.empty())
+		{
+			return false;
+		}
+#if APP_SETTINGS_LIBRARY_AVAILABLE == 1
+		instance().load();
+		const QString wanted = QString::fromStdString(headerSignature);
+		for (const QVariant& entry : instance().m_importGroup.columnMappings.getData())
+		{
+			const QVariantMap map = entry.toMap();
+			if (map.value(SIGNATURE_KEY).toString() != wanted)
+			{
+				continue;
+			}
+			outMapping = ImportMappingMemory();
+			outMapping.headerSignature = headerSignature;
+			outMapping.designators = map.value(DESIGNATORS_KEY, -1).toInt();
+			outMapping.mpn = map.value(MPN_KEY, -1).toInt();
+			outMapping.mpnAlt = map.value(MPN_ALT_KEY, -1).toInt();
+			outMapping.quantity = map.value(QUANTITY_KEY, -1).toInt();
+			outMapping.name = map.value(NAME_KEY, -1).toInt();
+			return true;
+		}
+#else
+		PM_UNUSED(outMapping);
+		PM_CONSOLE("PartManager::Settings: AppSettings library not available, import mappings are not persisted\n");
+#endif
+		return false;
+	}
+
+	void Settings::rememberImportMapping(const ImportMappingMemory& mapping)
+	{
+		if (mapping.headerSignature.empty())
+		{
+			return;
+		}
+#if APP_SETTINGS_LIBRARY_AVAILABLE == 1
+		instance().load();
+		const QString signature = QString::fromStdString(mapping.headerSignature);
+
+		QVariantMap entry;
+		entry[SIGNATURE_KEY] = signature;
+		entry[DESIGNATORS_KEY] = mapping.designators;
+		entry[MPN_KEY] = mapping.mpn;
+		entry[MPN_ALT_KEY] = mapping.mpnAlt;
+		entry[QUANTITY_KEY] = mapping.quantity;
+		entry[NAME_KEY] = mapping.name;
+
+		// Most recently used first, so the trim below drops the mapping nobody has needed in
+		// twenty imports rather than the one from this morning.
+		std::vector<QVariant> list;
+		list.push_back(entry);
+		for (const QVariant& existing : instance().m_importGroup.columnMappings.getData())
+		{
+			if (existing.toMap().value(SIGNATURE_KEY).toString() == signature)
+			{
+				continue;   // replaced by the entry just pushed
+			}
+			if (static_cast<int>(list.size()) >= MaxRememberedImportMappings)
+			{
+				break;
+			}
+			list.push_back(existing);
+		}
+		instance().m_importGroup.columnMappings.setData(list);
+		instance().save();
+#else
+		PM_CONSOLE("PartManager::Settings: AppSettings library not available, import mappings are not persisted\n");
 #endif
 	}
 
