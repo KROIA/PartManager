@@ -1,81 +1,125 @@
 # PartManager
 
-A desktop parts inventory for electronics: what components you own, how many are
-left, what their datasheets and 3D models look like, what a project needs, and
-what to order from Mouser to fill the gap. Built as a reusable C++/Qt library
-(`core/`) with a Qt Widgets application on top.
+![C++17](https://img.shields.io/badge/C%2B%2B-17-blue)
+![Qt](https://img.shields.io/badge/Qt-5.15-green)
+![CMake](https://img.shields.io/badge/CMake-3.20%2B-blue)
+![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 
-![The main window: category tree, part table, and the preview panel with photo, KiCad symbol, footprint and the 3D model on a rendered PCB](docs/screenshots/main-window.png)
+A desktop inventory manager for electronic components. PartManager keeps track of
+which parts are in stock, stores their datasheets, photos, KiCad symbols,
+footprints and 3D models, builds partlists from BOMs, and orders missing parts
+through the Mouser API.
 
-*The preview panel on the right is live: the part's photo, its KiCad schematic
-symbol, its footprint, and its STEP model tessellated and placed on a board the
-way KiCad would place it.*
+The project is split into a reusable C++/Qt library (`core/`) and a Qt Widgets
+desktop application built on top of it (`examples/PartManagerApp/`).
 
----
+![PartManager main window](docs/screenshots/main-window.png)
 
-## What it does
+## Table of contents
 
-**Parts and categories.** Components live in a category tree of *type templates*
-— Resistor, MOSFET, Logic IC — and a template defines which attributes a part of
-that type has and which files it can carry. Templates inherit, so *Ceramic
-Capacitor* gets everything *Capacitor* declares plus its own. Values are typed
-the way an engineer writes them: `4k7`, `100n`, `4,7k` and `4.7k` all parse to
-the same number, and searching compares against the parsed value rather than the
-text.
+- [Features](#features)
+- [Requirements](#requirements)
+- [Building](#building)
+- [Running](#running)
+- [Database layout](#database-layout)
+- [Configuration](#configuration)
+  - [FreeCAD (STEP model previews)](#freecad-step-model-previews)
+  - [Mouser API keys](#mouser-api-keys)
+- [Testing](#testing)
+- [Project structure](#project-structure)
+- [Documentation](#documentation)
+- [License](#license)
 
-**Stock.** Every restock and take-out is a logged transaction, not a number
-someone overwrote, and a take-out records whether the parts went into a build or
-were lost. The count you see is derived from that log.
+## Features
 
-**Tags, in two levels.** Tags cross-cut the category tree: a part is *SMD*, or
-*I2C*, or *Needs datasheet*. They group into families — *Bus protocols*, *PCB
-placement*, *Lifecycle*, *Voltage domain*, *Handling* — and each family's tags
-are shades of one colour, so a table of chips stays readable. The tag filter ORs
-within a family and ANDs across them: `tag:I2C,SPI tag:SMD` means *either bus,
-and surface-mount*.
+### Component database
 
-**Search.** One box, a small grammar: free text, `tag:` terms, and attribute
-comparisons like `resistance>1k` or `voltage<=25V`. A malformed query is an empty
-result and a red border, never a crash.
+Parts are organised in a tree of type templates such as Resistor, MOSFET or
+Logic IC. A template defines the attributes a part of that type has and the files
+it can carry, and templates inherit from each other, so *Ceramic Capacitor*
+receives everything *Capacitor* defines plus its own additions.
 
-**Partlists and orders.** Build a partlist by hand or import a BOM/CSV with
-column mapping, then let PartManager work out the shortfall against stock and
-stage exactly that into a Mouser cart. Orders track through to arrival, and
-prices observed along the way are kept as history.
+Attribute values accept engineering notation. `4k7`, `4.7k`, `4,7k` and `4700`
+are parsed to the same value, and searches compare against the parsed number
+rather than the text.
 
-**KiCad integration.** Generates per-category `.kicad_sym` symbol libraries and
-`.pretty` footprint folders with the library tables to match, and tolerates you
-editing them in KiCad — manual edits are tracked and synced back rather than
-overwritten.
+### Stock tracking
 
-**3D models.** Any part can carry a 3D model. OBJ, PLY, STL and glTF are drawn
-directly; STEP is tessellated once into a cached mesh in the background and drawn
-from cache after that. Colours are read out of the STEP file itself, so a MOSFET
-comes out with a black body and tinned leads rather than one lump of grey.
+Restocks and take-outs are recorded as individual transactions, and the current
+count is derived from that log. A take-out records whether the parts were used in
+a build or lost.
 
-**Backups, settings, localization.** Scheduled database snapshots with a
-retention count, and a settings screen for language, theme and storage. The
-interface ships in **English and German** (the screenshot above is the German
-build).
+### Tags
 
----
+Tags group parts across the category tree and are organised in two levels.
+Categories such as *Bus protocols*, *PCB placement*, *Lifecycle*, *Voltage
+domain* and *Handling* hold related tags, and each category's tags are rendered
+as shades of a single colour.
+
+The tag filter combines selections with OR inside a category and AND across
+categories.
+
+### Search
+
+A single filter box supports free text, tag terms and attribute comparisons:
+
+```
+1k5                     free text across name, MPN, manufacturer, description
+"power supply"          quoted text, spaces included
+resistance>1k           attribute comparison (= != < <= > >=)
+voltage<=25V
+tag:SMD                 parts carrying a tag
+tag:"Do not use"        tag names containing spaces
+tag:I2C,SPI             any of these tags
+tag:I2C,SPI tag:SMD     (I2C or SPI) and SMD
+```
+
+Invalid queries produce an empty result and a marked input field.
+
+### Partlists and orders
+
+Partlists can be created manually or imported from a BOM or CSV file with
+configurable column mapping. PartManager calculates the shortfall against current
+stock and stages those quantities into a Mouser cart. Orders are tracked until
+arrival, and observed prices are stored as history.
+
+### KiCad integration
+
+PartManager generates one `.kicad_sym` symbol library and one `.pretty` footprint
+folder per category, along with the matching library tables. Symbols edited
+inside KiCad are detected and preserved rather than overwritten on the next
+generation run.
+
+### 3D models
+
+Parts can carry a 3D model. OBJ, PLY, STL and glTF files are rendered directly.
+STEP files are tessellated into a cached mesh in the background and rendered from
+that cache, with per-solid colours read from the STEP file. Models are displayed
+on a rendered PCB using the part's footprint.
+
+### Additional
+
+- Scheduled database snapshots with a configurable retention count.
+- Settings for language, theme, storage locations and backups.
+- User interface available in English and German.
 
 ## Requirements
 
-| | |
-|---|---|
-| **OS** | Windows (developed and tested on Windows 11; the library itself is portable, the build scripts are not) |
-| **Compiler** | MSVC 2019 or newer, C++17 |
-| **CMake** | 3.20 or newer |
-| **Build tool** | Ninja (comes with Visual Studio) |
-| **Qt** | 5.15.2, modules `Core Gui Network Widgets` — the app additionally needs `3DCore 3DRender 3DInput 3DExtras` |
-| **FreeCAD** | *optional* — only to preview **STEP** models, see below |
-| **Mouser API keys** | *optional* — only for search and cart features, see below |
+| Component | Version | Required |
+|---|---|---|
+| Windows | 10 / 11 | Yes |
+| MSVC | 2019 or newer | Yes |
+| CMake | 3.20 or newer | Yes |
+| Ninja | bundled with Visual Studio | Yes |
+| Qt | 5.15.2 (`Core`, `Gui`, `Network`, `Widgets`, `3DCore`, `3DRender`, `3DInput`, `3DExtras`) | Yes |
+| FreeCAD | 1.x | Optional, for STEP previews |
+| Mouser API keys | — | Optional, for search and ordering |
 
-Everything else is fetched automatically at configure time (no submodules, no
-vcpkg, no conan): the KROIA `AppSettings`, `Logger`, `RibbonWidget`,
-`SQLiteWrapper` and `UnitTest` libraries, plus `easy_profiler` for profiling
-builds.
+The library itself is portable C++17; the build scripts are Windows-specific.
+
+Third-party libraries are downloaded automatically during CMake configuration and
+require no manual setup: `AppSettings`, `Logger`, `RibbonWidget`, `SQLiteWrapper`
+and `UnitTest` (all from KROIA), plus `easy_profiler` for profiling builds.
 
 ## Building
 
@@ -85,179 +129,174 @@ cd PartManager
 build.bat x64-Debug
 ```
 
-`build.bat` bootstraps the Visual Studio environment itself via `vswhere`, so it
-works from a plain terminal. Useful variants:
+`build.bat` locates and initialises the Visual Studio environment automatically,
+so no developer command prompt is needed.
+
+| Command | Description |
+|---|---|
+| `build.bat` | Build `x64-Debug` and `x64-Release` |
+| `build.bat x64-Release` | Build a single preset |
+| `build.bat list` | List available CMake presets |
+| `build.bat clean` | Remove build output, keep the dependency cache |
+| `build.bat clean-deps` | Remove dependency build directories, keep sources |
+| `build.bat clean-all` | Remove everything under `build\` and `installation\` |
+| `build.bat help` | Show all commands |
+
+Build artifacts are installed to `installation\bin\`.
+
+## Running
 
 ```bat
-build.bat                      :: x64-Debug and x64-Release
-build.bat x64-Release
-build.bat list                 :: show the available presets
-build.bat clean                :: wipe build output, keep the dependency cache
-build.bat clean-all            :: wipe everything under build\ and installation\
-build.bat help
+installation\bin\PartManagerApp.exe
 ```
 
-Binaries land in `installation\bin\`. Run `PartManagerApp.exe` to start, or pass
-a `.pmdb` file to open a database directly:
+The database selector opens first. To open a database directly, pass its `.pmdb`
+file as an argument:
 
 ```bat
 installation\bin\PartManagerApp.exe "C:\path\to\MyStock\MyStock.pmdb"
 ```
 
-Without an argument the database selector opens first — PartManager deliberately
-does not auto-resume the last database.
+Databases created by an older version are migrated automatically on open.
+Databases created by a newer version are rejected rather than partially read.
 
-### Tests
+## Database layout
 
-```bat
-installation\bin\ExampleTest.exe
-```
-
-One executable holding every suite (a custom KROIA test framework, not gtest or
-Qt Test). It includes GUI tests that drive real dialogs, so it opens windows
-while it runs.
-
-### A database on disk
-
-A "database" is a folder, not a single file:
+A PartManager database is a directory:
 
 ```
 MyStock/
-├── MyStock.pmdb        JSON descriptor: schema version, timestamps
-├── partmanager.db      the SQLite database itself
-├── filestore/          datasheets, photos, KiCad files, 3D models, mesh cache
-├── kicad_libs/         generated .kicad_sym / .pretty libraries
-├── backups/            scheduled snapshots
-└── README.md           free-text description, editable outside the app
+├── MyStock.pmdb        Descriptor file (JSON): schema version, timestamps
+├── partmanager.db      SQLite database
+├── filestore/          Datasheets, images, KiCad files, 3D models, mesh cache
+├── kicad_libs/         Generated KiCad symbol and footprint libraries
+├── backups/            Scheduled snapshots
+└── README.md           Free-text description, editable outside the application
 ```
 
-Opening a folder written by an older build migrates it forward automatically.
-Opening one written by a *newer* build is refused rather than half-read.
+## Configuration
 
----
+### FreeCAD (STEP model previews)
 
-## Optional: FreeCAD, for STEP previews
+Qt3D loads OBJ, PLY, STL and glTF directly. STEP files (`.step`, `.stp`) use
+boundary representation rather than meshes and require a CAD kernel to be
+converted before they can be rendered. PartManager uses FreeCAD's command-line
+binary for this conversion and caches the result.
 
-Qt3D can load OBJ, PLY, STL and glTF on its own. **STEP** (`.step` / `.stp`) is
-not a mesh — it is trimmed-NURBS boundary representation, and turning it into
-something drawable needs a CAD kernel. Rather than link one (OpenCASCADE is a
-large dependency for one panel), PartManager shells out to FreeCAD's
-command-line binary once per model and caches the result.
+FreeCAD is optional. Without it, STEP files can still be attached to parts,
+stored and exported to KiCad libraries; only the 3D preview is unavailable, and
+the preview panel reports which locations were searched.
 
-**Not having FreeCAD is a normal state.** STEP files are still stored, still
-attached to parts, and still exported to KiCad libraries — only the 3D preview is
-unavailable, and the panel tells you so and lists where it looked.
+1. Install [FreeCAD](https://www.freecad.org/) (tested with 1.1.3).
+2. No further configuration is required.
 
-1. Install [FreeCAD](https://www.freecad.org/) (1.x; tested with 1.1.3).
-2. That's it — PartManager finds it by itself.
+PartManager searches the following locations in order:
 
-It searches, in order:
+1. The path in the `PARTMANAGER_STEP_CONVERTER` environment variable
+2. `C:\Program Files\FreeCAD *\bin\FreeCADCmd.exe` and the equivalent under
+   `Program Files (x86)`
+3. `FreeCADCmd` on `PATH`
 
-1. the `PARTMANAGER_STEP_CONVERTER` environment variable, if it points at an
-   executable;
-2. `C:\Program Files\FreeCAD *\bin\FreeCADCmd.exe` and the same under
-   `Program Files (x86)` — globbed, so the version number does not matter;
-3. `FreeCADCmd` on `PATH`.
-
-If FreeCAD lives somewhere unusual, point at it explicitly:
+To use a non-standard installation path:
 
 ```bat
 setx PARTMANAGER_STEP_CONVERTER "D:\Tools\FreeCAD\bin\FreeCADCmd.exe"
 ```
 
-Conversion runs in the background for every unconverted model while the app is
-open, one at a time, so models are usually ready before you click them. The cache
-is keyed by a hash of the STEP file's contents: replace the file and it converts
-again; two parts sharing one model share one mesh.
+Conversion runs in the background for all unconverted models while the
+application is open. The cache is keyed by a hash of the STEP file contents, so
+replacing a model triggers a new conversion and parts sharing a model share one
+cached mesh.
 
----
+### Mouser API keys
 
-## Optional: Mouser API setup
+Mouser features require API keys. Keys are read from environment variables only.
+They are not stored in the settings file, not written to disk and not logged, and
+the settings dialog contains no field for them.
 
-Mouser features (search, create-a-part-from-a-link, cart staging, order tracking)
-need API keys. They are **read from environment variables only** — never stored
-in the settings file, never written to disk by PartManager, and never logged.
-There is deliberately no API-key field in the settings dialog.
+Two separate keys are required, and they are not interchangeable.
 
-There are **two separate keys**, and they are not interchangeable: the Search key
-returns 401 on the Cart API.
-
-| Variable | Key to request | Used for |
+| Environment variable | Mouser API | Enables |
 |---|---|---|
-| `MOUSER_SEARCH_API` | **Search API** | keyword and part-number search, create-part-from-MPN or from a product link, price and stock lookup |
-| `MOUSER_CART_API` | **Cart API** | staging a shortfall into a Mouser cart, order tracking |
+| `MOUSER_SEARCH_API` | Search API | Keyword and part-number search, creating parts from an MPN or product link, price and stock lookup |
+| `MOUSER_CART_API` | Cart API | Staging carts from partlist shortfalls, order tracking |
 
-### Getting the keys
+**Obtaining the keys**
 
-1. Go to [mouser.com/api-hub](https://www.mouser.com/api-hub/) and sign in with
-   your Mouser account.
-2. Request a key for **Search API**. You are asked for a site/application name;
-   approval is usually immediate and the key is shown in the API hub.
-3. Repeat for **Cart API** if you want ordering. This is a second, different key.
+1. Sign in at [mouser.com/api-hub](https://www.mouser.com/api-hub/) with a Mouser
+   account.
+2. Request a **Search API** key. Approval is usually immediate and the key is
+   shown in the API hub.
+3. Request a **Cart API** key separately if ordering features are needed.
 
-### Setting them
+**Setting the keys**
 
-Machine-wide (survives reboots; open a *new* terminal afterwards):
+System-wide, for all users:
 
 ```bat
-setx MOUSER_SEARCH_API "your-search-key-here" /M
-setx MOUSER_CART_API   "your-cart-key-here"   /M
+setx MOUSER_SEARCH_API "your-search-key" /M
+setx MOUSER_CART_API   "your-cart-key"   /M
 ```
 
-Or for the current user only, drop the `/M`. In PowerShell for one session:
+For the current user only, omit `/M`. For a single PowerShell session:
 
 ```powershell
-$env:MOUSER_SEARCH_API = "your-search-key-here"
+$env:MOUSER_SEARCH_API = "your-search-key"
 ```
 
-> A running process does not see a variable set after it started, and `setx`
-> does not touch already-open terminals. If PartManager reports the key as
-> missing right after you set it, restart the app from a fresh terminal.
+> **Note**
+> `setx` does not affect already-running processes or open terminals. Restart
+> PartManager from a new terminal after setting the variables.
 
-Without the keys everything else works normally; the Mouser screens explain
-which variable is missing without printing any part of a key.
+If a key is missing, the affected screens report which environment variable is
+required. All other functionality remains available.
 
----
+## Testing
 
-## Project layout
+```bat
+installation\bin\ExampleTest.exe
+```
+
+All test suites are compiled into a single executable. The suite includes GUI
+tests that create and drive real dialogs, so application windows appear while it
+runs. The process exits with `0` on success.
+
+## Project structure
 
 ```
-core/          the library — no widgets, no app logic
-  database/      DatabaseHandle, SchemaMigrator, DatabaseRegistry
-  domain/        plain data classes (Part, PartType, Tag, ...)
-  persistence/   repositories (SQL lives here and nowhere else)
-  units/         SI-prefix value parsing (§2a)
-  search/        the filter-box grammar and its SQL
-  filestore/     attachment storage
-  mouser/        Search and Cart API clients
-  kicad/         library generation, footprint/symbol geometry
-  easyeda/       EasyEDA symbol/footprint fetch and conversion
-  import/        BOM / CSV parsing and column mapping
-  model3d/       format detection, STEP conversion, STEP colours
-  backup/        scheduled snapshots
-  settings/      preferences facade
+core/                     Library: no widgets, no application logic
+├── database/             Database handle, schema migration, registry
+├── domain/               Plain data types (Part, PartType, Tag, ...)
+├── persistence/          Repositories; all SQL lives here
+├── units/                SI value parsing
+├── search/               Filter grammar and query building
+├── filestore/            Attachment storage
+├── mouser/               Search API and Cart API clients
+├── kicad/                Library generation, symbol/footprint geometry
+├── easyeda/              EasyEDA symbol and footprint import
+├── import/               BOM and CSV parsing
+├── model3d/              Format detection, STEP conversion, STEP colours
+├── backup/               Snapshots and retention
+└── settings/             Preferences
+
 examples/
-  PartManagerApp/  the desktop app (ui/, widgets/, controllers/, services/)
-  PartImport/      console CSV importer
-unittests/       one executable, all suites
-docs/design/     ARCHITECTURE.md (the spec), mockups/, prototype/
+├── PartManagerApp/       Desktop application (ui, widgets, controllers, services)
+└── PartImport/           Console CSV importer
+
+unittests/                Test suites
+docs/design/              Architecture specification, mockups, prototype
 ```
 
-`docs/design/ARCHITECTURE.md` is the actual specification — numbered sections
-that the code comments reference (`§2d`, `§7a`, ...). `docs/design/mockups/`
-holds the original design mockups for all 14 screens, and
-`docs/design/prototype/index.html` is a click-through of them.
+## Documentation
 
-## Status
-
-Early but functional — version `0.0.0`, schema v8. The parts database, stock log,
-tags, search, partlists, BOM import, Mouser search and ordering, KiCad library
-generation, 3D viewing, backups and settings are implemented. See
-`docs/design/ARCHITECTURE.md` §13 for what is deliberately deferred.
+- `docs/design/ARCHITECTURE.md` — full specification. Sections are numbered and
+  referenced from the source code.
+- `docs/design/mockups/` — design mockups for all 14 screens.
+- `docs/design/prototype/index.html` — click-through prototype.
 
 ## License
 
-No `LICENSE` file has been added to this repository yet, so default copyright
-applies and nobody else may reuse the code. Add one before sharing it.
+This repository does not yet include a `LICENSE` file. Default copyright applies,
+which means the code may not be reused without permission from the author.
 
 Built on the [KROIA CMake project template](https://github.com/KROIA).
