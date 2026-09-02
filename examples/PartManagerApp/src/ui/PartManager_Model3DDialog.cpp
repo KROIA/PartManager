@@ -30,6 +30,14 @@ namespace PartManager
 		QVBoxLayout* layout = new QVBoxLayout(this);
 
 		m_viewer = new Model3DViewer(this);
+		// Converted STEP meshes are cached under the database folder, beside the filestore they
+		// were converted from — they are derived data, so they belong with the database rather
+		// than in a user-wide temp folder, and they go when the database folder goes.
+		if (handle != nullptr)
+		{
+			m_viewer->setMeshCachePath(QString::fromStdString(handle->filestorePath())
+				+ QStringLiteral("/meshcache"));
+		}
 		layout->addWidget(m_viewer, 1);
 
 		m_fileLabel = new QLabel(this);

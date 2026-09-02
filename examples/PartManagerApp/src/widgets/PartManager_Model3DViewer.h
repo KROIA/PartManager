@@ -28,6 +28,7 @@ namespace Qt3DRender { class QMesh; class QCamera; }
 namespace Qt3DExtras { class Qt3DWindow; class QOrbitCameraController; class QPhongMaterial; }
 
 class QLabel;
+class QProcess;
 class QStackedWidget;
 
 namespace PartManager
@@ -39,9 +40,18 @@ namespace PartManager
 	public:
 		explicit Model3DViewer(QWidget* parent = nullptr);
 
+		// Where converted STEP meshes are cached. Set before showModel() when the viewer should
+		// be able to tessellate STEP files; without it a STEP file is reported, not converted.
+		void setMeshCachePath(const QString& path);
+
 		// Shows `absolutePath`. Returns false when the file cannot be drawn — a format this
 		// build has no loader for, or a path that is not there — with the reason in the panel
 		// and in outMessage. An empty path clears the viewer, which is not a failure.
+		//
+		// A `.step`/`.stp` file is **converted** rather than refused when a mesh cache path is
+		// set and a converter is installed: the tessellation runs in a subprocess and the mesh
+		// appears when it finishes, so this returns true having started the work, not having
+		// finished it. Already-converted files come straight from the cache.
 		bool showModel(const QString& absolutePath, QString* outMessage = nullptr);
 
 		// Puts the camera back where showModel() left it, for a "Reset view" button.
@@ -55,6 +65,13 @@ namespace PartManager
 		// loaded, because QMesh is asynchronous and the bounding volume is empty until then.
 		void frameModel();
 		void showMessage(const QString& message);
+		// Points the mesh at a file and waits for QMesh to report it loaded.
+		void loadMesh(const QString& absolutePath);
+		// Starts the STEP -> STL tessellation for `stepPath`. Asynchronous: the panel says it is
+		// converting and loadMesh() runs when the subprocess exits cleanly.
+		void startConversion(const QString& stepPath);
+		// The message shown when a STEP file cannot be converted, naming where PartManager looked.
+		QString noConverterMessage() const;
 
 		QStackedWidget* m_stack = nullptr;
 		QLabel* m_messageLabel = nullptr;
@@ -63,6 +80,13 @@ namespace PartManager
 		Qt3DCore::QEntity* m_modelEntity = nullptr;
 		Qt3DRender::QMesh* m_mesh = nullptr;
 		Qt3DExtras::QOrbitCameraController* m_cameraController = nullptr;
+
+		QString m_meshCachePath;
+		// The conversion currently running, if any. One at a time: starting a second while the
+		// first is in flight would race to write the same cache file.
+		QProcess* m_conversion = nullptr;
+		QString m_conversionScriptPath;   // temporary, removed when the process finishes
+		QString m_conversionTarget;       // the .stl the running conversion is producing
 	};
 
 }
