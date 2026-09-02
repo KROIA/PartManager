@@ -435,6 +435,7 @@ namespace PartManager
 		MouserPartPrefill prefill;
 		prefill.mouserPartNumber = dto.mouserPartNumber;
 		prefill.datasheetUrl = dto.dataSheetUrl;
+		prefill.imageUrl = dto.imagePath;
 		prefill.productDetailUrl = dto.productDetailUrl;
 		prefill.suggestedTypeName = suggestedTypeName(dto.category);
 

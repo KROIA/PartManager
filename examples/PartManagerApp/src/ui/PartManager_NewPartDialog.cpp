@@ -3,8 +3,15 @@
 
 #include "widgets/PartManager_AttributeFormWidget.h"
 
+#include <QApplication>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QInputDialog>
+#include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QUrl>
 #include <algorithm>
 
 namespace PartManager
@@ -15,12 +22,21 @@ namespace PartManager
 		{
 			return QString::fromStdString(text);
 		}
+
+		// The last path segment of a URL, for the slot's state label. A Mouser image URL is
+		// long enough to push every button off the edge of the dialog if shown whole.
+		QString urlLabel(const QString& url)
+		{
+			const QString name = QUrl(url).fileName();
+			return name.isEmpty() ? url : name;
+		}
 	}
 
 	NewPartDialog::NewPartDialog(DatabaseHandle* handle, QWidget* parent)
 		: QDialog(parent)
 		, m_ui(new Ui::NewPartDialog)
 		, m_controller(handle)
+		, m_stock(handle)
 		, m_attributeForm(new AttributeFormWidget(this))
 	{
 		m_ui->setupUi(this);
@@ -43,6 +59,18 @@ namespace PartManager
 		connect(m_ui->createButton, &QPushButton::clicked, this, &NewPartDialog::createPart);
 		connect(m_ui->cancelButton, &QPushButton::clicked, this, &NewPartDialog::reject);
 
+		// PDF-biased, not PDF-only: plenty of real datasheets arrive as a scan or a zip.
+		wireFileSlot(PartFileRole::Datasheet, m_ui->datasheetStateLabel, m_ui->datasheetFileButton,
+			m_ui->datasheetUrlButton, m_ui->datasheetClearButton,
+			tr("Datasheets (*.pdf);;All files (*)"));
+		wireFileSlot(PartFileRole::Image, m_ui->imageStateLabel, m_ui->imageFileButton,
+			m_ui->imageUrlButton, m_ui->imageClearButton,
+			tr("Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp);;All files (*)"));
+		// No URL button: no vendor API publishes a CAD model, so this slot is always a local file.
+		wireFileSlot(PartFileRole::Kicad3DModel, m_ui->modelStateLabel, m_ui->modelFileButton,
+			nullptr, m_ui->modelClearButton,
+			tr("3D models (*.step *.stp *.obj *.stl *.ply *.wrl *.gltf *.glb);;All files (*)"));
+
 		onTypeChanged();
 	}
 
@@ -54,6 +82,77 @@ namespace PartManager
 	int NewPartDialog::createdPartId() const
 	{
 		return m_createdPartId;
+	}
+
+	void NewPartDialog::wireFileSlot(PartFileRole role, QLabel* state, QPushButton* fileButton,
+		QPushButton* urlButton, QPushButton* clearButton, const QString& filter)
+	{
+		m_slotLabels[role] = state;
+
+		connect(fileButton, &QPushButton::clicked, this, [this, role, filter]()
+		{
+			const QString path = QFileDialog::getOpenFileName(this, tr("Choose a file"), QString(), filter);
+			if (path.isEmpty())
+			{
+				return;
+			}
+			// A file and a URL are alternatives, not a pair — picking one clears the other.
+			m_pending[role] = PendingFile{ path, QString() };
+			updateFileSlot(role);
+		});
+
+		if (urlButton)
+		{
+			connect(urlButton, &QPushButton::clicked, this, [this, role]()
+			{
+				bool accepted = false;
+				const QString url = QInputDialog::getText(this, tr("Download from a URL"), tr("URL"),
+					QLineEdit::Normal, m_pending[role].url, &accepted).trimmed();
+				if (!accepted)
+				{
+					return;
+				}
+				m_pending[role] = PendingFile{ QString(), url };
+				updateFileSlot(role);
+			});
+		}
+
+		connect(clearButton, &QPushButton::clicked, this, [this, role]()
+		{
+			m_pending.erase(role);
+			updateFileSlot(role);
+		});
+
+		updateFileSlot(role);
+	}
+
+	void NewPartDialog::updateFileSlot(PartFileRole role)
+	{
+		QLabel* state = m_slotLabels[role];
+		if (!state)
+		{
+			return;
+		}
+
+		auto it = m_pending.find(role);
+		if (it == m_pending.end() || (it->second.localPath.isEmpty() && it->second.url.isEmpty()))
+		{
+			state->setText(tr("None"));
+			state->setToolTip(QString());
+			return;
+		}
+
+		if (!it->second.localPath.isEmpty())
+		{
+			// The name is the user's own file; only the frame is translated.
+			state->setText(tr("File: %1").arg(QFileInfo(it->second.localPath).fileName()));
+			state->setToolTip(it->second.localPath);
+		}
+		else
+		{
+			state->setText(tr("Download: %1").arg(urlLabel(it->second.url)));
+			state->setToolTip(it->second.url);
+		}
 	}
 
 	void NewPartDialog::setPrefill(const MouserPartPrefill& prefill)
@@ -76,9 +175,23 @@ namespace PartManager
 		m_ui->nameEdit->setText(toQt(prefill.part.name));
 		m_ui->manufacturerEdit->setText(toQt(prefill.part.manufacturer));
 		m_ui->mpnEdit->setText(toQt(prefill.part.mpn));
+		m_ui->mouserEdit->setText(toQt(prefill.mouserPartNumber));
 		m_ui->packageEdit->setText(toQt(prefill.part.package));
 		m_ui->descriptionEdit->setPlainText(toQt(prefill.part.description));
 		m_attributeForm->setValuesJson(toQt(prefill.part.attributes));
+
+		// §6: everything Mouser publishes as a file is queued here, so Create is genuinely the
+		// last step. Both are still visible and clearable — a prefill is a suggestion, not a fact.
+		if (!prefill.datasheetUrl.empty())
+		{
+			m_pending[PartFileRole::Datasheet] = PendingFile{ QString(), toQt(prefill.datasheetUrl) };
+		}
+		if (!prefill.imageUrl.empty())
+		{
+			m_pending[PartFileRole::Image] = PendingFile{ QString(), toQt(prefill.imageUrl) };
+		}
+		updateFileSlot(PartFileRole::Datasheet);
+		updateFileSlot(PartFileRole::Image);
 
 		QStringList notes;
 		notes.append(prefill.mouserPartNumber.empty()
@@ -89,6 +202,11 @@ namespace PartManager
 		{
 			// Better to say nothing than to attach a wrong template silently (§6).
 			notes.append(tr("Mouser's category did not map to a type template — pick one yourself."));
+		}
+		if (prefill.datasheetUrl.empty())
+		{
+			// Common enough to be worth naming: it looks like the import lost the datasheet.
+			notes.append(tr("Mouser publishes no datasheet link for this part — attach one yourself."));
 		}
 		if (!prefill.unmappedAttributes.empty())
 		{
@@ -109,11 +227,11 @@ namespace PartManager
 		const int typeId = m_ui->typeCombo->currentData().toInt();
 		m_attributeForm->setAttributes(m_controller.attributesFor(typeId));
 
-		// §11 also blocks Create on required *file slots*. There is no file store or attach
-		// UI yet, so a required slot could never be satisfied and would make every part of
-		// that type uncreatable — the slots are listed instead of enforced.
-		// ponytail: file slots are informational only. Ceiling is that a "required" CAD model
-		// is not actually enforced; upgrade path is core/filestore plus the editor's Files section.
+		// §11 also blocks Create on required *file slots*. The three built-in slots above cover
+		// the roles a type template can declare in practice; a template asking for something else
+		// still gets listed rather than enforced, since there is no field here to satisfy it with.
+		// ponytail: still informational. Ceiling is that a "required" slot outside the three
+		// built-ins is not enforced; upgrade path is generating a slot row per declared role.
 		QStringList slotLabels;
 		for (const PartTypeFileSlot& slot : m_controller.fileSlotsFor(typeId))
 		{
@@ -123,7 +241,7 @@ namespace PartManager
 		}
 		m_ui->fileSlotsLabel->setText(slotLabels.isEmpty()
 			? QString()
-			: tr("Expected files, attachable once the part exists: %1").arg(slotLabels.join(tr(", "))));
+			: tr("This type expects: %1").arg(slotLabels.join(tr(", "))));
 
 		revalidate();
 	}
@@ -143,6 +261,54 @@ namespace PartManager
 			: tr("Still required: %1").arg(missing.join(tr(", "))));
 	}
 
+	void NewPartDialog::applyPendingFiles(int partId, Part& part)
+	{
+		QStringList failures;
+		for (const auto& entry : m_pending)
+		{
+			const PartFileRole role = entry.first;
+			const PendingFile& pending = entry.second;
+			std::string error;
+			int fileId = 0;
+
+			if (!pending.localPath.isEmpty())
+			{
+				fileId = m_controller.attachRoleFile(partId, role, pending.localPath.toStdString(), &error);
+			}
+			else if (!pending.url.isEmpty())
+			{
+				fileId = m_controller.downloadRoleFile(partId, role, pending.url.toStdString(), &error);
+			}
+			else
+			{
+				continue;
+			}
+
+			if (fileId == 0)
+			{
+				failures.append(tr("%1: %2").arg(m_slotLabels[role] ? m_slotLabels[role]->text() : QString(),
+					toQt(error)));
+				continue;
+			}
+			// The datasheet is the one slot with a column on `part` pointing at it, so the
+			// record has to learn about it — the others are found by role.
+			if (role == PartFileRole::Datasheet)
+			{
+				part.datasheetFileId = fileId;
+			}
+		}
+
+		if (!failures.isEmpty())
+		{
+			// The part itself exists and is fine — §6 is explicit that a dead vendor URL must not
+			// block creating it. Said once, at the end, rather than one modal per slot.
+			QMessageBox::warning(this, tr("Some files could not be attached"),
+				tr("The part was created. These files were not:\n\n%1\n\n"
+				   "You can attach them by hand in the part editor.")
+					.arg(failures.join(QStringLiteral("\n"))));
+		}
+	}
+
 	void NewPartDialog::createPart()
 	{
 		Part part;
@@ -152,7 +318,10 @@ namespace PartManager
 		part.mpn = m_ui->mpnEdit->text().toStdString();
 		part.package = m_ui->packageEdit->text().toStdString();
 		part.description = m_ui->descriptionEdit->toPlainText().toStdString();
+		part.stockMinQty = m_ui->stockMinSpin->value();
 		part.attributes = m_attributeForm->valuesJson().toStdString();
+		// Not written here: the transaction log is the source of truth for the quantity (§3), so
+		// the opening count goes in as a restock below and the cache follows from it.
 
 		// A second row for a part that already exists is the quiet failure this catches: the
 		// duplicate looks fine, but a partlist can resolve to either copy, and the one it picks
@@ -188,13 +357,37 @@ namespace PartManager
 				tr("The database rejected the new part."));
 			return;
 		}
+		part.id = m_createdPartId;
 
 		// §3/§6: the part now exists, so the Mouser article number and the quote it was created
 		// from finally have somewhere to live. Until this ran, a part prefilled from Mouser kept
-		// no trace of where it came from and could never be staged into a cart. A no-op for a
-		// hand-made part, which carries no Mouser number.
-		m_controller.linkToMouser(m_createdPartId, m_prefill.mouserPartNumber,
-			m_prefill.productDetailUrl, m_prefill.priceBreaks);
+		// no trace of where it came from and could never be staged into a cart. The number is read
+		// off the field rather than out of the prefill, because it is editable — and a hand-typed
+		// one has no product page, so the URL only carries over when the number is untouched.
+		const std::string mouserNumber = m_ui->mouserEdit->text().trimmed().toStdString();
+		if (!mouserNumber.empty())
+		{
+			const bool unchanged = mouserNumber == m_prefill.mouserPartNumber;
+			m_controller.linkToMouser(m_createdPartId, mouserNumber,
+				unchanged ? m_prefill.productDetailUrl : std::string(),
+				unchanged ? m_prefill.priceBreaks : std::vector<PriceObservation>());
+		}
+
+		// Downloads block with a timeout, so the dialog really does stop responding for a moment.
+		QApplication::setOverrideCursor(Qt::WaitCursor);
+		applyPendingFiles(m_createdPartId, part);
+		QApplication::restoreOverrideCursor();
+		if (part.datasheetFileId != 0)
+		{
+			m_controller.savePart(part);
+		}
+
+		// §3: an opening count is a restock, not a column write — otherwise the history starts
+		// out disagreeing with the number beside it.
+		if (m_ui->stockSpin->value() > 0)
+		{
+			m_stock.restock(m_createdPartId, m_ui->stockSpin->value(), tr("Initial stock"));
+		}
 		accept();
 	}
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>620</width>
-    <height>560</height>
+    <width>680</width>
+    <height>680</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -37,8 +37,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>580</width>
-        <height>420</height>
+        <width>640</width>
+        <height>540</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="scrollLayout">
@@ -53,6 +53,9 @@
             <property name="text">
              <string>Component type</string>
             </property>
+            <property name="toolTip">
+             <string>Which category template this part uses. It decides the attribute fields below and the columns the part table shows — e.g. Resistor, Capacitor, MOSFET.</string>
+            </property>
            </widget>
           </item>
           <item row="0" column="1">
@@ -62,6 +65,9 @@
            <widget class="QLabel" name="nameLabel">
             <property name="text">
              <string>Name *</string>
+            </property>
+            <property name="toolTip">
+             <string>What you want to see in the parts table. Freely chosen — e.g. &quot;4k7 0603 1%&quot; or &quot;LM358 dual op-amp&quot;.</string>
             </property>
            </widget>
           </item>
@@ -73,6 +79,9 @@
             <property name="text">
              <string>Manufacturer</string>
             </property>
+            <property name="toolTip">
+             <string>Who makes the part — e.g. Murata, Texas Instruments, Yageo.</string>
+            </property>
            </widget>
           </item>
           <item row="2" column="1">
@@ -83,32 +92,103 @@
             <property name="text">
              <string>MPN</string>
             </property>
+            <property name="toolTip">
+             <string>Manufacturer Part Number — the maker's own order code, e.g. &quot;LM358DR&quot; or &quot;GRM188R71H104KA93D&quot;. Ordering does not use this; that is the Mouser P/N below.</string>
+            </property>
            </widget>
           </item>
           <item row="3" column="1">
            <widget class="QLineEdit" name="mpnEdit"/>
           </item>
           <item row="4" column="0">
-           <widget class="QLabel" name="packageLabel">
+           <widget class="QLabel" name="mouserLabel">
             <property name="text">
-             <string>Package</string>
+             <string>Mouser P/N</string>
+            </property>
+            <property name="toolTip">
+             <string>Mouser's own article number, e.g. &quot;595-LM358DR&quot;. This is what the cart orders by — the MPN will not work. Filled in automatically when the part came from a Mouser search.</string>
             </property>
            </widget>
           </item>
           <item row="4" column="1">
-           <widget class="QLineEdit" name="packageEdit"/>
+           <widget class="QLineEdit" name="mouserEdit">
+            <property name="placeholderText">
+             <string>e.g. 595-LM358DR — required to order this part</string>
+            </property>
+           </widget>
           </item>
           <item row="5" column="0">
-           <widget class="QLabel" name="descriptionLabel">
+           <widget class="QLabel" name="packageLabel">
             <property name="text">
-             <string>Description</string>
+             <string>Package</string>
+            </property>
+            <property name="toolTip">
+             <string>The physical housing the part comes in — its body shape and pin arrangement, which is what decides the PCB footprint.
+
+Not the same as THT vs SMD, though the name usually implies it:
+• SMD examples: 0603, 0805, SOT-23, SOIC-8, QFN-32, TQFP-44
+• THT examples: DIP-8, TO-220, TO-92, radial 5 mm, axial 0207
+• Mechanical parts: M3x10, M2.5 standoff
+
+Mouser fills this in from its &quot;Package / Case&quot; column.</string>
             </property>
            </widget>
           </item>
           <item row="5" column="1">
+           <widget class="QLineEdit" name="packageEdit">
+            <property name="placeholderText">
+             <string>e.g. 0603, SOIC-8, TO-220, DIP-8, M3x10</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="descriptionLabel">
+            <property name="text">
+             <string>Description</string>
+            </property>
+            <property name="toolTip">
+             <string>Free-text notes. Mouser's own product description lands here when the part came from a search.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
            <widget class="QPlainTextEdit" name="descriptionEdit">
             <property name="maximumHeight">
              <number>72</number>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="0">
+           <widget class="QLabel" name="stockLabel">
+            <property name="text">
+             <string>Stock</string>
+            </property>
+            <property name="toolTip">
+             <string>How many you have on the shelf right now. A non-zero value is recorded as the part's first restock, so the stock history starts out honest.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="1">
+           <widget class="QSpinBox" name="stockSpin">
+            <property name="maximum">
+             <number>100000000</number>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="0">
+           <widget class="QLabel" name="stockMinLabel">
+            <property name="text">
+             <string>Reorder threshold</string>
+            </property>
+            <property name="toolTip">
+             <string>The count below which you want to reorder. 0 means never warn.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="8" column="1">
+           <widget class="QSpinBox" name="stockMinSpin">
+            <property name="maximum">
+             <number>100000000</number>
             </property>
            </widget>
           </item>
@@ -121,6 +201,164 @@
           <string>Type attributes</string>
          </property>
          <layout class="QVBoxLayout" name="attributeLayout"/>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="filesGroup">
+         <property name="title">
+          <string>Files</string>
+         </property>
+         <property name="toolTip">
+          <string>Attached when the part is created. Nothing is copied or downloaded until then, so Cancel really does leave no trace.</string>
+         </property>
+         <layout class="QFormLayout" name="filesLayout">
+          <item row="0" column="0">
+           <widget class="QLabel" name="datasheetLabel">
+            <property name="text">
+             <string>Datasheet</string>
+            </property>
+            <property name="toolTip">
+             <string>Usually a PDF. Mouser's DataSheetUrl is filled in here automatically when it publishes one — which it does not for every part.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <layout class="QHBoxLayout" name="datasheetRow">
+            <item>
+             <widget class="QLabel" name="datasheetStateLabel">
+              <property name="text">
+               <string>None</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                <horstretch>1</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="datasheetFileButton">
+              <property name="text">
+               <string>File…</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="datasheetUrlButton">
+              <property name="text">
+               <string>URL…</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="datasheetClearButton">
+              <property name="text">
+               <string>Clear</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="imageLabel">
+            <property name="text">
+             <string>Image</string>
+            </property>
+            <property name="toolTip">
+             <string>A photo of the part. It is shown as a thumbnail in the first column of the parts table, which is what makes a component recognisable at a glance. Mouser's product photo is filled in here automatically.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <layout class="QHBoxLayout" name="imageRow">
+            <item>
+             <widget class="QLabel" name="imageStateLabel">
+              <property name="text">
+               <string>None</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                <horstretch>1</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="imageFileButton">
+              <property name="text">
+               <string>File…</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="imageUrlButton">
+              <property name="text">
+               <string>URL…</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="imageClearButton">
+              <property name="text">
+               <string>Clear</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="modelLabel">
+            <property name="text">
+             <string>3D model</string>
+            </property>
+            <property name="toolTip">
+             <string>STEP, OBJ, PLY, STL, WRL or glTF. STEP is what KiCad wants; the built-in viewer draws the mesh formats directly and converts STEP when FreeCAD is installed. Mouser publishes no CAD models through its API, so this one is always a local file.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <layout class="QHBoxLayout" name="modelRow">
+            <item>
+             <widget class="QLabel" name="modelStateLabel">
+              <property name="text">
+               <string>None</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                <horstretch>1</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="modelFileButton">
+              <property name="text">
+               <string>File…</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="modelClearButton">
+              <property name="text">
+               <string>Clear</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
         </widget>
        </item>
        <item>

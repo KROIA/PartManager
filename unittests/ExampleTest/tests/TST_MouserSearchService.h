@@ -72,6 +72,7 @@ private:
 					"Description": "Thick Film Resistors - SMD 4.7 kOhms 1% 0805",
 					"Category": "Chip Resistor - Surface Mount",
 					"DataSheetUrl": "https://www.mouser.ch/datasheet/2/447/rc-1664258.pdf",
+					"ImagePath": "https://www.mouser.ch/images/yageo/images/RC_SERIES_t.jpg",
 					"ProductDetailUrl": "https://www.mouser.ch/ProductDetail/YAGEO/RC0805FR-074K7L",
 					"Availability": "5000 In Stock",
 					"ROHSStatus": "RoHS Compliant",
@@ -119,6 +120,10 @@ private:
 		TEST_COMPARE(prefill.productDetailUrl,
 			std::string("https://www.mouser.ch/ProductDetail/YAGEO/RC0805FR-074K7L"));
 		TEST_ASSERT(!prefill.datasheetUrl.empty());
+		// The product photo becomes a role='image' attachment, which is what the part table
+		// paints as a thumbnail. Losing it here is invisible until someone looks at the table.
+		TEST_COMPARE(prefill.imageUrl,
+			std::string("https://www.mouser.ch/images/yageo/images/RC_SERIES_t.jpg"));
 		// partTypeId is never guessed here — resolving the name to a row is the caller's job.
 		TEST_COMPARE(prefill.part.partTypeId, 0);
 		// Package / Case and Operating Temperature are not part_type_attribute keys.

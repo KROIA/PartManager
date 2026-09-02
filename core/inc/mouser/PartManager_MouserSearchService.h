@@ -34,6 +34,7 @@ namespace PartManager
 		Part part;                         // partTypeId stays 0 whenever the category could not be mapped
 		std::string suggestedTypeName;     // 'MOSFET', 'Resistor', ...; empty = undecidable, leave it to the user
 		std::string datasheetUrl;          // MouserPart.DataSheetUrl, for the §6 auto-download step
+		std::string imageUrl;              // MouserPart.ImagePath — the product photo, downloaded as a role='image' attachment
 		std::string productDetailUrl;      // MouserPart.ProductDetailUrl — what "Open on Mouser" opens
 		std::string mouserPartNumber;      // the Cart API's article number (§6); not a Part field
 		// The quote as seen, one entry per price break, ready for `price_history(source=
