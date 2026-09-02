@@ -104,10 +104,15 @@ namespace PartManager
 		if (storedSchemaVersion < 8 && db.isOpen())
 		{
 			// v7 -> v8: tag categories (§2d) — `tag_category`, plus `tag.category_id` added to the
-			// existing table. createSchema() does both and is idempotent. Every tag written before
-			// this defaults to uncategorised, which is a valid state rather than something to
-			// backfill; the seed adopts the ones it recognises when DatabaseHandle re-runs it.
+			// existing table. createSchema() does both and is idempotent.
 			TagRepository::createSchema(db);
+			// ...and the families themselves, which is the part a migration has to do rather than
+			// leave to DatabaseHandle. `seedDefaultTags` only ever ran at *creation*, so without
+			// this an existing database gets the new tables and nothing in them: no categories,
+			// and the six tags it already had stay loose. The feature would be invisible on every
+			// database that predates it, which is all of them. Idempotent and per-name, so it
+			// adopts what is there instead of duplicating it.
+			TagRepository::seedDefaultTags(db);
 		}
 		return SchemaCompatibility::migrated;
 	}
