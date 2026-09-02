@@ -12,6 +12,8 @@
 // @see examples/PartManagerApp/src/main.cpp, unittests/ExampleTest/main.cpp
 #pragma once
 
+#include <string>
+
 class QApplication;
 
 namespace PartManager
@@ -35,5 +37,21 @@ namespace PartManager
 	// Guarded so a Qt build or platform that gets this right is left alone: a plausible UI font
 	// is never touched. Call before the first widget exists, so every screen inherits it.
 	void repairDefaultUiFont(QApplication& app);
+
+	// §9 theme. A QPalette swap rather than a stylesheet: RibbonWidget, the item views and every
+	// dialog are ordinary Qt widgets, so they all follow a palette without any of them knowing a
+	// theme exists — a stylesheet would have to name each one. Safe to call at any time; the
+	// change is live, which is what the Settings dialog's combo needs.
+	//
+	// `themeName` takes a ThemeName constant. Anything unrecognised falls through to the system
+	// default rather than a half-applied palette, because the value comes from a settings file a
+	// future version may have written.
+	void applyTheme(QApplication& app, const std::string& themeName);
+
+	// §8 language. Installs the QTranslator for `languageCode` ('en' | 'de'), removing whichever
+	// one was installed before. Returns false when there is no .qm for that language — which is
+	// the normal state until the translations are actually built, so the caller treats it as
+	// "stay in English" rather than an error.
+	bool applyLanguage(QApplication& app, const std::string& languageCode);
 
 }

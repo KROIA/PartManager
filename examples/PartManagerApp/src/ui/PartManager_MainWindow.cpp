@@ -10,8 +10,14 @@
 #include "ui/PartManager_PartlistEditorDialog.h"
 #include "ui/PartManager_PartlistImportDialog.h"
 #include "ui/PartManager_PartlistManagerDialog.h"
+#include "ui/PartManager_OrderManagerDialog.h"
+#include "ui/PartManager_Model3DDialog.h"
+#include "ui/PartManager_SettingsDialog.h"
 #include "ui/PartManager_StockDialog.h"
 #include "widgets/PartManager_TagChipDelegate.h"
+
+#include "backup/PartManager_BackupManager.h"
+#include "settings/PartManager_Settings.h"
 
 #include <QApplication>
 #include <QBrush>
@@ -81,6 +87,17 @@ namespace PartManager
 		connect(m_ui->partTable->horizontalHeader(), &QHeaderView::sectionResized,
 			this, &MainWindow::onColumnResized);
 
+		// §9a. A 15-minute tick rather than a timer set to the configured interval: the check is
+		// a directory listing, and a machine that slept through a due time still gets its
+		// snapshot at the next tick instead of waiting a full interval from wake-up.
+		m_backupTimer = new QTimer(this);
+		m_backupTimer->setInterval(15 * 60 * 1000);
+		connect(m_backupTimer, &QTimer::timeout, this, &MainWindow::onBackupTick);
+		m_backupTimer->start();
+		// One on the way in as well, so a database that has not been opened in weeks is snapshot
+		// before the user starts editing it, not after.
+		onBackupTick();
+
 		reloadCategories();
 	}
 
@@ -95,6 +112,74 @@ namespace PartManager
 	void MainWindow::onNotImplemented()
 	{
 		// Ribbon actions land in later slices; the buttons exist so the shell matches §7.
+	}
+
+	void MainWindow::onView3DModel()
+	{
+		QString name;
+		const int partId = selectedPartId(&name);
+		if (partId == 0)
+		{
+			QMessageBox::information(this, tr("No part selected"),
+				tr("Select a part first — the 3D viewer shows that part's model."));
+			return;
+		}
+		// Opens whether or not the part has a model: attaching one is the same screen, because
+		// the first thing anyone does after attaching is check it is the right file.
+		Model3DDialog dialog(m_controller.handle(), partId, name, this);
+		dialog.exec();
+	}
+
+	void MainWindow::onSettings()
+	{
+		SettingsDialog dialog(m_controller.handle(), this);
+		dialog.exec();
+		if (dialog.restoredFromBackup())
+		{
+			// The handle is closed and the file behind it is a different one now. Carrying on
+			// would show the restored database's name over the old database's data.
+			close();
+			return;
+		}
+		// A changed theme repaints itself, but the tree/table brushes were built against the old
+		// palette — re-render so the rows match the rest of the window.
+		reloadCategories();
+	}
+
+	void MainWindow::onBackupTick()
+	{
+		const AppPreferences preferences = Settings::getPreferences();
+		if (!preferences.backupsEnabled)
+		{
+			return;
+		}
+		const std::string databasePath = m_controller.handle() != nullptr
+			? m_controller.handle()->databaseFilePath() : std::string();
+		if (databasePath.empty()
+			|| !BackupManager::isSnapshotDue(databasePath, preferences.backupFolder,
+				preferences.backupIntervalHours))
+		{
+			return;
+		}
+		// Silent on success and on failure alike: a backup is not something to interrupt the user
+		// about, and a modal every 15 minutes because a folder is read-only would be worse than
+		// the missing snapshot. The Settings dialog's list is where the truth is visible.
+		BackupManager::createSnapshot(databasePath, preferences.backupFolder,
+			preferences.backupRetentionCount);
+	}
+
+	void MainWindow::closeEvent(QCloseEvent* event)
+	{
+		// §9a's "always on clean shutdown" snapshot. Unconditional rather than due-based: this is
+		// the last chance to capture the session's edits, and it costs one file copy.
+		const AppPreferences preferences = Settings::getPreferences();
+		if (preferences.backupsEnabled && m_controller.handle() != nullptr
+			&& m_controller.handle()->isOpen())
+		{
+			BackupManager::createSnapshot(m_controller.handle()->databaseFilePath(),
+				preferences.backupFolder, preferences.backupRetentionCount);
+		}
+		QMainWindow::closeEvent(event);
 	}
 
 	void MainWindow::setupFilters()
@@ -334,6 +419,14 @@ namespace PartManager
 	{
 		PartlistManagerDialog dialog(m_controller.handle(), this);
 		dialog.exec();
+	}
+
+	void MainWindow::onManageOrders()
+	{
+		OrderManagerDialog dialog(m_controller.handle(), this);
+		dialog.exec();
+		// Confirming an arrival restocks, so the counts in the tree and the table have moved.
+		reloadCategories();
 	}
 
 	void MainWindow::onManageTags()
@@ -623,14 +716,16 @@ namespace PartManager
 		addButton(newGroup, tr("New Partlist"), QStringLiteral(":/icons/new-partlist.png"), &MainWindow::onNewPartlist);
 		addButton(newGroup, tr("Import CSV / BOM"), QStringLiteral(":/icons/import-csv.png"), &MainWindow::onImportPartlist);
 		addButton(newGroup, tr("Partlists"), QStringLiteral(":/icons/view-list.png"), &MainWindow::onManagePartlists);
+		addButton(newGroup, tr("Orders"), QStringLiteral(":/icons/orders.png"), &MainWindow::onManageOrders);
 		addButton(stockGroup, tr("Restock"), QStringLiteral(":/icons/restock.png"), &MainWindow::onRestock);
 		addButton(stockGroup, tr("Take Out"), QStringLiteral(":/icons/take-out.png"), &MainWindow::onTakeOut);
 		addButton(viewGroup, tr("Refresh"), QStringLiteral(":/icons/refresh.png"), &MainWindow::reloadCategories);
 		addButton(viewGroup, tr("Customize Columns"), QStringLiteral(":/icons/tabelle.png"), &MainWindow::onCustomizeColumns);
 		addButton(viewGroup, tr("List / Grid"), QStringLiteral(":/icons/view-list.png"), &MainWindow::onNotImplemented);
-		addButton(viewGroup, tr("3D Viewer"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onNotImplemented);
+		addButton(viewGroup, tr("3D Viewer"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onView3DModel);
 		addButton(manageGroup, tr("Edit Type Templates"), QStringLiteral(":/icons/edit-type-template.png"), &MainWindow::onNotImplemented);
 		addButton(manageGroup, tr("Manage Tags"), QStringLiteral(":/icons/manage-tags.png"), &MainWindow::onManageTags);
+		addButton(manageGroup, tr("Settings"), QStringLiteral(":/icons/settings.png"), &MainWindow::onSettings);
 		addButton(manageGroup, tr("Import from Mouser"), QStringLiteral(":/icons/mouser-search.png"), &MainWindow::onNewPartFromMouser);
 		addButton(filesGroup, tr("Attach File"), QStringLiteral(":/icons/attach-file.png"), &MainWindow::onNotImplemented);
 		addButton(filesGroup, tr("Open Datasheet"), QStringLiteral(":/icons/open-datasheet.png"), &MainWindow::onNotImplemented);

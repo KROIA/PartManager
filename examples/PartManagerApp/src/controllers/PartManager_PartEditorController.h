@@ -26,6 +26,7 @@
 #include "domain/PartManager_PartType.h"
 #include "domain/PartManager_PartTypeAttribute.h"
 #include "domain/PartManager_PartTypeFileSlot.h"
+#include "domain/PartManager_Seller.h"
 #include "domain/PartManager_Tag.h"
 #include <QString>
 #include <map>
@@ -114,6 +115,34 @@ namespace PartManager
 		// Absolute path of the stored datasheet — empty when there is none, or the file
 		// is no longer on disk, which is what tells the editor to say so instead of opening nothing.
 		std::string datasheetPath(const Part& part) const;
+
+		// §13 3D model slot. A part carries at most one, stored under `part_file(role=
+		// 'kicad_3dmodel')` — the same row §5a's library generator points KiCad at, so attaching
+		// a model here is also what gives the generated symbol something to reference. Unlike the
+		// datasheet there is no column on `part`, so these read and write `part_file` directly
+		// and need no autosave from the caller.
+		//
+		// **Any recognised 3D format is accepted, renderable or not.** A STEP file is exactly
+		// what KiCad wants and exactly what the viewer cannot draw; refusing it to keep the
+		// viewer happy would break the more important half.
+		// Returns the new part_file id, 0 on failure with the reason in outError.
+		int attachModel3D(int partId, const std::string& sourcePath, std::string* outError = nullptr) const;
+		// The part's 3D model row. False when it carries none.
+		bool model3DFile(int partId, PartFile& outFile) const;
+		// Absolute path of the stored model — empty when there is none, or the file is no longer
+		// on disk, which is what tells the viewer to say so instead of drawing nothing.
+		std::string model3DPath(int partId) const;
+		// Removes the current model. False when the part carried none.
+		bool detachModel3D(int partId) const;
+
+		// §3/§6: remembers that this part is a Mouser article, and what it was quoted at. Without
+		// this a part created from a Mouser hit keeps no trace of where it came from, and item 9's
+		// cart staging has no article number to send — `part.mpn` is the *manufacturer's* number,
+		// which the Cart API rejects. Returns the part_seller_link id, 0 on failure.
+		int linkToMouser(int partId, const std::string& mouserPartNumber, const std::string& url,
+			const std::vector<PriceObservation>& quote) const;
+		// Every seller link on a part, primary first — the part editor's "Open on Mouser" row.
+		std::vector<PartSellerLink> sellerLinks(int partId) const;
 
 		std::vector<Tag> allTags() const;
 		std::vector<Tag> partTags(int partId) const;

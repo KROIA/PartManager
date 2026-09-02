@@ -11,6 +11,20 @@
 ## "ui/PartManager_MainWindow.h" resolve from anywhere in the tree.
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+## §13's 3D viewer. Qt3D only, and only in the app -- core/ stays widget-free (§12a), so the
+## library never links these. Qt3D's own geometry loaders cover OBJ/PLY/STL/glTF; STEP is not a
+## mesh format and needs a converter, which Model3DFormat reports rather than pretending to open.
+set(QT_MODULES
+    Core
+    Gui
+    Network
+    Widgets
+    3DCore
+    3DRender
+    3DInput
+    3DExtras
+)
+
 ## USER_SECTION_END
 
 ## Override the QT_MODULES if you want to use other modules. 

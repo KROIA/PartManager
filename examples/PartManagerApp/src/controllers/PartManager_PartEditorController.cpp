@@ -3,6 +3,7 @@
 #include "filestore/PartManager_FileStore.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
+#include "persistence/PartManager_SellerRepository.h"
 #include "persistence/PartManager_TagRepository.h"
 
 #include <QJsonDocument>
@@ -226,6 +227,116 @@ namespace PartManager
 		}
 	}
 
+	int PartEditorController::attachModel3D(int partId, const std::string& sourcePath,
+		std::string* outError) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || partId == 0)
+		{
+			if (outError)
+			{
+				*outError = "No open database.";
+			}
+			return 0;
+		}
+
+		FileStore store = storeOf(m_handle);
+		// Import first, detach second — same reasoning as attachDatasheet(): a failed import
+		// then leaves the old model in place instead of losing both.
+		const int fileId = store.attachFile(*db, partId, PartFileRole::Kicad3DModel, sourcePath,
+			outError);
+		if (fileId == 0)
+		{
+			return 0;
+		}
+		// Exactly one model per part, so the previous one goes. Its file is only unlinked when
+		// no other row shares the content (FileStore is reference-counted).
+		PartFile previous;
+		if (model3DFile(partId, previous) && previous.id != fileId)
+		{
+			store.detachFile(*db, previous.id);
+		}
+		return fileId;
+	}
+
+	bool PartEditorController::model3DFile(int partId, PartFile& outFile) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || partId == 0)
+		{
+			return false;
+		}
+		// There is no column on `part` pointing at the model (unlike the datasheet), so the row
+		// is found by role. Newest wins if an older version ever left two behind.
+		bool found = false;
+		for (const PartFile& file : PartRepository::listFiles(*db, partId))
+		{
+			if (partFileRoleFromString(file.role) == PartFileRole::Kicad3DModel
+				&& (!found || file.id > outFile.id))
+			{
+				outFile = file;
+				found = true;
+			}
+		}
+		return found;
+	}
+
+	std::string PartEditorController::model3DPath(int partId) const
+	{
+		PartFile file;
+		if (!model3DFile(partId, file))
+		{
+			return std::string();
+		}
+		// absolutePath() returns empty when the file is gone from disk, which is exactly what
+		// the viewer needs in order to say so rather than draw nothing.
+		return storeOf(m_handle).absolutePath(file.relativePath);
+	}
+
+	bool PartEditorController::detachModel3D(int partId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		PartFile file;
+		if (!db || !model3DFile(partId, file))
+		{
+			return false;
+		}
+		return storeOf(m_handle).detachFile(*db, file.id);
+	}
+
+	int PartEditorController::linkToMouser(int partId, const std::string& mouserPartNumber,
+		const std::string& url, const std::vector<PriceObservation>& quote) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || partId == 0 || mouserPartNumber.empty())
+		{
+			// No article number means no link worth writing: a row with an empty
+			// seller_part_number would satisfy "has a Mouser link" while still being unorderable.
+			return NoPartSellerLinkId;
+		}
+
+		PartSellerLink link;
+		link.partId = partId;
+		link.sellerId = SellerRepository::ensureMouserSeller(*db);
+		link.sellerPartNumber = mouserPartNumber;
+		link.url = url;
+		// The first (usually only) seller a part gets is the one the order path should use.
+		link.isPrimary = true;
+		const int linkId = SellerRepository::linkPart(*db, link);
+		if (linkId != NoPartSellerLinkId && !quote.empty())
+		{
+			SellerRepository::recordQuote(*db, linkId, quote);
+		}
+		return linkId;
+	}
+
+	std::vector<PartSellerLink> PartEditorController::sellerLinks(int partId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db ? SellerRepository::linksForPart(*db, partId) : std::vector<PartSellerLink>();
+	}
+
+
 	int PartEditorController::attachDatasheet(Part& part, const std::string& sourcePath, std::string* outError) const
 	{
 		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
@@ -378,6 +489,14 @@ namespace PartManager
 	bool PartEditorController::loadPart(int, Part&) const { return false; }
 	bool PartEditorController::savePart(const Part&) const { return false; }
 	int PartEditorController::createPart(const Part&) const { return 0; }
+	int PartEditorController::attachModel3D(int, const std::string&, std::string*) const { return 0; }
+	bool PartEditorController::model3DFile(int, PartFile&) const { return false; }
+	std::string PartEditorController::model3DPath(int) const { return std::string(); }
+	bool PartEditorController::detachModel3D(int) const { return false; }
+	int PartEditorController::linkToMouser(int, const std::string&, const std::string&,
+		const std::vector<PriceObservation>&) const { return NoPartSellerLinkId; }
+	std::vector<PartSellerLink> PartEditorController::sellerLinks(int) const
+	{ return std::vector<PartSellerLink>(); }
 	int PartEditorController::attachDatasheet(Part&, const std::string&, std::string*) const { return 0; }
 	int PartEditorController::downloadDatasheet(Part&, const std::string&, std::string*) const { return 0; }
 	bool PartEditorController::detachDatasheet(Part&) const { return false; }

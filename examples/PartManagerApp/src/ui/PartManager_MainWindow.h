@@ -18,6 +18,7 @@
 #include <memory>
 
 class QLineEdit;
+class QTimer;
 class QTreeWidgetItem;
 
 namespace Ui { class MainWindow; }
@@ -54,6 +55,8 @@ namespace PartManager
 		void onManagePartlists();
 		// Home tab's Import CSV/BOM button — column mapping, then the editor on the result (§4, §5).
 		void onImportPartlist();
+		// Home tab's Orders button — the §4 order view: stage, submit, confirm arrivals, close.
+		void onManageOrders();
 		// Parts tab's Manage Tags button (§2d).
 		void onManageTags();
 		// Home tab's Stock group (§7): both write one stock_transaction for the selected part (§3).
@@ -63,6 +66,20 @@ namespace PartManager
 		void onCustomizeColumns();
 		// Persists a column width the user just dragged (§7b).
 		void onColumnResized(int logicalIndex, int oldSize, int newSize);
+		// Home tab's 3D Viewer button (§13) — the selected part's 3D model: attach, view, remove.
+		void onView3DModel();
+		// Parts tab's Settings button (§9). Ends the session when a backup was restored, because
+		// the file the handle was opened against is no longer the one on disk.
+		void onSettings();
+		// §9a: takes a snapshot when one is due. Fires on a timer while the app runs; the check
+		// is cheap (a directory listing) so a short tick is fine and the interval stays honest
+		// even if the machine slept through a due time.
+		void onBackupTick();
+
+	protected:
+		// §9a: the "always on clean shutdown" snapshot. Also the only one a user who never leaves
+		// the app running for six hours would ever get.
+		void closeEvent(QCloseEvent* event) override;
 
 	private:
 		// Shared tail of both New Part flows: open the editor on the fresh part, then reload.
@@ -96,6 +113,8 @@ namespace PartManager
 		// The part the user last picked, kept across the table refills a stock write causes.
 		int m_selectedPartId = 0;
 		int m_currentTypeId = NoParentType;
+		// §9a. Owned by the window (Qt parent), so it stops when the window goes.
+		QTimer* m_backupTimer = nullptr;
 		QString m_currentTypeName;
 		// The columns behind the table's current header — a dragged divider only reports a
 		// section index, so this is what turns that back into a column key (§7b).

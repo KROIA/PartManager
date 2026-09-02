@@ -1,4 +1,5 @@
 #include "PartManager_AppStartup.h"
+#include "settings/PartManager_Settings.h"
 #include "ui/PartManager_DatabaseSelectorDialog.h"
 #include "ui/PartManager_MainWindow.h"
 
@@ -25,8 +26,11 @@ int main(int argc, char* argv[])
 	QCoreApplication::setOrganizationName("KROIA");
 	QCoreApplication::setApplicationName("PartManager");
 
-	// TODO(§8): install the QTranslator for the saved language here.
-	// TODO(§9): apply the saved theme/palette here.
+	// §8/§9. After the organization/application names, because Settings reads its file from a
+	// path those key off — asking earlier would read a different (empty) settings file.
+	const PartManager::AppPreferences preferences = PartManager::Settings::getPreferences();
+	PartManager::applyLanguage(app, preferences.language);
+	PartManager::applyTheme(app, preferences.theme);
 
 	// §1a: a .pmdb passed on the command line (what a file association hands us when the
 	// user double-clicks one) opens straight through. That is an explicit pick, not the
