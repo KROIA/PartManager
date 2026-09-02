@@ -1,6 +1,7 @@
 #include "controllers/PartManager_PartEditorController.h"
 
 #include "filestore/PartManager_FileStore.h"
+#include "import/PartManager_EcadArchive.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_SellerRepository.h"
@@ -276,27 +277,10 @@ namespace PartManager
 			return 0;
 		}
 
-		// Looked up *before* the new row exists. roleFile() resolves a slot by taking the highest
-		// id, so asking afterwards hands back the row that was just inserted and the old one is
-		// never detached — which is how a slot quietly ends up holding two files.
-		PartFile previous;
-		const bool hadPrevious = roleFile(partId, role, previous);
-
+		// The single-slot rule lives in FileStore, so the library generator — which writes these
+		// same slots when it syncs a KiCad edit back — cannot disagree with the editor about it.
 		FileStore store = storeOf(m_handle);
-		// Import first, detach second — same reasoning as attachDatasheet(): a failed import
-		// then leaves the old file in place instead of losing both.
-		const int fileId = store.attachFile(*db, partId, role, sourcePath, outError);
-		if (fileId == 0)
-		{
-			return 0;
-		}
-		// Exactly one file per slot, so the previous one goes. Its content is only unlinked when
-		// no other row shares it (FileStore is reference-counted).
-		if (hadPrevious && previous.id != fileId)
-		{
-			store.detachFile(*db, previous.id);
-		}
-		return fileId;
+		return store.replaceRoleFile(*db, partId, role, sourcePath, outError);
 	}
 
 	int PartEditorController::downloadRoleFile(int partId, PartFileRole role,
@@ -312,11 +296,9 @@ namespace PartManager
 			return 0;
 		}
 
-		// Same reason as attachRoleFile(): asked before the new row exists.
-		PartFile previous;
-		const bool hadPrevious = roleFile(partId, role, previous);
-
 		FileStore store = storeOf(m_handle);
+		// The download itself is not a file yet, so it cannot go through replaceRoleFile() —
+		// but the bytes it produces can, which is what keeps the slot rule in one place.
 		const FileStoreResult downloaded = store.downloadFile(url);
 		if (!downloaded.ok)
 		{
@@ -326,54 +308,13 @@ namespace PartManager
 			}
 			return 0;
 		}
-
-		// FileStore::attachFile() only takes a local source path, so the row for downloaded
-		// content is written here from the same fields it would have used.
-		PartFile file;
-		file.partId = partId;
-		file.role = toString(role);
-		file.relativePath = downloaded.relativePath;
-		file.contentHash = downloaded.contentHash;
-		file.sizeBytes = downloaded.sizeBytes;
-		file.mimeType = downloaded.mimeType;
-		file.originalFilename = downloaded.originalFilename;
-
-		const int fileId = PartRepository::insertFile(*db, file);
-		if (fileId == 0)
-		{
-			if (outError)
-			{
-				*outError = "Could not insert the part_file row for " + downloaded.originalFilename + ".";
-			}
-			return 0;
-		}
-
-		if (hadPrevious && previous.id != fileId)
-		{
-			store.detachFile(*db, previous.id);
-		}
-		return fileId;
+		return store.adoptStoredFile(*db, partId, role, downloaded, outError);
 	}
 
 	bool PartEditorController::roleFile(int partId, PartFileRole role, PartFile& outFile) const
 	{
 		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
-		if (!db || partId == 0)
-		{
-			return false;
-		}
-		// There is no column on `part` pointing at these (unlike the datasheet), so the row is
-		// found by role. Newest wins if an older version ever left two behind.
-		bool found = false;
-		for (const PartFile& file : PartRepository::listFiles(*db, partId))
-		{
-			if (partFileRoleFromString(file.role) == role && (!found || file.id > outFile.id))
-			{
-				outFile = file;
-				found = true;
-			}
-		}
-		return found;
+		return db && FileStore::roleFile(*db, partId, role, outFile);
 	}
 
 	std::string PartEditorController::roleFilePath(int partId, PartFileRole role) const
@@ -397,6 +338,43 @@ namespace PartManager
 			return false;
 		}
 		return storeOf(m_handle).detachFile(*db, file.id);
+	}
+
+	PartEditorController::EcadImportSummary PartEditorController::importEcadArchive(int partId,
+		const std::string& zipPath) const
+	{
+		EcadImportSummary summary;
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || partId == 0)
+		{
+			summary.errorMessage = "No open database.";
+			return summary;
+		}
+
+		const EcadArchivePayload payload = EcadArchive::read(zipPath);
+		if (!payload.contents.errorMessage.empty())
+		{
+			summary.errorMessage = payload.contents.errorMessage;
+			return summary;
+		}
+		summary.legacyKicadOnly = payload.contents.legacyKicadOnly;
+		summary.ignoredEntries = payload.contents.ignoredEntries;
+
+		FileStore store = storeOf(m_handle);
+		auto attach = [&](const std::string& bytes, const std::string& name, PartFileRole role)
+		{
+			return !bytes.empty()
+				&& store.replaceRoleFileBytes(*db, partId, role, bytes, name) != 0;
+		};
+		summary.symbolAttached =
+			attach(payload.symbolBytes, payload.symbolName, PartFileRole::KicadSymbol);
+		summary.footprintAttached =
+			attach(payload.footprintBytes, payload.footprintName, PartFileRole::KicadFootprint);
+		summary.modelAttached =
+			attach(payload.modelBytes, payload.modelName, PartFileRole::Kicad3DModel);
+
+		summary.ok = true;
+		return summary;
 	}
 
 	bool PartEditorController::deletePart(int partId) const

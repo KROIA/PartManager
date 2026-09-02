@@ -30,6 +30,22 @@ if(QT_ENABLE)
 endif()
 # end QT settings
 
+## §5c: the ECAD archive importer needs QZipReader, which lives in QtGui's *private* headers --
+## Qt 5 publishes no zip API at all. Core already links Gui, so only the include path is missing
+## and no new dependency is taken on. See PartManager_EcadArchive.h for the upgrade path.
+## Read off the imported target rather than Qt5Gui_PRIVATE_INCLUDE_DIRS, which is only set on the
+## first find_package(Qt5Gui) in a configure run and is empty for everyone who asks later.
+## CorePrivate as well as GuiPrivate: qtguiglobal_p.h includes QtCore/private/qglobal_p.h, so the
+## Gui path alone does not compile.
+foreach(_pm_qt_private Qt5::CorePrivate Qt5::GuiPrivate)
+    if(QT_ENABLE AND TARGET ${_pm_qt_private})
+        get_target_property(_pm_qt_private_dirs ${_pm_qt_private} INTERFACE_INCLUDE_DIRECTORIES)
+        include_directories(${_pm_qt_private_dirs})
+    endif()
+endforeach()
+unset(_pm_qt_private)
+unset(_pm_qt_private_dirs)
+
 GLOB_FILES(H_FILES *.h)
 GLOB_FILES(CPP_FILES *.cpp)
 GLOB_FILES(C_FILES *.c)

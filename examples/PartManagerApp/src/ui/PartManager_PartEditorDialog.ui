@@ -445,6 +445,157 @@ Mouser fills this in from its &quot;Package / Case&quot; column.</string>
         </widget>
        </item>
        <item>
+        <widget class="QGroupBox" name="kicadGroup">
+         <property name="title">
+          <string>KiCad</string>
+         </property>
+         <property name="toolTip">
+          <string>This part's own symbol and footprint. They are what &quot;Generate Libraries&quot; puts into the shared KiCad library, and an edit you make in KiCad is written back here the next time you regenerate — so the two copies stay identical.</string>
+         </property>
+         <layout class="QVBoxLayout" name="kicadLayout">
+          <item>
+           <layout class="QHBoxLayout" name="kicadImportRow">
+            <item>
+             <widget class="QPushButton" name="importEcadButton">
+              <property name="text">
+               <string>Import vendor ZIP…</string>
+              </property>
+              <property name="toolTip">
+               <string>Reads a library download such as &quot;LIB_74HC4051PW-Q100,11.zip&quot; from Component Search Engine, Ultra Librarian or SnapEDA, and takes the KiCad symbol, the footprint and the 3D model out of it. Everything for the other twenty CAD tools in the archive is ignored. The files are copied into this database, so the ZIP can be deleted afterwards.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="kicadImportSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QFormLayout" name="kicadFormLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="kicadSymbolCaption">
+              <property name="text">
+               <string>Symbol</string>
+              </property>
+              <property name="toolTip">
+               <string>A .kicad_sym file holding this part's schematic symbol. Without one the generated library uses a plain box or a generic resistor/capacitor outline, which works but has no real pinout.</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <layout class="QHBoxLayout" name="kicadSymbolRow">
+              <item>
+               <widget class="QLabel" name="kicadSymbolLabel">
+                <property name="text">
+                 <string>Generated from the type template.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="attachSymbolButton">
+                <property name="text">
+                 <string>Attach…</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="removeSymbolButton">
+                <property name="text">
+                 <string>Remove</string>
+                </property>
+                <property name="toolTip">
+                 <string>Puts this part back on the generic generated symbol.</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="kicadFootprintCaption">
+              <property name="text">
+               <string>Footprint</string>
+              </property>
+              <property name="toolTip">
+               <string>A .kicad_mod file — the copper pads and courtyard. KiCad keeps footprints as one file each inside a .pretty folder, which is how they are written out.</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <layout class="QHBoxLayout" name="kicadFootprintRow">
+              <item>
+               <widget class="QLabel" name="kicadFootprintLabel">
+                <property name="text">
+                 <string>None.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="attachFootprintButton">
+                <property name="text">
+                 <string>Attach…</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="removeFootprintButton">
+                <property name="text">
+                 <string>Remove</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="kicadModelCaption">
+              <property name="text">
+               <string>3D model</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLabel" name="kicadModelLabel">
+              <property name="text">
+               <string>None.</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
         <widget class="QGroupBox" name="stockHistoryGroup">
          <property name="title">
           <string>Stock history</string>

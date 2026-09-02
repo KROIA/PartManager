@@ -104,4 +104,16 @@ endif()
 
 ## USER_SECTION_START 5
 
+## TST_EcadArchive builds its fixture archive with QZipWriter, the write half of the private
+## QtGui zip API core reads with. Same include path, same reasoning (PartManager_EcadArchive.h).
+## The imported target, not Qt5Gui_PRIVATE_INCLUDE_DIRS: that variable is only set the first time
+## find_package(Qt5Gui) runs, and by the time this file gets to say anything the package is
+## already found, so reading the variable here silently yields nothing. The target persists.
+## Plain signature, no PRIVATE keyword: exampleMaster() already linked this target the plain way,
+## and CMake refuses to mix the two forms on one target.
+## CorePrivate too: qtguiglobal_p.h includes QtCore/private/qglobal_p.h.
+if(TARGET Qt5::GuiPrivate)
+    target_link_libraries(ExampleTest Qt5::CorePrivate Qt5::GuiPrivate)
+endif()
+
 ## USER_SECTION_END

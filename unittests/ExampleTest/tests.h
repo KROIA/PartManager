@@ -19,6 +19,7 @@
 #include "tests/TST_NewPartDialogGui.h"
 #include "tests/TST_SearchEngine.h"
 #include "tests/TST_FileStore.h"
+#include "tests/TST_EcadArchive.h"
 #include "tests/TST_MainWindowController.h"
 #include "tests/TST_PartEditorController.h"
 #include "tests/TST_Settings.h"

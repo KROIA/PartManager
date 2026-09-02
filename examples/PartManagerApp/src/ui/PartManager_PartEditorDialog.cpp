@@ -126,6 +126,12 @@ namespace PartManager
 		connect(m_ui->downloadImageButton, &QPushButton::clicked, this, &PartEditorDialog::downloadImage);
 		connect(m_ui->removeImageButton, &QPushButton::clicked, this, &PartEditorDialog::removeImage);
 
+		connect(m_ui->importEcadButton, &QPushButton::clicked, this, &PartEditorDialog::importEcadArchive);
+		connect(m_ui->attachSymbolButton, &QPushButton::clicked, this, &PartEditorDialog::attachKicadSymbol);
+		connect(m_ui->removeSymbolButton, &QPushButton::clicked, this, &PartEditorDialog::removeKicadSymbol);
+		connect(m_ui->attachFootprintButton, &QPushButton::clicked, this, &PartEditorDialog::attachKicadFootprint);
+		connect(m_ui->removeFootprintButton, &QPushButton::clicked, this, &PartEditorDialog::removeKicadFootprint);
+
 		connect(m_ui->deletePartButton, &QPushButton::clicked, this, &PartEditorDialog::deletePart);
 		connect(m_ui->closeButton, &QPushButton::clicked, this, &PartEditorDialog::accept);
 	}
@@ -150,6 +156,7 @@ namespace PartManager
 			m_ui->addTagButton->setEnabled(false);
 			m_ui->datasheetGroup->setEnabled(false);
 			m_ui->imageGroup->setEnabled(false);
+			m_ui->kicadGroup->setEnabled(false);
 			m_ui->stockHistoryGroup->setEnabled(false);
 			m_ui->deletePartButton->setEnabled(false);
 			m_loading = false;
@@ -179,6 +186,7 @@ namespace PartManager
 		reloadTags();
 		updateDatasheetState();
 		updateImageState();
+		updateKicadState();
 		updateMouserState();
 		reloadHistory();
 		m_loading = false;
@@ -412,6 +420,158 @@ namespace PartManager
 		}
 		m_controller.detachRoleFile(m_part.id, PartFileRole::Image);
 		updateImageState();
+	}
+
+	void PartEditorDialog::updateKicadState()
+	{
+		auto describe = [this](PartFileRole role, QLabel* label, const QString& emptyText)
+		{
+			PartFile file;
+			if (!m_controller.roleFile(m_part.id, role, file))
+			{
+				label->setText(emptyText);
+				return false;
+			}
+			const bool onDisk = !m_controller.roleFilePath(m_part.id, role).empty();
+			// The file name is the vendor's own data; only the frame is translated.
+			label->setText(onDisk
+				? tr("%1 (%2)").arg(toQt(file.originalFilename),
+					QLocale().formattedDataSize(file.sizeBytes))
+				: tr("%1 — the stored file is missing from this database's file store.")
+					.arg(toQt(file.originalFilename)));
+			return true;
+		};
+
+		const bool hasSymbol = describe(PartFileRole::KicadSymbol, m_ui->kicadSymbolLabel,
+			tr("Generated from the type template — a working symbol, but with no real pinout."));
+		const bool hasFootprint = describe(PartFileRole::KicadFootprint, m_ui->kicadFootprintLabel,
+			tr("None. Without one the symbol has no footprint to place."));
+		describe(PartFileRole::Kicad3DModel, m_ui->kicadModelLabel,
+			tr("None. Attach one in the 3D viewer, or import a vendor ZIP."));
+
+		m_ui->removeSymbolButton->setEnabled(hasSymbol);
+		m_ui->removeFootprintButton->setEnabled(hasFootprint);
+		m_ui->attachSymbolButton->setText(hasSymbol ? tr("Replace…") : tr("Attach…"));
+		m_ui->attachFootprintButton->setText(hasFootprint ? tr("Replace…") : tr("Attach…"));
+	}
+
+	void PartEditorDialog::importEcadArchive()
+	{
+		const QString path = QFileDialog::getOpenFileName(this,
+			tr("Choose a vendor library download"), QString(),
+			tr("Library archives (*.zip);;All files (*)"));
+		if (path.isEmpty())
+		{
+			return;
+		}
+
+		QApplication::setOverrideCursor(Qt::WaitCursor);
+		const PartEditorController::EcadImportSummary summary =
+			m_controller.importEcadArchive(m_part.id, path.toStdString());
+		QApplication::restoreOverrideCursor();
+
+		if (!summary.ok)
+		{
+			QMessageBox::warning(this, tr("Could not read the archive"),
+				tr("%1\n\nA library download is a .zip — if you unpacked it already, use the "
+				   "Attach buttons on the files inside instead.").arg(toQt(summary.errorMessage)));
+			return;
+		}
+
+		QStringList taken;
+		if (summary.symbolAttached)    { taken.append(tr("the schematic symbol")); }
+		if (summary.footprintAttached) { taken.append(tr("the footprint")); }
+		if (summary.modelAttached)     { taken.append(tr("the 3D model")); }
+
+		if (taken.isEmpty())
+		{
+			// Saying nothing here is what makes an importer look broken — the archive plainly
+			// had files in it, so the reason none of them was usable has to be given.
+			QMessageBox::information(this, tr("Nothing to import"),
+				summary.legacyKicadOnly
+					? tr("This archive's KiCad folder holds only the old KiCad 5 format "
+						 "(.lib/.dcm/.mod). PartManager writes .kicad_sym libraries and cannot mix "
+						 "the two, so nothing was taken.\n\nDownload the KiCad 6+ version, or "
+						 "convert it in KiCad and attach the result.")
+					: tr("The archive has no KiCad files in it — %n entr(y/ies) for other CAD "
+						 "tools were skipped.", "", summary.ignoredEntries));
+			return;
+		}
+
+		updateKicadState();
+		updateImageState();
+		QMessageBox::information(this, tr("Imported"),
+			tr("Took %1 out of the archive.\n\nThe files were copied into this database, so the "
+			   "ZIP can be deleted. The symbol is what “Generate Libraries” will now put into "
+			   "KiCad instead of the generic one.")
+				.arg(taken.join(tr(", "))));
+	}
+
+	void PartEditorDialog::attachKicadSymbol()
+	{
+		const QString path = QFileDialog::getOpenFileName(this, tr("Choose a KiCad symbol"),
+			QString(), tr("KiCad symbol libraries (*.kicad_sym);;All files (*)"));
+		if (path.isEmpty())
+		{
+			return;
+		}
+		std::string error;
+		if (m_controller.attachRoleFile(m_part.id, PartFileRole::KicadSymbol, path.toStdString(),
+			&error) == 0)
+		{
+			QMessageBox::warning(this, tr("Could not attach the symbol"), toQt(error));
+			return;
+		}
+		updateKicadState();
+	}
+
+	void PartEditorDialog::removeKicadSymbol()
+	{
+		if (QMessageBox::question(this, tr("Remove the symbol"),
+			tr("This part goes back to the generic generated symbol, and the next regeneration "
+			   "replaces it in the KiCad library.\n\nAny edit you made in KiCad and that was "
+			   "synced back into this file is lost with it. Remove it?"),
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+		{
+			return;
+		}
+		m_controller.detachRoleFile(m_part.id, PartFileRole::KicadSymbol);
+		updateKicadState();
+	}
+
+	void PartEditorDialog::attachKicadFootprint()
+	{
+		const QString path = QFileDialog::getOpenFileName(this, tr("Choose a KiCad footprint"),
+			QString(), tr("KiCad footprints (*.kicad_mod);;All files (*)"));
+		if (path.isEmpty())
+		{
+			return;
+		}
+		std::string error;
+		if (m_controller.attachRoleFile(m_part.id, PartFileRole::KicadFootprint, path.toStdString(),
+			&error) == 0)
+		{
+			QMessageBox::warning(this, tr("Could not attach the footprint"), toQt(error));
+			return;
+		}
+		updateKicadState();
+	}
+
+	void PartEditorDialog::removeKicadFootprint()
+	{
+		PartFile file;
+		if (!m_controller.roleFile(m_part.id, PartFileRole::KicadFootprint, file))
+		{
+			return;
+		}
+		if (QMessageBox::question(this, tr("Remove the footprint"),
+			tr("Remove \"%1\" from this part?").arg(toQt(file.originalFilename)),
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+		{
+			return;
+		}
+		m_controller.detachRoleFile(m_part.id, PartFileRole::KicadFootprint);
+		updateKicadState();
 	}
 
 	void PartEditorDialog::deletePart()

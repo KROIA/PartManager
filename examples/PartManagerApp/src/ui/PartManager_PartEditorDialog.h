@@ -72,6 +72,14 @@ namespace PartManager
 		void downloadImage();
 		void removeImage();
 
+		// §5c KiCad slots. The symbol and footprint the generated library is built from, and that
+		// a KiCad edit is synced back into.
+		void importEcadArchive();
+		void attachKicadSymbol();
+		void removeKicadSymbol();
+		void attachKicadFootprint();
+		void removeKicadFootprint();
+
 		// Deletes the part and closes. Confirmed first, and the confirmation names what goes with
 		// it — the stock history in particular is not recoverable from anywhere else.
 		void deletePart();
@@ -98,6 +106,8 @@ namespace PartManager
 		void updateDatasheetState();
 		// Same three states for the image slot, plus the thumbnail itself.
 		void updateImageState();
+		// The §5c KiCad rows: what is attached, or that the symbol is being generated instead.
+		void updateKicadState();
 		// Fills the Mouser row and enables Open only when there is something to open.
 		void updateMouserState();
 

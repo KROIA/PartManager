@@ -149,6 +149,27 @@ namespace PartManager
 		bool detachModel3D(int partId) const
 		{ return detachRoleFile(partId, PartFileRole::Kicad3DModel); }
 
+		// What one vendor-ZIP import did (§5c).
+		struct EcadImportSummary
+		{
+			bool ok = false;
+			std::string errorMessage;
+			bool symbolAttached = false;
+			bool footprintAttached = false;
+			bool modelAttached = false;
+			bool legacyKicadOnly = false;   // the archive had KiCad 5 files only
+			int ignoredEntries = 0;         // the other CAD tools' files
+		};
+
+		// §5c: pulls the KiCad symbol, footprint and 3D model out of a vendor download
+		// (`LIB_<MPN>.zip` from Component Search Engine, Ultra Librarian, SnapEDA) and attaches
+		// them to the part, each replacing whatever held its slot. Nothing is linked — the bytes
+		// are copied into the filestore like every other attachment, so the ZIP can be deleted.
+		//
+		// The symbol then becomes what §5a splices into the generated library instead of the
+		// generic `(extends ...)` one.
+		EcadImportSummary importEcadArchive(int partId, const std::string& zipPath) const;
+
 		// Deletes the part outright, together with its part_file, part_tag and stock_transaction
 		// rows (PartRepository::deletePart()). Its seller links go too — otherwise the next part
 		// to reuse the id would inherit somebody else's Mouser article number.
