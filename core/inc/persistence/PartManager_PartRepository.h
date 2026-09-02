@@ -52,6 +52,9 @@ namespace PartManager
 		static int insertFile(SQLiteWrapper::SQLite& db, const PartFile& file);
 		static bool deleteFile(SQLiteWrapper::SQLite& db, int fileId);
 		static std::vector<PartFile> listFiles(SQLiteWrapper::SQLite& db, int partId);
+		// Every part_file row carrying one role, across all parts. The part table paints a
+		// thumbnail in its first column, and asking per part would be one query per visible row.
+		static std::vector<PartFile> listFilesWithRole(SQLiteWrapper::SQLite& db, PartFileRole role);
 		// Looks up a single part_file row by id. Returns false if not found.
 		static bool findFile(SQLiteWrapper::SQLite& db, int fileId, PartFile& outFile);
 		// How many part_file rows still reference one stored file — FileStore's reference count,

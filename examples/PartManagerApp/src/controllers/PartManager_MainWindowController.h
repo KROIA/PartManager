@@ -61,6 +61,10 @@ namespace PartManager
 		std::vector<Tag> tags;              // §2d chips, rendered by TagChipDelegate
 		int stockQty = 0;
 		int stockMinQty = 0;
+		// Absolute path of the part's `part_file(role='image')`, empty when it has none or the
+		// stored file is gone. Painted as a thumbnail in the first column so a part is
+		// recognisable without reading the row.
+		QString imagePath;
 	};
 
 	// One label/value line of the §7c preview panel.
@@ -79,6 +83,7 @@ namespace PartManager
 		QString description;                // user data
 		std::vector<PreviewField> fields;   // manufacturer, mpn, package, attributes, stock, datasheet
 		std::vector<Tag> tags;              // §2d chips
+		QString imagePath;                  // same file the table's thumbnail comes from, shown full size
 	};
 
 	// Assembles the part_type forest from flat rows, honoring parent_type_id (§2b).

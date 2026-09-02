@@ -330,6 +330,20 @@ namespace PartManager
 		return result;
 	}
 
+	std::vector<PartFile> PartRepository::listFilesWithRole(SQLiteWrapper::SQLite& db, PartFileRole role)
+	{
+		std::vector<PartFile> result;
+		// The role vocabulary is a fixed enum, so toString() can never produce a quote and the
+		// literal needs no escaping — but fetchAll() takes no bind parameters either way.
+		for (const std::vector<std::string>& row : db.fetchAll(
+			"SELECT id,part_id,role,relative_path,content_hash,size_bytes,mime_type,original_filename,added_at "
+			"FROM part_file WHERE role='" + toString(role) + "' ORDER BY id;"))
+		{
+			result.push_back(rowToFile(row));
+		}
+		return result;
+	}
+
 #endif
 
 }

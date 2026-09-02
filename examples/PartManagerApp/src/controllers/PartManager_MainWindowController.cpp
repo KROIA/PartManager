@@ -2,6 +2,7 @@
 
 #include "controllers/PartManager_PartEditorController.h"
 #include "controllers/PartManager_StockController.h"
+#include "filestore/PartManager_FileStore.h"
 #include "persistence/PartManager_ListColumnRepository.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
@@ -504,6 +505,19 @@ namespace PartManager
 		}
 		SQLiteWrapper::SQLite& db = m_handle->connection();
 
+		// One query for every part's thumbnail rather than one per visible row — a category with
+		// a few hundred parts would otherwise pay a round trip per row on every keystroke of the
+		// table filter.
+		std::map<int, QString> imageByPart;
+		{
+			FileStore store(m_handle->filestorePath());
+			for (const PartFile& file : PartRepository::listFilesWithRole(db, PartFileRole::Image))
+			{
+				// Newest wins, same rule as PartEditorController::roleFile().
+				imageByPart[file.partId] = toQt(store.absolutePath(file.relativePath));
+			}
+		}
+
 		const bool filtered = !filterText.trimmed().isEmpty();
 		SearchQuery query;
 		if (filtered)
@@ -533,6 +547,7 @@ namespace PartManager
 				row.stockQty = part.stockQty;
 				row.stockMinQty = part.stockMinQty;
 				row.tags = TagRepository::listPartTags(db, part.id);
+				row.imagePath = imageByPart.count(part.id) ? imageByPart[part.id] : QString();
 
 				for (const PartColumn& column : columns)
 				{
@@ -569,9 +584,11 @@ namespace PartManager
 					? toQt(file.originalFilename)
 					: QString();
 
-				return buildPreview(part, columnsFor(part.partTypeId),
+				PartPreview preview = buildPreview(part, columnsFor(part.partTypeId),
 					TagRepository::listPartTags(m_handle->connection(), partId),
 					datasheetState(fileName, !editor.datasheetPath(part).empty()));
+				preview.imagePath = toQt(editor.roleFilePath(partId, PartFileRole::Image));
+				return preview;
 			}
 		}
 #else

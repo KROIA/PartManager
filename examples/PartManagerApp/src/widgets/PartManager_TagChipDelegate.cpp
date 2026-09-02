@@ -59,8 +59,20 @@ namespace PartManager
 
 		QStyleOptionViewItem opt(option);
 		initStyleOption(&opt, index);
+		// initStyleOption() sizes the decoration to the *pixmap*, not to the view's iconSize, so
+		// a portrait thumbnail reports a narrower box than the column it was laid out in.
+		opt.decorationSize.setWidth(option.decorationSize.width());
 
-		int x = opt.rect.left() + 4 + opt.fontMetrics.horizontalAdvance(index.data(Qt::DisplayRole).toString());
+		// The name cell also carries the part's thumbnail (Qt::DecorationRole), and the base
+		// delegate has already indented the text past it — measuring from the text alone would
+		// start the first chip on top of the name.
+		int iconWidth = 0;
+		if (!opt.icon.isNull())
+		{
+			iconWidth = opt.decorationSize.width() + ChipSpacing;
+		}
+		int x = opt.rect.left() + 4 + iconWidth
+			+ opt.fontMetrics.horizontalAdvance(index.data(Qt::DisplayRole).toString());
 		int height = opt.rect.height() - 2 * ChipInsetY;
 
 		painter->save();
