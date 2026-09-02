@@ -37,6 +37,10 @@ namespace PartManager
 		// hand is the main road and this only saves typing when the URL happens to be there.
 		void setDatasheetSourceUrl(const QString& url);
 
+		// True when the user deleted the part from in here, so the caller knows the row it was
+		// opened from is gone rather than merely edited.
+		bool partWasDeleted() const { return m_deleted; }
+
 	protected:
 		// Every way out of a QDialog (Close, Esc, the window's X) funnels through here,
 		// so it is the one place a still-pending debounced write has to be flushed.
@@ -61,6 +65,17 @@ namespace PartManager
 		void removeDatasheet();
 		void openDatasheet();
 
+		// The product photo (`part_file(role='image')`) — what the parts table paints as a
+		// thumbnail. Same three ways in as the datasheet; no column on `part` points at it, so
+		// none of these needs an autosave afterwards.
+		void attachImage();
+		void downloadImage();
+		void removeImage();
+
+		// Deletes the part and closes. Confirmed first, and the confirmation names what goes with
+		// it — the stock history in particular is not recoverable from anywhere else.
+		void deletePart();
+
 		// §6: the Mouser article number, which is what the Cart API orders by — `part.mpn` is the
 		// *manufacturer's* number and Mouser rejects it. Filled in automatically for a part
 		// created from a Mouser search; editable here because a part imported from CSV, or one
@@ -81,6 +96,8 @@ namespace PartManager
 		// missing from the file store. Which buttons are usable follows from that, so "nothing
 		// attached yet" reads as a disabled Open/Remove rather than a button that does nothing.
 		void updateDatasheetState();
+		// Same three states for the image slot, plus the thumbnail itself.
+		void updateImageState();
 		// Fills the Mouser row and enables Open only when there is something to open.
 		void updateMouserState();
 
@@ -93,6 +110,7 @@ namespace PartManager
 		Part m_part;
 		// Blocks autosave while loadPart() writes into the widgets.
 		bool m_loading = true;
+		bool m_deleted = false;
 		QString m_datasheetSourceUrl;
 	};
 

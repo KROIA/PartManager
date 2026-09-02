@@ -15,6 +15,7 @@
 #include <QLocale>
 #include <QMenu>
 #include <QMessageBox>
+#include <QPixmap>
 #include <QPushButton>
 #include <QTableWidgetItem>
 #include <QTimer>
@@ -98,6 +99,11 @@ namespace PartManager
 			this, &PartEditorDialog::commitMouserPartNumber);
 		connect(m_ui->openMouserButton, &QPushButton::clicked, this, &PartEditorDialog::openOnMouser);
 
+		connect(m_ui->attachImageButton, &QPushButton::clicked, this, &PartEditorDialog::attachImage);
+		connect(m_ui->downloadImageButton, &QPushButton::clicked, this, &PartEditorDialog::downloadImage);
+		connect(m_ui->removeImageButton, &QPushButton::clicked, this, &PartEditorDialog::removeImage);
+
+		connect(m_ui->deletePartButton, &QPushButton::clicked, this, &PartEditorDialog::deletePart);
 		connect(m_ui->closeButton, &QPushButton::clicked, this, &PartEditorDialog::accept);
 	}
 
@@ -120,7 +126,9 @@ namespace PartManager
 			m_ui->scrollArea->setEnabled(false);
 			m_ui->addTagButton->setEnabled(false);
 			m_ui->datasheetGroup->setEnabled(false);
+			m_ui->imageGroup->setEnabled(false);
 			m_ui->stockHistoryGroup->setEnabled(false);
+			m_ui->deletePartButton->setEnabled(false);
 			m_loading = false;
 			return;
 		}
@@ -147,6 +155,8 @@ namespace PartManager
 
 		reloadTags();
 		updateDatasheetState();
+		updateImageState();
+		updateMouserState();
 		reloadHistory();
 		m_loading = false;
 	}
@@ -259,6 +269,166 @@ namespace PartManager
 		m_controller.detachDatasheet(m_part);
 		autosave();
 		updateDatasheetState();
+	}
+
+	void PartEditorDialog::updateImageState()
+	{
+		PartFile file;
+		const bool attached = m_controller.roleFile(m_part.id, PartFileRole::Image, file);
+		const std::string path = m_controller.roleFilePath(m_part.id, PartFileRole::Image);
+
+		QPixmap pixmap;
+		if (!path.empty())
+		{
+			pixmap.load(toQt(path));
+		}
+		if (pixmap.isNull())
+		{
+			m_ui->imagePreviewLabel->setPixmap(QPixmap());
+			m_ui->imagePreviewLabel->setText(tr("none"));
+		}
+		else
+		{
+			m_ui->imagePreviewLabel->setPixmap(pixmap.scaled(m_ui->imagePreviewLabel->maximumWidth(),
+				m_ui->imagePreviewLabel->maximumHeight(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+			m_ui->imagePreviewLabel->setText(QString());
+		}
+
+		if (!attached)
+		{
+			m_ui->imageStateLabel->setText(tr("No image attached yet."));
+		}
+		else if (path.empty())
+		{
+			// The file name is the user's own data; only the frame is translated.
+			m_ui->imageStateLabel->setText(
+				tr("%1 — the stored file is missing from this database's file store.")
+					.arg(toQt(file.originalFilename)));
+		}
+		else if (pixmap.isNull())
+		{
+			// Attached and present, but Qt cannot decode it — an SVG or a TIFF without the
+			// matching image plugin. Worth saying, because the thumbnail column stays blank.
+			m_ui->imageStateLabel->setText(
+				tr("%1 — stored, but this build of Qt cannot display that image format.")
+					.arg(toQt(file.originalFilename)));
+		}
+		else
+		{
+			m_ui->imageStateLabel->setText(tr("%1 (%2 × %3)").arg(toQt(file.originalFilename))
+				.arg(pixmap.width()).arg(pixmap.height()));
+		}
+
+		m_ui->removeImageButton->setEnabled(attached);
+		m_ui->attachImageButton->setText(attached ? tr("Replace file…") : tr("Attach file…"));
+		m_ui->downloadImageButton->setText(attached ? tr("Replace from URL…") : tr("Download…"));
+	}
+
+	void PartEditorDialog::attachImage()
+	{
+		const QString path = QFileDialog::getOpenFileName(this, tr("Choose an image"), QString(),
+			tr("Images (*.png *.jpg *.jpeg *.gif *.bmp *.webp);;All files (*)"));
+		if (path.isEmpty())
+		{
+			return;
+		}
+
+		std::string error;
+		if (m_controller.attachRoleFile(m_part.id, PartFileRole::Image, path.toStdString(), &error) == 0)
+		{
+			QMessageBox::warning(this, tr("Could not attach the image"), toQt(error));
+			return;
+		}
+		// No autosave: unlike the datasheet, nothing on `part` points at the image row.
+		updateImageState();
+	}
+
+	void PartEditorDialog::downloadImage()
+	{
+		bool accepted = false;
+		const QString url = QInputDialog::getText(this, tr("Download an image"), tr("Image URL"),
+			QLineEdit::Normal, QString(), &accepted).trimmed();
+		if (!accepted || url.isEmpty())
+		{
+			return;
+		}
+
+		// Synchronous with a timeout, so the window really does stop responding for a moment.
+		m_ui->statusLabel->setText(tr("Downloading the image…"));
+		QApplication::setOverrideCursor(Qt::WaitCursor);
+		std::string error;
+		const int fileId = m_controller.downloadRoleFile(m_part.id, PartFileRole::Image,
+			url.toStdString(), &error);
+		QApplication::restoreOverrideCursor();
+		m_ui->statusLabel->setText(tr("Changes are saved automatically."));
+
+		if (fileId == 0)
+		{
+			QMessageBox::warning(this, tr("Could not download the image"),
+				tr("%1\n\nThe part itself is unaffected — you can attach a file by hand instead.")
+					.arg(toQt(error)));
+			return;
+		}
+		updateImageState();
+	}
+
+	void PartEditorDialog::removeImage()
+	{
+		PartFile file;
+		if (!m_controller.roleFile(m_part.id, PartFileRole::Image, file))
+		{
+			return;
+		}
+		if (QMessageBox::question(this, tr("Remove the image"),
+			tr("Remove \"%1\" from this part?").arg(toQt(file.originalFilename)))
+			!= QMessageBox::Yes)
+		{
+			return;
+		}
+		m_controller.detachRoleFile(m_part.id, PartFileRole::Image);
+		updateImageState();
+	}
+
+	void PartEditorDialog::deletePart()
+	{
+		if (m_part.id == 0)
+		{
+			return;
+		}
+
+		// The stock history is the one thing here that exists nowhere else — a datasheet can be
+		// downloaded again, a count that was built up over months cannot. So it is named, along
+		// with the number itself, rather than hidden behind a generic "are you sure".
+		const int quantity = m_stock.quantity(m_part.id);
+		QMessageBox confirm(QMessageBox::Warning, tr("Delete this part?"),
+			tr("“%1” will be removed from the database for good.").arg(toQt(m_part.name)),
+			QMessageBox::NoButton, this);
+		confirm.setInformativeText(tr(
+			"This also deletes its stock history (%n unit(s) on record), its tags, its attached "
+			"files and its Mouser link. Partlists that use this part keep their line, but it "
+			"becomes unresolved.\n\nThis cannot be undone from inside the app — only by restoring "
+			"a backup.", "", quantity));
+		QPushButton* deleteButton = confirm.addButton(tr("Delete Part"), QMessageBox::DestructiveRole);
+		confirm.addButton(QMessageBox::Cancel);
+		confirm.setDefaultButton(QMessageBox::Cancel);
+		confirm.exec();
+		if (confirm.clickedButton() != deleteButton)
+		{
+			return;
+		}
+
+		if (!m_controller.deletePart(m_part.id))
+		{
+			QMessageBox::warning(this, tr("Could not delete the part"),
+				tr("The database rejected the deletion — nothing was removed."));
+			return;
+		}
+
+		// Blocks done()'s flush from writing the deleted record straight back in.
+		m_deleted = true;
+		m_loading = true;
+		m_part.id = 0;
+		accept();
 	}
 
 	void PartEditorDialog::scheduleSave()

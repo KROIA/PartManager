@@ -263,8 +263,8 @@ namespace PartManager
 		}
 	}
 
-	int PartEditorController::attachModel3D(int partId, const std::string& sourcePath,
-		std::string* outError) const
+	int PartEditorController::attachRoleFile(int partId, PartFileRole role,
+		const std::string& sourcePath, std::string* outError) const
 	{
 		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
 		if (!db || partId == 0)
@@ -276,39 +276,98 @@ namespace PartManager
 			return 0;
 		}
 
+		// Looked up *before* the new row exists. roleFile() resolves a slot by taking the highest
+		// id, so asking afterwards hands back the row that was just inserted and the old one is
+		// never detached — which is how a slot quietly ends up holding two files.
+		PartFile previous;
+		const bool hadPrevious = roleFile(partId, role, previous);
+
 		FileStore store = storeOf(m_handle);
 		// Import first, detach second — same reasoning as attachDatasheet(): a failed import
-		// then leaves the old model in place instead of losing both.
-		const int fileId = store.attachFile(*db, partId, PartFileRole::Kicad3DModel, sourcePath,
-			outError);
+		// then leaves the old file in place instead of losing both.
+		const int fileId = store.attachFile(*db, partId, role, sourcePath, outError);
 		if (fileId == 0)
 		{
 			return 0;
 		}
-		// Exactly one model per part, so the previous one goes. Its file is only unlinked when
-		// no other row shares the content (FileStore is reference-counted).
-		PartFile previous;
-		if (model3DFile(partId, previous) && previous.id != fileId)
+		// Exactly one file per slot, so the previous one goes. Its content is only unlinked when
+		// no other row shares it (FileStore is reference-counted).
+		if (hadPrevious && previous.id != fileId)
 		{
 			store.detachFile(*db, previous.id);
 		}
 		return fileId;
 	}
 
-	bool PartEditorController::model3DFile(int partId, PartFile& outFile) const
+	int PartEditorController::downloadRoleFile(int partId, PartFileRole role,
+		const std::string& url, std::string* outError) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || partId == 0 || url.empty())
+		{
+			if (outError)
+			{
+				*outError = url.empty() ? "No URL to download from." : "No open database.";
+			}
+			return 0;
+		}
+
+		// Same reason as attachRoleFile(): asked before the new row exists.
+		PartFile previous;
+		const bool hadPrevious = roleFile(partId, role, previous);
+
+		FileStore store = storeOf(m_handle);
+		const FileStoreResult downloaded = store.downloadFile(url);
+		if (!downloaded.ok)
+		{
+			if (outError)
+			{
+				*outError = downloaded.errorMessage;
+			}
+			return 0;
+		}
+
+		// FileStore::attachFile() only takes a local source path, so the row for downloaded
+		// content is written here from the same fields it would have used.
+		PartFile file;
+		file.partId = partId;
+		file.role = toString(role);
+		file.relativePath = downloaded.relativePath;
+		file.contentHash = downloaded.contentHash;
+		file.sizeBytes = downloaded.sizeBytes;
+		file.mimeType = downloaded.mimeType;
+		file.originalFilename = downloaded.originalFilename;
+
+		const int fileId = PartRepository::insertFile(*db, file);
+		if (fileId == 0)
+		{
+			if (outError)
+			{
+				*outError = "Could not insert the part_file row for " + downloaded.originalFilename + ".";
+			}
+			return 0;
+		}
+
+		if (hadPrevious && previous.id != fileId)
+		{
+			store.detachFile(*db, previous.id);
+		}
+		return fileId;
+	}
+
+	bool PartEditorController::roleFile(int partId, PartFileRole role, PartFile& outFile) const
 	{
 		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
 		if (!db || partId == 0)
 		{
 			return false;
 		}
-		// There is no column on `part` pointing at the model (unlike the datasheet), so the row
-		// is found by role. Newest wins if an older version ever left two behind.
+		// There is no column on `part` pointing at these (unlike the datasheet), so the row is
+		// found by role. Newest wins if an older version ever left two behind.
 		bool found = false;
 		for (const PartFile& file : PartRepository::listFiles(*db, partId))
 		{
-			if (partFileRoleFromString(file.role) == PartFileRole::Kicad3DModel
-				&& (!found || file.id > outFile.id))
+			if (partFileRoleFromString(file.role) == role && (!found || file.id > outFile.id))
 			{
 				outFile = file;
 				found = true;
@@ -317,10 +376,10 @@ namespace PartManager
 		return found;
 	}
 
-	std::string PartEditorController::model3DPath(int partId) const
+	std::string PartEditorController::roleFilePath(int partId, PartFileRole role) const
 	{
 		PartFile file;
-		if (!model3DFile(partId, file))
+		if (!roleFile(partId, role, file))
 		{
 			return std::string();
 		}
@@ -329,15 +388,34 @@ namespace PartManager
 		return storeOf(m_handle).absolutePath(file.relativePath);
 	}
 
-	bool PartEditorController::detachModel3D(int partId) const
+	bool PartEditorController::detachRoleFile(int partId, PartFileRole role) const
 	{
 		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
 		PartFile file;
-		if (!db || !model3DFile(partId, file))
+		if (!db || !roleFile(partId, role, file))
 		{
 			return false;
 		}
 		return storeOf(m_handle).detachFile(*db, file.id);
+	}
+
+	bool PartEditorController::deletePart(int partId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || partId == 0)
+		{
+			return false;
+		}
+		// The seller links first: PartRepository::deletePart() predates §3's seller tables and
+		// does not know about them, and foreign keys are never enforced on this connection, so
+		// nothing else would clear them.
+		for (const PartSellerLink& link : SellerRepository::linksForPart(*db, partId))
+		{
+			SellerRepository::removeLink(*db, link.id);
+		}
+		// The stored files stay on disk — they are content-addressed and may back another part's
+		// row. Only the part_file rows go, which is what deletePart() already does.
+		return PartRepository::deletePart(*db, partId);
 	}
 
 	int PartEditorController::linkToMouser(int partId, const std::string& mouserPartNumber,

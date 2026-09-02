@@ -28,6 +28,7 @@ public:
 		ADD_TEST(TST_PartEditorController::availableTagsExcludeCarriedOnes);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_PartEditorController::datasheetAttachReplaceAndDetach);
+		ADD_TEST(TST_PartEditorController::imageSlotReplacesInPlaceAndDeleteTakesEverythingWithIt);
 #endif
 	}
 
@@ -301,6 +302,86 @@ private:
 		// Nothing attached: detaching again is a no-op, and there is no path to open.
 		TEST_ASSERT(!controller.detachDatasheet(reloaded));
 		TEST_ASSERT(controller.datasheetPath(reloaded).empty());
+	}
+
+	// The two single-slot roles that have no column on `part` pointing at them, plus the delete
+	// path that has to clear everything hanging off a part — a leftover seller link would hand
+	// the next part to reuse the id somebody else's Mouser article number.
+	TEST_FUNCTION(imageSlotReplacesInPlaceAndDeleteTakesEverythingWithIt)
+	{
+		TEST_START;
+
+		std::filesystem::path parent =
+			std::filesystem::temp_directory_path() / "PartManager_TST_PartEditorController_roles";
+		std::error_code ec;
+		std::filesystem::remove_all(parent, ec);
+		std::filesystem::create_directories(parent, ec);
+
+		std::string error;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			PartManager::DatabaseHandle::createNew(parent.string(), "Roles", error);
+		TEST_ASSERT_M(handle != nullptr, "createNew failed: " + error);
+
+		PartManager::PartEditorController controller(handle.get());
+		std::vector<PartManager::PartType> types = controller.types();
+		TEST_ASSERT_M(!types.empty(), "createNew must seed at least one type template");
+
+		PartManager::Part part;
+		part.partTypeId = types.front().id;
+		part.name = "DRV5053";
+		part.mpn = "DRV5053CAQLPGM";
+		part.id = controller.createPart(part);
+		TEST_ASSERT_M(part.id != 0, "the part under test could not be created");
+
+		const std::filesystem::path photo = parent / "drv5053.png";
+		std::ofstream(photo, std::ios::binary) << "\x89PNG not really an image";
+		const int imageId = controller.attachRoleFile(part.id, PartManager::PartFileRole::Image,
+			photo.string(), &error);
+		TEST_ASSERT_M(imageId != 0, "attaching the image failed: " + error);
+
+		PartManager::PartFile row;
+		TEST_ASSERT(controller.roleFile(part.id, PartManager::PartFileRole::Image, row));
+		TEST_COMPARE(row.role, std::string("image"));
+		const std::string firstPath = controller.roleFilePath(part.id, PartManager::PartFileRole::Image);
+		TEST_ASSERT_M(!firstPath.empty(), "the attached image must be on disk");
+
+		// Replacing keeps exactly one row for the slot — two would make roleFile() a coin flip.
+		const std::filesystem::path better = parent / "drv5053-hires.png";
+		std::ofstream(better, std::ios::binary) << "\x89PNG a different not-really-an-image";
+		const int replacedId = controller.attachRoleFile(part.id, PartManager::PartFileRole::Image,
+			better.string(), &error);
+		TEST_ASSERT_M(replacedId != 0 && replacedId != imageId,
+			"a replacement must be its own part_file row: " + error);
+		TEST_COMPARE(PartManager::PartRepository::listFiles(handle->connection(), part.id).size(),
+			static_cast<size_t>(1));
+		TEST_ASSERT_M(!std::filesystem::exists(firstPath), "the replaced image must not stay behind");
+
+		// A 3D model is a separate slot, so attaching one must not disturb the image.
+		const std::filesystem::path model = parent / "drv5053.stl";
+		std::ofstream(model, std::ios::binary) << "solid drv5053\nendsolid drv5053\n";
+		TEST_ASSERT(controller.attachModel3D(part.id, model.string(), &error) != 0);
+		TEST_COMPARE(PartManager::PartRepository::listFiles(handle->connection(), part.id).size(),
+			static_cast<size_t>(2));
+		TEST_ASSERT(!controller.roleFilePath(part.id, PartManager::PartFileRole::Image).empty());
+
+		// The table's thumbnail query has to see it without knowing the part id up front.
+		TEST_COMPARE(PartManager::PartRepository::listFilesWithRole(handle->connection(),
+			PartManager::PartFileRole::Image).size(), static_cast<size_t>(1));
+
+		TEST_ASSERT(controller.linkToMouser(part.id, "595-DRV5053CAQLPGM", "", {}) != 0);
+		TEST_COMPARE(controller.mouserPartNumber(part.id), std::string("595-DRV5053CAQLPGM"));
+
+		// Delete: the part, its files and its seller link all go.
+		TEST_ASSERT(controller.deletePart(part.id));
+		PartManager::Part gone;
+		TEST_ASSERT_M(!controller.loadPart(part.id, gone), "the deleted part must not load");
+		TEST_COMPARE(PartManager::PartRepository::listFiles(handle->connection(), part.id).size(),
+			static_cast<size_t>(0));
+		TEST_COMPARE(controller.sellerLinks(part.id).size(), static_cast<size_t>(0));
+		TEST_COMPARE(PartManager::PartRepository::listFilesWithRole(handle->connection(),
+			PartManager::PartFileRole::Image).size(), static_cast<size_t>(0));
+		// Deleting twice is a no-op, not a crash — the button is still there after the first one.
+		TEST_ASSERT(!controller.deletePart(0));
 	}
 #endif
 

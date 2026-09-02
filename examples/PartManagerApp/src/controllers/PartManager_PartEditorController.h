@@ -116,24 +116,43 @@ namespace PartManager
 		// is no longer on disk, which is what tells the editor to say so instead of opening nothing.
 		std::string datasheetPath(const Part& part) const;
 
-		// §13 3D model slot. A part carries at most one, stored under `part_file(role=
-		// 'kicad_3dmodel')` — the same row §5a's library generator points KiCad at, so attaching
-		// a model here is also what gives the generated symbol something to reference. Unlike the
-		// datasheet there is no column on `part`, so these read and write `part_file` directly
-		// and need no autosave from the caller.
+		// Single-slot `part_file` roles — the §13 3D model ('kicad_3dmodel') and the product
+		// photo ('image'). A part carries at most one of each, and unlike the datasheet there is
+		// no column on `part` pointing at it, so these read and write `part_file` directly and
+		// need no autosave from the caller. Attaching over an existing one detaches it, so a part
+		// never accumulates two rows for the same slot.
 		//
 		// **Any recognised 3D format is accepted, renderable or not.** A STEP file is exactly
 		// what KiCad wants and exactly what the viewer cannot draw; refusing it to keep the
 		// viewer happy would break the more important half.
 		// Returns the new part_file id, 0 on failure with the reason in outError.
-		int attachModel3D(int partId, const std::string& sourcePath, std::string* outError = nullptr) const;
-		// The part's 3D model row. False when it carries none.
-		bool model3DFile(int partId, PartFile& outFile) const;
-		// Absolute path of the stored model — empty when there is none, or the file is no longer
-		// on disk, which is what tells the viewer to say so instead of drawing nothing.
-		std::string model3DPath(int partId) const;
-		// Removes the current model. False when the part carried none.
-		bool detachModel3D(int partId) const;
+		int attachRoleFile(int partId, PartFileRole role, const std::string& sourcePath,
+			std::string* outError = nullptr) const;
+		// Same, from a URL — §6 downloads the Mouser product photo this way. Blocking with a
+		// timeout, see FileStore::downloadFile().
+		int downloadRoleFile(int partId, PartFileRole role, const std::string& url,
+			std::string* outError = nullptr) const;
+		// The part's row for that slot. False when it carries none.
+		bool roleFile(int partId, PartFileRole role, PartFile& outFile) const;
+		// Absolute path of the stored file — empty when there is none, or it is no longer on
+		// disk, which is what tells the viewer to say so instead of drawing nothing.
+		std::string roleFilePath(int partId, PartFileRole role) const;
+		// Removes the current file in that slot. False when the part carried none.
+		bool detachRoleFile(int partId, PartFileRole role) const;
+
+		int attachModel3D(int partId, const std::string& sourcePath, std::string* outError = nullptr) const
+		{ return attachRoleFile(partId, PartFileRole::Kicad3DModel, sourcePath, outError); }
+		bool model3DFile(int partId, PartFile& outFile) const
+		{ return roleFile(partId, PartFileRole::Kicad3DModel, outFile); }
+		std::string model3DPath(int partId) const
+		{ return roleFilePath(partId, PartFileRole::Kicad3DModel); }
+		bool detachModel3D(int partId) const
+		{ return detachRoleFile(partId, PartFileRole::Kicad3DModel); }
+
+		// Deletes the part outright, together with its part_file, part_tag and stock_transaction
+		// rows (PartRepository::deletePart()). Its seller links go too — otherwise the next part
+		// to reuse the id would inherit somebody else's Mouser article number.
+		bool deletePart(int partId) const;
 
 		// §3/§6: remembers that this part is a Mouser article, and what it was quoted at. Without
 		// this a part created from a Mouser hit keeps no trace of where it came from, and item 9's
