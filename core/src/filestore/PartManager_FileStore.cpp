@@ -330,6 +330,82 @@ namespace PartManager
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 
+	bool FileStore::roleFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+		PartFile& outFile)
+	{
+		if (partId == 0)
+		{
+			return false;
+		}
+		bool found = false;
+		for (const PartFile& file : PartRepository::listFiles(db, partId))
+		{
+			if (partFileRoleFromString(file.role) == role && (!found || file.id > outFile.id))
+			{
+				outFile = file;
+				found = true;
+			}
+		}
+		return found;
+	}
+
+	int FileStore::adoptStoredFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+		const FileStoreResult& stored, std::string* outError)
+	{
+		if (!stored.ok)
+		{
+			if (outError)
+			{
+				*outError = stored.errorMessage;
+			}
+			return 0;
+		}
+
+		// Read *before* the insert. roleFile() resolves a slot by highest id, so asking
+		// afterwards returns the row just written and the old one would never be detached —
+		// which is how a slot quietly ends up holding two files.
+		PartFile previous;
+		const bool hadPrevious = roleFile(db, partId, role, previous);
+
+		PartFile file;
+		file.partId = partId;
+		file.role = toString(role);
+		file.relativePath = stored.relativePath;
+		file.contentHash = stored.contentHash;
+		file.sizeBytes = stored.sizeBytes;
+		file.mimeType = stored.mimeType;
+		file.originalFilename = stored.originalFilename;
+
+		const int fileId = PartRepository::insertFile(db, file);
+		if (fileId == 0)
+		{
+			if (outError)
+			{
+				*outError = "Could not insert the part_file row for " + stored.originalFilename + ".";
+			}
+			return 0;
+		}
+		if (hadPrevious && previous.id != fileId)
+		{
+			detachFile(db, previous.id);
+		}
+		return fileId;
+	}
+
+	int FileStore::replaceRoleFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+		const std::string& sourcePath, std::string* outError)
+	{
+		// Import first, replace second — a failed import leaves the old file in place rather
+		// than losing both.
+		return adoptStoredFile(db, partId, role, importFile(sourcePath), outError);
+	}
+
+	int FileStore::replaceRoleFileBytes(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+		const std::string& bytes, const std::string& originalFilename, std::string* outError)
+	{
+		return adoptStoredFile(db, partId, role, importBytes(bytes, originalFilename), outError);
+	}
+
 	int FileStore::attachFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
 		const std::string& sourcePath, std::string* outError)
 	{

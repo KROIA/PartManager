@@ -25,6 +25,7 @@ public:
 		ADD_TEST(TST_FileStore::emptyUrlFailsWithoutNetwork);
 		ADD_TEST(TST_FileStore::aBlockPageIsNotAFile);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		ADD_TEST(TST_FileStore::attachingCopiesAndKeepsNoPathToTheOriginal);
 		ADD_TEST(TST_FileStore::attachAndDetachKeepsRowsAndFilesInSync);
 #endif
 	}
@@ -162,6 +163,76 @@ private:
 	}
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+	// Attaching must COPY, and must leave nothing pointing at where the file came from. A store
+	// that linked would break the moment a datasheet was attached from a USB stick, a Downloads
+	// folder that gets cleared, or a path that changes when the database is moved to another
+	// machine — and it would break silently, months later.
+	TEST_FUNCTION(attachingCopiesAndKeepsNoPathToTheOriginal)
+	{
+		TEST_START;
+
+		std::filesystem::path work = freshFolder("PartManager_TST_FileStore_copy");
+		const std::filesystem::path source = work / "somewhere else" / "LM358.pdf";
+		std::filesystem::create_directories(source.parent_path());
+		const std::string contents = "%PDF-1.4 the only copy";
+		std::ofstream(source, std::ios::binary) << contents;
+
+		SQLiteWrapper::SQLite db((work / "test.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+
+		PartManager::Part part;
+		part.name = "LM358";
+		part.id = PartManager::PartRepository::insertPart(db, part);
+		TEST_ASSERT(part.id != 0);
+
+		PartManager::FileStore store((work / "filestore").string());
+		std::string error;
+		const int fileId = store.replaceRoleFile(db, part.id, PartManager::PartFileRole::Datasheet,
+			source.string(), &error);
+		TEST_ASSERT_M(fileId != 0, "attach failed: " + error);
+
+		PartManager::PartFile row;
+		TEST_ASSERT(PartManager::FileStore::roleFile(db, part.id,
+			PartManager::PartFileRole::Datasheet, row));
+
+		// Nothing recorded may contain the source path or its folder.
+		TEST_ASSERT_M(row.relativePath.find("somewhere else") == std::string::npos,
+			"the stored path leaks where the file came from: " + row.relativePath);
+		TEST_ASSERT_M(row.relativePath.find(':') == std::string::npos,
+			"the stored path is absolute: " + row.relativePath);
+		// Only the base name survives, and only as a display label.
+		TEST_COMPARE(row.originalFilename, std::string("LM358.pdf"));
+
+		// The proof: destroy the original and the whole folder it lived in.
+		std::filesystem::remove_all(source.parent_path());
+		TEST_ASSERT(!std::filesystem::exists(source));
+
+		const std::string stored = store.absolutePath(row.relativePath);
+		TEST_ASSERT_M(!stored.empty(), "the copy vanished with the original - it was a link");
+		{
+			// Scoped: Windows refuses to delete a file that is still open, so a stream left open
+			// here would make the replace-removes-the-old-copy check below fail for a reason that
+			// has nothing to do with the store.
+			std::ifstream in(stored, std::ios::binary);
+			std::ostringstream buffer;
+			buffer << in.rdbuf();
+			TEST_COMPARE(buffer.str(), contents);
+		}
+
+		// Replacing a slot swaps the row rather than adding one, and the old content goes when
+		// nothing else references it — the rule §5c's generator relies on when it syncs back.
+		const std::filesystem::path second = work / "revB.pdf";
+		std::ofstream(second, std::ios::binary) << "%PDF-1.4 revision B";
+		const int replaced = store.replaceRoleFile(db, part.id,
+			PartManager::PartFileRole::Datasheet, second.string(), &error);
+		TEST_ASSERT_M(replaced != 0 && replaced != fileId, "replacing must write its own row");
+		TEST_COMPARE(PartManager::PartRepository::listFiles(db, part.id).size(),
+			static_cast<size_t>(1));
+		TEST_ASSERT_M(!std::filesystem::exists(stored), "the replaced copy must not stay behind");
+	}
+
 	TEST_FUNCTION(attachAndDetachKeepsRowsAndFilesInSync)
 	{
 		TEST_START;

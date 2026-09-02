@@ -106,6 +106,29 @@ namespace PartManager
 		// Removes the `part_file` row and, only when no other row still references the same
 		// relativePath, the stored file. Never leaves an orphan row or an orphan file.
 		bool detachFile(SQLiteWrapper::SQLite& db, int fileId);
+
+		// **Single-slot roles.** A part carries at most one datasheet, one KiCad symbol, one
+		// footprint, one 3D model and one image. That rule lives here rather than in each caller,
+		// because the part editor and §5a's library generator both write these slots and a second
+		// row would make roleFile() a coin flip between two files.
+		//
+		// Newest wins if an older version ever left two behind. False when the part has none.
+		static bool roleFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+			PartFile& outFile);
+
+		// Import + insert + drop whatever occupied the slot, in that order — a failed import
+		// leaves the old file in place rather than losing both. Returns the new part_file id,
+		// 0 on failure with the reason in outError.
+		int replaceRoleFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+			const std::string& sourcePath, std::string* outError = nullptr);
+		// Same, for content already in memory — what a ZIP entry and a KiCad edit both arrive as.
+		int replaceRoleFileBytes(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+			const std::string& bytes, const std::string& originalFilename,
+			std::string* outError = nullptr);
+		// Same, for content the store already holds — what downloadFile() hands back. Skips the
+		// import, so the bytes are not carried around a second time just to be deduplicated.
+		int adoptStoredFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+			const FileStoreResult& stored, std::string* outError = nullptr);
 #endif
 
 	private:
