@@ -10,6 +10,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <algorithm>
+#include <cstdio>
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 	#include "SQLite.h"
@@ -167,6 +168,41 @@ namespace PartManager
 	PartEditorController::PartEditorController(DatabaseHandle* handle)
 		: m_handle(handle)
 	{
+	}
+
+	std::string PartEditorController::mouserPageUrl(const std::string& mouserPartNumber,
+		const std::string& storedUrl)
+	{
+		if (!storedUrl.empty())
+		{
+			// The exact page the part was created from (§6's ProductDetailUrl). Always better
+			// than a search, which can land on a packaging variant.
+			return storedUrl;
+		}
+		if (mouserPartNumber.empty())
+		{
+			return std::string();
+		}
+		// A hand-typed number has no product page recorded, so search for it. Percent-encoding
+		// the term because a Mouser article number may contain '#' and '/', both of which would
+		// otherwise truncate the URL.
+		std::string encoded;
+		for (unsigned char c : mouserPartNumber)
+		{
+			const bool safe = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+				|| (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~';
+			if (safe)
+			{
+				encoded += static_cast<char>(c);
+			}
+			else
+			{
+				char buffer[4] = { 0 };
+				std::snprintf(buffer, sizeof(buffer), "%%%02X", c);
+				encoded += buffer;
+			}
+		}
+		return "https://www.mouser.com/c/?q=" + encoded;
 	}
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
@@ -336,6 +372,86 @@ namespace PartManager
 		return db ? SellerRepository::linksForPart(*db, partId) : std::vector<PartSellerLink>();
 	}
 
+	std::string PartEditorController::mouserPartNumber(int partId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db ? SellerRepository::mouserPartNumber(*db, partId) : std::string();
+	}
+
+	std::string PartEditorController::mouserUrl(int partId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db)
+		{
+			return std::string();
+		}
+		const int mouserSeller = SellerRepository::ensureMouserSeller(*db);
+		for (const PartSellerLink& link : SellerRepository::linksForPart(*db, partId))
+		{
+			if (link.sellerId == mouserSeller && !link.url.empty())
+			{
+				return link.url;
+			}
+		}
+		return std::string();
+	}
+
+	bool PartEditorController::setMouserPartNumber(int partId, const std::string& number,
+		const std::string& url) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || partId == 0)
+		{
+			return false;
+		}
+
+		const int mouserSeller = SellerRepository::ensureMouserSeller(*db);
+		const std::string existing = SellerRepository::mouserPartNumber(*db, partId);
+		if (existing == number)
+		{
+			// Nothing changed. Rewriting would clear a stored ProductDetailUrl that the caller
+			// (an editor field carrying only the number) has no way to supply again.
+			return true;
+		}
+
+		// The old link goes whether or not a new one replaces it: a part has one Mouser article
+		// number, and leaving the previous one behind would make mouserPartNumber() ambiguous.
+		for (const PartSellerLink& link : SellerRepository::linksForPart(*db, partId))
+		{
+			if (link.sellerId == mouserSeller)
+			{
+				SellerRepository::removeLink(*db, link.id);
+			}
+		}
+		if (number.empty())
+		{
+			return true;
+		}
+		return linkToMouser(partId, number, url, std::vector<PriceObservation>())
+			!= NoPartSellerLinkId;
+	}
+
+	std::vector<Part> PartEditorController::partsWithMpn(const std::string& mpn,
+		int exceptPartId) const
+	{
+		std::vector<Part> matches;
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (!db || mpn.empty())
+		{
+			// A part with no MPN duplicates nothing — otherwise every blank-MPN part would
+			// "duplicate" every other one.
+			return matches;
+		}
+		for (const Part& part : PartRepository::listParts(*db))
+		{
+			if (part.id != exceptPartId && part.mpn == mpn)
+			{
+				matches.push_back(part);
+			}
+		}
+		return matches;
+	}
+
 
 	int PartEditorController::attachDatasheet(Part& part, const std::string& sourcePath, std::string* outError) const
 	{
@@ -497,6 +613,12 @@ namespace PartManager
 		const std::vector<PriceObservation>&) const { return NoPartSellerLinkId; }
 	std::vector<PartSellerLink> PartEditorController::sellerLinks(int) const
 	{ return std::vector<PartSellerLink>(); }
+	std::string PartEditorController::mouserPartNumber(int) const { return std::string(); }
+	std::string PartEditorController::mouserUrl(int) const { return std::string(); }
+	bool PartEditorController::setMouserPartNumber(int, const std::string&, const std::string&) const
+	{ return false; }
+	std::vector<Part> PartEditorController::partsWithMpn(const std::string&, int) const
+	{ return std::vector<Part>(); }
 	int PartEditorController::attachDatasheet(Part&, const std::string&, std::string*) const { return 0; }
 	int PartEditorController::downloadDatasheet(Part&, const std::string&, std::string*) const { return 0; }
 	bool PartEditorController::detachDatasheet(Part&) const { return false; }

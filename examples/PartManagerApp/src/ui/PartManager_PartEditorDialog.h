@@ -61,6 +61,15 @@ namespace PartManager
 		void removeDatasheet();
 		void openDatasheet();
 
+		// §6: the Mouser article number, which is what the Cart API orders by — `part.mpn` is the
+		// *manufacturer's* number and Mouser rejects it. Filled in automatically for a part
+		// created from a Mouser search; editable here because a part imported from CSV, or one
+		// that turns out to duplicate an existing row, has none and cannot otherwise be ordered.
+		void commitMouserPartNumber();
+		// Opens the part's mouser.com page. Falls back to a search for the article number when
+		// no product URL was stored (a hand-typed number has none).
+		void openOnMouser();
+
 	private:
 		// Fills the identity fields and the generated form from the loaded part.
 		void loadPart();
@@ -72,6 +81,8 @@ namespace PartManager
 		// missing from the file store. Which buttons are usable follows from that, so "nothing
 		// attached yet" reads as a disabled Open/Remove rather than a button that does nothing.
 		void updateDatasheetState();
+		// Fills the Mouser row and enables Open only when there is something to open.
+		void updateMouserState();
 
 		Ui::PartEditorDialog* m_ui;
 		PartEditorController m_controller;

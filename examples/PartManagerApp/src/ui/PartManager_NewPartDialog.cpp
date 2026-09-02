@@ -154,6 +154,33 @@ namespace PartManager
 		part.description = m_ui->descriptionEdit->toPlainText().toStdString();
 		part.attributes = m_attributeForm->valuesJson().toStdString();
 
+		// A second row for a part that already exists is the quiet failure this catches: the
+		// duplicate looks fine, but a partlist can resolve to either copy, and the one it picks
+		// may be the one with no Mouser link, no datasheet and the wrong stock count. Warned
+		// rather than blocked — two genuinely different parts can share an MPN across
+		// manufacturers, and only the user knows which case this is.
+		const std::vector<Part> existing = m_controller.partsWithMpn(part.mpn);
+		if (!existing.empty())
+		{
+			QStringList lines;
+			for (const Part& other : existing)
+			{
+				lines.append(tr("“%1” — %n in stock", "", other.stockQty)
+					.arg(QString::fromStdString(other.name)));
+			}
+			if (QMessageBox::question(this, tr("That part number already exists"),
+				tr("MPN “%1” is already used by:\n\n%2\n\n"
+				   "Creating a second one means a partlist can match either copy, and stock is "
+				   "counted separately for each. Edit the existing part instead unless this is "
+				   "genuinely a different component.\n\nCreate it anyway?")
+					.arg(QString::fromStdString(part.mpn))
+					.arg(lines.join(QStringLiteral("\n"))),
+				QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+			{
+				return;
+			}
+		}
+
 		m_createdPartId = m_controller.createPart(part);
 		if (m_createdPartId == 0)
 		{

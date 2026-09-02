@@ -144,6 +144,27 @@ namespace PartManager
 		// Every seller link on a part, primary first — the part editor's "Open on Mouser" row.
 		std::vector<PartSellerLink> sellerLinks(int partId) const;
 
+		// The part's Mouser article number, empty when it has none. This is the number the Cart
+		// API orders by; `part.mpn` is the manufacturer's and Mouser rejects it.
+		std::string mouserPartNumber(int partId) const;
+		// The stored ProductDetailUrl, empty for a hand-typed number that never came from a search.
+		std::string mouserUrl(int partId) const;
+		// Sets (or, with an empty `number`, removes) the part's Mouser link. Editable because a
+		// part imported from CSV — or one that duplicates a row created earlier — has no link and
+		// cannot be ordered until it does.
+		bool setMouserPartNumber(int partId, const std::string& number,
+			const std::string& url = std::string()) const;
+
+		// Parts that already carry `mpn`, excluding `exceptPartId`. Used to warn before creating
+		// a second row for a part that already exists — the duplicate is not blocked, because two
+		// genuinely different parts can share an MPN across manufacturers, but it is never
+		// created silently. Empty `mpn` matches nothing: a part with no MPN duplicates nothing.
+		std::vector<Part> partsWithMpn(const std::string& mpn, int exceptPartId = 0) const;
+
+		// The page "Open on Mouser" opens: the stored product URL when there is one, otherwise a
+		// Mouser search for the article number. Empty when the part has neither.
+		static std::string mouserPageUrl(const std::string& mouserPartNumber, const std::string& storedUrl);
+
 		std::vector<Tag> allTags() const;
 		std::vector<Tag> partTags(int partId) const;
 		bool addPartTag(int partId, int tagId) const;

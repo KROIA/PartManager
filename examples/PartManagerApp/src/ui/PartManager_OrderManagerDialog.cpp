@@ -151,8 +151,8 @@ namespace PartManager
 		if (m_orders.empty())
 		{
 			m_ui->statusLabel->setText(m_ui->openOnlyCheck->isChecked()
-				? tr("No open orders. Raise one from a partlist's “Order Shortfall” button.")
-				: tr("No orders yet. Raise one from a partlist's “Order Shortfall” button."));
+				? tr("No open orders. Open a partlist and press “Order Missing Parts” to raise one.")
+				: tr("No orders yet. Open a partlist and press “Order Missing Parts” to raise one."));
 		}
 		showLines();
 	}
@@ -186,9 +186,34 @@ namespace PartManager
 			};
 
 			QColor background = PendingRowColor;
-			if (line.item.status == OrderItemStatus::Arrived)        { background = ArrivedRowColor; }
-			else if (line.item.status == OrderItemStatus::Backordered) { background = BackorderedRowColor; }
-			else if (!line.stageable)                                { background = UnstageableRowColor; }
+			// Every colour carries a tooltip saying what it means and what to do about it. A red
+			// row with no explanation is exactly what sends someone digging through the database
+			// to find out why their part "has no Mouser part number".
+			QString rowExplanation = tr("Ordered — not here yet.");
+			if (line.item.status == OrderItemStatus::Arrived)
+			{
+				background = ArrivedRowColor;
+				rowExplanation = tr("Arrived, and booked into stock.");
+			}
+			else if (line.item.status == OrderItemStatus::Backordered)
+			{
+				background = BackorderedRowColor;
+				rowExplanation = tr("The order was closed before this line fully arrived.");
+			}
+			else if (!line.stageable)
+			{
+				background = UnstageableRowColor;
+				rowExplanation = line.mouserPartNumber.empty()
+					? tr("This part cannot be put in a Mouser cart: it has no Mouser part number.\n\n"
+						 "Open “%1” in the part editor and fill in the “Mouser P/N” field — Mouser's "
+						 "own article number, which looks like 595-DRV5053CAQLPGM. The MPN (%2) is "
+						 "the manufacturer's number and Mouser will not accept it when ordering.\n\n"
+						 "If you created this part from a Mouser search and still see this, check "
+						 "you are not looking at an older duplicate of the same part.")
+						.arg(QString::fromStdString(line.partName))
+						.arg(line.partMpn.empty() ? tr("none") : QString::fromStdString(line.partMpn))
+					: tr("Nothing left to order on this line.");
+			}
 
 			for (int column = 0; column < LineColumnCount; ++column)
 			{
@@ -202,19 +227,14 @@ namespace PartManager
 				if (isDraft && column == LineColumnOrdered)
 				{
 					flags |= Qt::ItemIsEditable;
-					item->setToolTip(tr("Editable while the order is a draft."));
+					item->setToolTip(tr("Editable while the order is a draft.\n\n%1").arg(rowExplanation));
 				}
 				else
 				{
-					item->setToolTip(cells[column]);
+					item->setToolTip(rowExplanation);
 				}
 				item->setFlags(flags);
 				m_ui->lineTable->setItem(row, column, item);
-			}
-			if (line.partMpn.empty() == false)
-			{
-				m_ui->lineTable->item(row, LineColumnPart)->setToolTip(
-					QString::fromStdString(line.partMpn));
 			}
 			++row;
 		}

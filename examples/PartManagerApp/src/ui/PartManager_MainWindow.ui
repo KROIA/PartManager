@@ -313,6 +313,19 @@ Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an 
             </property>
            </widget>
           </item>
+          <item>
+           <widget class="QPushButton" name="previewMouserButton">
+            <property name="text">
+             <string>Open on Mouser</string>
+            </property>
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="toolTip">
+             <string>Opens this part's page on mouser.com. Needs a Mouser P/N, which you can set in the part editor.</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </item>
        </layout>

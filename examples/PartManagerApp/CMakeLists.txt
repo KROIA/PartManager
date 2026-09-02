@@ -68,4 +68,22 @@ exampleMaster(${LIBRARY_NAME} ${LIB_PROFILE_DEFINE} ${QT_ENABLE} ${QT_DEPLOY} "$
 
 ## USER_SECTION_START 5
 
+## §8 German translation. The .ts is source and is committed; the .qm is build output and is not.
+## applyLanguage() looks beside the executable and in translations/ next to it, so the .qm is
+## compiled straight into the install tree. Missing Qt tools are not an error: the app then falls
+## back to English, which is exactly what it does for the 30% of strings still untranslated.
+find_program(PM_LRELEASE NAMES lrelease lrelease.exe
+    HINTS "${Qt5_DIR}/../../../bin" "$ENV{QTDIR}/bin")
+if(PM_LRELEASE)
+    set(PM_TS "${CMAKE_CURRENT_SOURCE_DIR}/translations/PartManager_de.ts")
+    set(PM_QM "${INSTALL_BIN_PATH}/translations/PartManager_de.qm")
+    add_custom_command(TARGET PartManagerApp POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${INSTALL_BIN_PATH}/translations"
+        COMMAND "${PM_LRELEASE}" "${PM_TS}" -qm "${PM_QM}"
+        COMMENT "Compiling German translation (§8)"
+        VERBATIM)
+else()
+    message(STATUS "lrelease not found - German translation will not be built, app stays English")
+endif()
+
 ## USER_SECTION_END

@@ -91,6 +91,13 @@ namespace PartManager
 		connect(m_ui->downloadDatasheetButton, &QPushButton::clicked, this, &PartEditorDialog::downloadDatasheet);
 		connect(m_ui->removeDatasheetButton, &QPushButton::clicked, this, &PartEditorDialog::removeDatasheet);
 
+		// The Mouser number is committed on editingFinished rather than per keystroke: every
+		// change rewrites the seller link row, and doing that mid-word would churn the table and
+		// throw away the stored product URL on the way through.
+		connect(m_ui->mouserEdit, &QLineEdit::editingFinished,
+			this, &PartEditorDialog::commitMouserPartNumber);
+		connect(m_ui->openMouserButton, &QPushButton::clicked, this, &PartEditorDialog::openOnMouser);
+
 		connect(m_ui->closeButton, &QPushButton::clicked, this, &PartEditorDialog::accept);
 	}
 
@@ -200,6 +207,7 @@ namespace PartManager
 		}
 		autosave();
 		updateDatasheetState();
+		updateMouserState();
 	}
 
 	void PartEditorDialog::downloadDatasheet()
@@ -433,6 +441,56 @@ namespace PartManager
 		{
 			previous->deleteLater();
 		}
+	}
+
+	void PartEditorDialog::updateMouserState()
+	{
+		const std::string number = m_controller.mouserPartNumber(m_part.id);
+		// Guarded: this runs from loadPart(), and setText() would otherwise look like a user edit
+		// and fire editingFinished on the way out of the field.
+		const bool wasLoading = m_loading;
+		m_loading = true;
+		m_ui->mouserEdit->setText(QString::fromStdString(number));
+		m_loading = wasLoading;
+
+		m_ui->openMouserButton->setEnabled(!number.empty());
+		m_ui->openMouserButton->setToolTip(number.empty()
+			? tr("Enter this part's Mouser article number first — it is what the cart orders by, "
+				 "and it is not the same as the MPN.")
+			: tr("Opens %1 on mouser.com.").arg(QString::fromStdString(number)));
+	}
+
+	void PartEditorDialog::commitMouserPartNumber()
+	{
+		if (m_loading)
+		{
+			return;
+		}
+		const std::string number = m_ui->mouserEdit->text().trimmed().toStdString();
+		if (number == m_controller.mouserPartNumber(m_part.id))
+		{
+			return;
+		}
+		// The stored product URL is carried over when the number is unchanged, and deliberately
+		// dropped when it changes: a URL for the old article would open the wrong page.
+		if (!m_controller.setMouserPartNumber(m_part.id, number))
+		{
+			QMessageBox::warning(this, tr("Could not save the Mouser part number"),
+				tr("The database rejected the change."));
+		}
+		updateMouserState();
+	}
+
+	void PartEditorDialog::openOnMouser()
+	{
+		const std::string number = m_controller.mouserPartNumber(m_part.id);
+		const std::string url = PartEditorController::mouserPageUrl(number,
+			m_controller.mouserUrl(m_part.id));
+		if (url.empty())
+		{
+			return;
+		}
+		QDesktopServices::openUrl(QUrl(QString::fromStdString(url)));
 	}
 
 }

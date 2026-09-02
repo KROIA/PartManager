@@ -54,7 +54,7 @@ namespace PartManager
 		m_ui->itemTable->setColumnCount(ColumnCount);
 		m_ui->itemTable->setHorizontalHeaderLabels(QStringList()
 			<< tr("Designators") << tr("Part") << tr("Qty/unit") << tr("Qty total")
-			<< tr("In stock") << tr("Shortfall"));
+			<< tr("In stock") << tr("Still needed"));
 		m_ui->itemTable->horizontalHeader()->setSectionResizeMode(ColumnPart, QHeaderView::Stretch);
 
 		connect(m_ui->nameEdit, &QLineEdit::textChanged, this, &PartlistEditorDialog::scheduleHeaderSave);

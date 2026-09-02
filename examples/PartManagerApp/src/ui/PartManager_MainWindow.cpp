@@ -21,6 +21,7 @@
 #include "settings/PartManager_Settings.h"
 
 #include <QApplication>
+#include <QDesktopServices>
 #include <QBrush>
 #include <QColor>
 #include <QFormLayout>
@@ -34,6 +35,7 @@
 #include <QTimer>
 #include <QTreeWidgetItem>
 #include <QTreeWidgetItemIterator>
+#include <QUrl>
 
 #if RIBBON_WIDGET_LIBRARY_AVAILABLE == 1
 	#include "RibbonWidget.h"
@@ -84,6 +86,7 @@ namespace PartManager
 		connect(m_ui->previewOpenButton, &QPushButton::clicked,
 			this, [this]() { onPartActivated(m_ui->partTable->currentRow()); });
 		connect(m_ui->previewTakeOutButton, &QPushButton::clicked, this, &MainWindow::onTakeOut);
+		connect(m_ui->previewMouserButton, &QPushButton::clicked, this, &MainWindow::onOpenOnMouser);
 		// §7b: dragging a header divider saves that column's width for the shown category.
 		connect(m_ui->partTable->horizontalHeader(), &QHeaderView::sectionResized,
 			this, &MainWindow::onColumnResized);
@@ -119,6 +122,23 @@ namespace PartManager
 	{
 		KicadLibraryDialog dialog(m_controller.handle(), this);
 		dialog.exec();
+	}
+
+	void MainWindow::onOpenOnMouser()
+	{
+		const int partId = selectedPartId();
+		if (partId == 0)
+		{
+			return;
+		}
+		PartEditorController editor(m_controller.handle());
+		const std::string url = PartEditorController::mouserPageUrl(
+			editor.mouserPartNumber(partId), editor.mouserUrl(partId));
+		if (url.empty())
+		{
+			return;
+		}
+		QDesktopServices::openUrl(QUrl(QString::fromStdString(url)));
 	}
 
 	void MainWindow::onView3DModel()
@@ -652,6 +672,18 @@ namespace PartManager
 		m_ui->previewEmptyLabel->setVisible(!hasPart);
 		m_ui->previewScroll->setVisible(hasPart);
 		m_ui->previewOpenButton->setEnabled(hasPart);
+		// §6's "Open on Mouser". Enabled only when the part actually has an article number, so a
+		// disabled button is itself the hint that the Mouser P/N is missing.
+		{
+			PartEditorController editor(m_controller.handle());
+			const std::string mouserNumber = hasPart ? editor.mouserPartNumber(preview.partId)
+				: std::string();
+			m_ui->previewMouserButton->setEnabled(!mouserNumber.empty());
+			m_ui->previewMouserButton->setToolTip(mouserNumber.empty()
+				? tr("This part has no Mouser part number. Open it in the part editor and fill in "
+					 "the “Mouser P/N” field — it is what ordering needs, and it is not the MPN.")
+				: tr("Opens %1 on mouser.com.").arg(QString::fromStdString(mouserNumber)));
+		}
 		m_ui->previewTakeOutButton->setEnabled(hasPart);
 		if (!hasPart)
 		{

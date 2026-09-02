@@ -200,15 +200,20 @@ namespace PartManager
 		}
 		if (!applyLanguage(*app, m_preferences.language))
 		{
-			// There is no .qm yet, and pretending the switch worked would leave the user waiting
-			// for a German UI that is never coming.
-			m_ui->statusLabel->setText(
-				tr("No translation is installed for that language yet — the interface stays in English."));
+			// The .qm is built by the app's CMake step, so a missing one means an install that
+			// was assembled without Qt's lrelease. Naming the file is what makes that fixable.
+			m_ui->statusLabel->setText(tr("No translation file was found for that language "
+				"(translations/PartManager_%1.qm next to the program), so the interface stays "
+				"in English.").arg(QString::fromStdString(m_preferences.language)));
 			return;
 		}
 		// Already-built widgets keep the strings they were constructed with; Qt only re-reads
-		// tr() on a retranslateUi() pass, which none of these dialogs implement.
-		m_ui->statusLabel->setText(tr("The language applies fully after restarting PartManager."));
+		// tr() on a retranslateUi() pass, which none of these dialogs implement. So the honest
+		// message is "restart", not "done".
+		m_ui->statusLabel->setText(m_preferences.language == "en"
+			? tr("Back to English. Restart PartManager to change every window.")
+			: tr("Translation loaded. Restart PartManager so every window picks it up — "
+				 "some text is still English, which is the untranslated remainder, not a failure."));
 	}
 
 	void SettingsDialog::browseKicadPath()

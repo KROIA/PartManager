@@ -59,3 +59,6 @@ PartManager.json
 
 # Icon generator lives in .claude/tools/ — agent artefact, not project source.
 /tools/
+
+# Compiled translations are build output; the .ts beside them is the source (§8).
+/examples/PartManagerApp/translations/*.qm

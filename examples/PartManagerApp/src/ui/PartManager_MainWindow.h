@@ -68,6 +68,8 @@ namespace PartManager
 		void onColumnResized(int logicalIndex, int oldSize, int newSize);
 		// Parts tab's KiCad group (§5a) — regenerate the symbol/footprint libraries.
 		void onGenerateKicadLibraries();
+		// §6's "Open on Mouser" for the selected part, from the preview panel.
+		void onOpenOnMouser();
 		// Home tab's 3D Viewer button (§13) — the selected part's 3D model: attach, view, remove.
 		void onView3DModel();
 		// Parts tab's Settings button (§9). Ends the session when a backup was restored, because
