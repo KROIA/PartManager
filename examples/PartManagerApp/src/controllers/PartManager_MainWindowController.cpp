@@ -588,6 +588,14 @@ namespace PartManager
 					TagRepository::listPartTags(m_handle->connection(), partId),
 					datasheetState(fileName, !editor.datasheetPath(part).empty()));
 				preview.imagePath = toQt(editor.roleFilePath(partId, PartFileRole::Image));
+				preview.kicadSymbolPath =
+					toQt(editor.roleFilePath(partId, PartFileRole::KicadSymbol));
+				preview.kicadFootprintPath =
+					toQt(editor.roleFilePath(partId, PartFileRole::KicadFootprint));
+				for (const PartType& type : editor.types())
+				{
+					if (type.id == part.partTypeId) { preview.typeName = toQt(type.name); break; }
+				}
 				return preview;
 			}
 		}

@@ -8,6 +8,7 @@
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
 #include "ui/PartManager_OrderManagerDialog.h"
+#include "widgets/PartManager_KicadPreviewWidget.h"
 #include "widgets/PartManager_PartlistPanel.h"
 #include "ui/PartManager_KicadLibraryDialog.h"
 #include "ui/PartManager_Model3DDialog.h"
@@ -23,6 +24,7 @@
 #include <QBrush>
 #include <QColor>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
@@ -36,6 +38,9 @@
 #include <QTreeWidgetItem>
 #include <QTreeWidgetItemIterator>
 #include <QUrl>
+
+#include <fstream>
+#include <iterator>
 
 #if RIBBON_WIDGET_LIBRARY_AVAILABLE == 1
 	#include "RibbonWidget.h"
@@ -55,6 +60,13 @@ namespace PartManager
 		// Big enough to tell an SOIC from an electrolytic at a glance, small enough that the
 		// table still reads as a table.
 		constexpr int ThumbnailSize = 28;
+
+		// KiCad files are a few kB and read only when the selection changes, so slurping is fine.
+		std::string readWholeFile(const QString& path)
+		{
+			std::ifstream stream(path.toStdString(), std::ios::binary);
+			return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+		}
 
 		// One scaled thumbnail per stored image, shared by every row and every refill. Without
 		// the cache a category of a few hundred parts decodes a few hundred JPEGs on every
@@ -107,6 +119,26 @@ namespace PartManager
 		m_ui->bodySplitter->setStretchFactor(1, 1);
 		m_ui->bodySplitter->setStretchFactor(2, 0);
 		m_ui->bodySplitter->setSizes({ 220, 540, 240 });
+
+		// §5a: the symbol and footprint sit directly under the photo, so one glance at the
+		// preview answers "is this the right package" without opening the editor or KiCad.
+		m_symbolPreview = new KicadPreviewWidget(m_ui->previewPanel);
+		m_footprintPreview = new KicadPreviewWidget(m_ui->previewPanel);
+		for (KicadPreviewWidget* view : { m_symbolPreview, m_footprintPreview })
+		{
+			view->setMinimumHeight(70);
+			view->setMaximumHeight(110);
+		}
+		m_symbolPreview->setToolTip(tr("The schematic symbol this part places in KiCad."));
+		m_footprintPreview->setToolTip(tr("The PCB footprint this part places in KiCad."));
+		{
+			QHBoxLayout* kicadRow = new QHBoxLayout();
+			kicadRow->addWidget(m_symbolPreview);
+			kicadRow->addWidget(m_footprintPreview);
+			// Straight after the photo, before the scrolling detail list.
+			m_ui->previewLayout->insertLayout(
+				m_ui->previewLayout->indexOf(m_ui->previewGraphicLabel) + 1, kicadRow);
+		}
 
 		// §4 lives here rather than in a pair of dialogs: the part table is the component browser
 		// the old editor's part picker was missing, so a line is added by dragging a row down into
@@ -448,6 +480,50 @@ namespace PartManager
 		reloadCategories();
 	}
 
+	void MainWindow::updateKicadPreviews(const PartPreview& preview)
+	{
+		if (!m_symbolPreview || !m_footprintPreview) { return; }
+
+		if (preview.partId == 0)
+		{
+			m_symbolPreview->showMessage(QString());
+			m_footprintPreview->showMessage(QString());
+			m_symbolPreview->setCaption(QString());
+			m_footprintPreview->setCaption(QString());
+			return;
+		}
+
+		if (!preview.kicadSymbolPath.isEmpty())
+		{
+			const KicadDrawing drawing = KicadGeometry::symbol(
+				readWholeFile(preview.kicadSymbolPath), preview.name.toStdString());
+			m_symbolPreview->showDrawing(drawing, tr("Symbol file cannot be drawn."));
+			m_symbolPreview->setCaption(QString::fromStdString(drawing.name));
+		}
+		else
+		{
+			// Not an error: most parts have no symbol of their own, and this is exactly what
+			// "Generate Libraries" would put in the library for them.
+			m_symbolPreview->showDrawing(
+				KicadGeometry::genericSymbolForType(preview.typeName.toStdString()),
+				tr("No symbol."));
+			m_symbolPreview->setCaption(tr("generated"));
+		}
+
+		if (!preview.kicadFootprintPath.isEmpty())
+		{
+			const KicadDrawing drawing =
+				KicadGeometry::footprint(readWholeFile(preview.kicadFootprintPath));
+			m_footprintPreview->showDrawing(drawing, tr("Footprint file cannot be drawn."));
+			m_footprintPreview->setCaption(QString::fromStdString(drawing.name));
+		}
+		else
+		{
+			m_footprintPreview->showMessage(tr("No footprint."));
+			m_footprintPreview->setCaption(QString());
+		}
+	}
+
 	void MainWindow::showPartlistPanel()
 	{
 		if (m_partlistPanel == nullptr)
@@ -737,6 +813,7 @@ namespace PartManager
 		m_ui->previewTakeOutButton->setEnabled(hasPart);
 
 		// The part's photo at panel size — the same attachment the table shows a thumbnail of.
+		// (KiCad previews follow below, once the empty state has been dealt with.)
 		// Loaded straight rather than through thumbnailFor(), which caches at table scale. Set
 		// before the empty-state return, so deselecting clears the previous part's picture
 		// instead of leaving it under a blank panel.
@@ -761,6 +838,8 @@ namespace PartManager
 				Qt::KeepAspectRatio, Qt::SmoothTransformation));
 			m_ui->previewGraphicLabel->setToolTip(QString());
 		}
+
+		updateKicadPreviews(preview);
 
 		if (!hasPart)
 		{

@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="de_DE">
 <context>
@@ -43,7 +43,7 @@
         <translation>Eintragsdatei</translation>
     </message>
     <message>
-        <source>No databases known yet — use "New Database..." to create one, or "Browse for existing..." to add one you already have.</source>
+        <source>No databases known yet — use &quot;New Database...&quot; to create one, or &quot;Browse for existing...&quot; to add one you already have.</source>
         <translation>Noch keine Datenbanken bekannt — mit „Neue Datenbank…“ eine anlegen oder mit „Vorhandene suchen…“ eine bestehende hinzufügen.</translation>
     </message>
     <message>
@@ -91,9 +91,9 @@
     </message>
     <message>
         <source>Searches every category and shows the hit count next to each one.
-Terms are ANDed: free text (use "quotes" for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</source>
+Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</source>
         <translation>Durchsucht alle Kategorien und zeigt die Trefferzahl neben jeder an.
-Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), tag:name oder ein Attributvergleich wie resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</translation>
+Begriffe werden UND-verknüpft: Freitext (Leerzeichen in &quot;Anführungszeichen&quot;), tag:name oder ein Attributvergleich wie resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</translation>
     </message>
     <message>
         <source>CATEGORIES</source>
@@ -109,9 +109,9 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), 
     </message>
     <message>
         <source>Filters the rows of the selected category only.
-Terms are ANDed: free text (use "quotes" for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</source>
+Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</source>
         <translation>Filtert nur die Zeilen der ausgewählten Kategorie.
-Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), tag:name oder ein Attributvergleich wie resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</translation>
+Begriffe werden UND-verknüpft: Freitext (Leerzeichen in &quot;Anführungszeichen&quot;), tag:name oder ein Attributvergleich wie resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</translation>
     </message>
     <message>
         <source>PREVIEW</source>
@@ -138,7 +138,7 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), 
         <translation>Bei Mouser öffnen</translation>
     </message>
     <message>
-        <source>Opens this part's page on mouser.com. Needs a Mouser P/N, which you can set in the part editor.</source>
+        <source>Opens this part&apos;s page on mouser.com. Needs a Mouser P/N, which you can set in the part editor.</source>
         <translation>Öffnet die Seite dieses Bauteils auf mouser.com. Benötigt eine Mouser-Art.-Nr., die Sie im Bauteileditor eintragen können.</translation>
     </message>
 </context>
@@ -149,7 +149,7 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), 
         <translation>Datenbanken verwalten</translation>
     </message>
     <message>
-        <source>Every database PartManager knows about. Editing a description writes the database folder's README.md; nothing here ever deletes a database from disk.</source>
+        <source>Every database PartManager knows about. Editing a description writes the database folder&apos;s README.md; nothing here ever deletes a database from disk.</source>
         <translation>Alle PartManager bekannten Datenbanken. Eine bearbeitete Beschreibung wird in die README.md des Datenbankordners geschrieben; hier wird nie eine Datenbank von der Festplatte gelöscht.</translation>
     </message>
     <message>
@@ -173,7 +173,7 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), 
         <translation>Eintragsdatei</translation>
     </message>
     <message>
-        <source>No databases known yet — use "New Database..." or "Browse for existing..." on the selector to add one.</source>
+        <source>No databases known yet — use &quot;New Database...&quot; or &quot;Browse for existing...&quot; on the selector to add one.</source>
         <translation>Noch keine Datenbanken bekannt — im Auswahlfenster mit „Neue Datenbank…“ oder „Vorhandene suchen…“ eine hinzufügen.</translation>
     </message>
     <message>
@@ -204,7 +204,7 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), 
         <translation>Tags sind ein gemeinsames Vokabular — jedes Bauteil wählt aus dieser Liste.</translation>
     </message>
     <message>
-        <source>No tags yet — "New Tag..." creates the first one.</source>
+        <source>No tags yet — &quot;New Tag...&quot; creates the first one.</source>
         <translation>Noch keine Tags — „Neues Tag…“ legt das erste an.</translation>
     </message>
     <message>
@@ -243,7 +243,7 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), 
         <translation>Bauteilnummer, Link oder Stichwort</translation>
     </message>
     <message>
-        <source>595-LM358DR, a mouser.com product link, or "10k 0603 resistor"…</source>
+        <source>595-LM358DR, a mouser.com product link, or &quot;10k 0603 resistor&quot;…</source>
         <translation>595-LM358DR, ein mouser.com-Produktlink oder „10k 0603 Widerstand“…</translation>
     </message>
     <message>
@@ -318,24 +318,24 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in "Anführungszeichen"), 
         <translation>Welche Kategorievorlage dieses Bauteil verwendet. Sie bestimmt die Attributfelder unten und die Spalten der Bauteiltabelle — z. B. Widerstand, Kondensator, MOSFET.</translation>
     </message>
     <message>
-        <source>What you want to see in the parts table. Freely chosen — e.g. "4k7 0603 1%" or "LM358 dual op-amp".</source>
-        <translation>Was Sie in der Bauteiltabelle sehen wollen. Frei wählbar — z. B. "4k7 0603 1%" oder "LM358 Doppel-OPV".</translation>
+        <source>What you want to see in the parts table. Freely chosen — e.g. &quot;4k7 0603 1%&quot; or &quot;LM358 dual op-amp&quot;.</source>
+        <translation>Was Sie in der Bauteiltabelle sehen wollen. Frei wählbar — z. B. &quot;4k7 0603 1%&quot; oder &quot;LM358 Doppel-OPV&quot;.</translation>
     </message>
     <message>
         <source>Who makes the part — e.g. Murata, Texas Instruments, Yageo.</source>
         <translation>Wer das Bauteil herstellt — z. B. Murata, Texas Instruments, Yageo.</translation>
     </message>
     <message>
-        <source>Manufacturer Part Number — the maker's own order code, e.g. "LM358DR" or "GRM188R71H104KA93D". Ordering does not use this; that is the Mouser P/N below.</source>
-        <translation>Manufacturer Part Number — die Bestellnummer des Herstellers, z. B. "LM358DR" oder "GRM188R71H104KA93D". Zum Bestellen wird sie nicht verwendet; dafür ist die Mouser-Art.-Nr. unten da.</translation>
+        <source>Manufacturer Part Number — the maker&apos;s own order code, e.g. &quot;LM358DR&quot; or &quot;GRM188R71H104KA93D&quot;. Ordering does not use this; that is the Mouser P/N below.</source>
+        <translation>Manufacturer Part Number — die Bestellnummer des Herstellers, z. B. &quot;LM358DR&quot; oder &quot;GRM188R71H104KA93D&quot;. Zum Bestellen wird sie nicht verwendet; dafür ist die Mouser-Art.-Nr. unten da.</translation>
     </message>
     <message>
         <source>Mouser P/N</source>
         <translation>Mouser-Art.-Nr.</translation>
     </message>
     <message>
-        <source>Mouser's own article number, e.g. "595-LM358DR". This is what the cart orders by — the MPN will not work. Filled in automatically when the part came from a Mouser search.</source>
-        <translation>Mousers eigene Artikelnummer, z. B. "595-LM358DR". Der Warenkorb bestellt danach — die MPN funktioniert nicht. Wird automatisch ausgefüllt, wenn das Bauteil aus einer Mouser-Suche stammt.</translation>
+        <source>Mouser&apos;s own article number, e.g. &quot;595-LM358DR&quot;. This is what the cart orders by — the MPN will not work. Filled in automatically when the part came from a Mouser search.</source>
+        <translation>Mousers eigene Artikelnummer, z. B. &quot;595-LM358DR&quot;. Der Warenkorb bestellt danach — die MPN funktioniert nicht. Wird automatisch ausgefüllt, wenn das Bauteil aus einer Mouser-Suche stammt.</translation>
     </message>
     <message>
         <source>e.g. 595-LM358DR — required to order this part</source>
@@ -349,7 +349,7 @@ Not the same as THT vs SMD, though the name usually implies it:
 • THT examples: DIP-8, TO-220, TO-92, radial 5 mm, axial 0207
 • Mechanical parts: M3x10, M2.5 standoff
 
-Mouser fills this in from its "Package / Case" column.</source>
+Mouser fills this in from its &quot;Package / Case&quot; column.</source>
         <translation>Die Bauform, in der das Bauteil geliefert wird — Gehäuseform und Pinanordnung, was den Footprint auf der Leiterplatte bestimmt.
 
 Nicht dasselbe wie THT oder SMD, auch wenn der Name es meist mitliefert:
@@ -357,14 +357,14 @@ Nicht dasselbe wie THT oder SMD, auch wenn der Name es meist mitliefert:
 • THT-Beispiele: DIP-8, TO-220, TO-92, radial 5 mm, axial 0207
 • Mechanikteile: M3x10, M2.5-Abstandsbolzen
 
-Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
+Mouser füllt das aus seiner Spalte &quot;Package / Case&quot; aus.</translation>
     </message>
     <message>
         <source>e.g. 0603, SOIC-8, TO-220, DIP-8, M3x10</source>
         <translation>z. B. 0603, SOIC-8, TO-220, DIP-8, M3x10</translation>
     </message>
     <message>
-        <source>Free-text notes. Mouser's own product description lands here when the part came from a search.</source>
+        <source>Free-text notes. Mouser&apos;s own product description lands here when the part came from a search.</source>
         <translation>Freitextnotizen. Mousers eigene Produktbeschreibung landet hier, wenn das Bauteil aus einer Suche stammt.</translation>
     </message>
     <message>
@@ -372,7 +372,7 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>Bestand</translation>
     </message>
     <message>
-        <source>How many you have on the shelf right now. A non-zero value is recorded as the part's first restock, so the stock history starts out honest.</source>
+        <source>How many you have on the shelf right now. A non-zero value is recorded as the part&apos;s first restock, so the stock history starts out honest.</source>
         <translation>Wie viele Sie gerade im Regal haben. Ein Wert ungleich null wird als erster Zugang des Bauteils verbucht, damit die Bestandshistorie von Anfang an stimmt.</translation>
     </message>
     <message>
@@ -396,7 +396,7 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>Datenblatt</translation>
     </message>
     <message>
-        <source>Usually a PDF. Mouser's DataSheetUrl is filled in here automatically when it publishes one — which it does not for every part.</source>
+        <source>Usually a PDF. Mouser&apos;s DataSheetUrl is filled in here automatically when it publishes one — which it does not for every part.</source>
         <translation>Meist ein PDF. Mousers DataSheetUrl wird hier automatisch eingetragen, sofern Mouser eine veröffentlicht — was nicht bei jedem Bauteil der Fall ist.</translation>
     </message>
     <message>
@@ -420,7 +420,7 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>Bild</translation>
     </message>
     <message>
-        <source>A photo of the part. It is shown as a thumbnail in the first column of the parts table, which is what makes a component recognisable at a glance. Mouser's product photo is filled in here automatically.</source>
+        <source>A photo of the part. It is shown as a thumbnail in the first column of the parts table, which is what makes a component recognisable at a glance. Mouser&apos;s product photo is filled in here automatically.</source>
         <translation>Ein Foto des Bauteils. Es wird als Miniaturbild in der ersten Spalte der Bauteiltabelle angezeigt, wodurch ein Bauteil auf einen Blick erkennbar wird. Mousers Produktfoto wird hier automatisch eingetragen.</translation>
     </message>
     <message>
@@ -506,7 +506,7 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>MPN</translation>
     </message>
     <message>
-        <source>The manufacturer's own part number. Mouser will not accept this when ordering — that is the Mouser P/N below.</source>
+        <source>The manufacturer&apos;s own part number. Mouser will not accept this when ordering — that is the Mouser P/N below.</source>
         <translation>Die Artikelnummer des Herstellers. Mouser akzeptiert sie beim Bestellen nicht — dafür ist die Mouser-Art.-Nr. unten da.</translation>
     </message>
     <message>
@@ -518,7 +518,7 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>z. B. 595-DRV5053CAQLPGM — zum Bestellen dieses Bauteils erforderlich</translation>
     </message>
     <message>
-        <source>Mouser's own article number. This is what the cart needs; the MPN above will not work. Filled in automatically for parts created from a Mouser search.</source>
+        <source>Mouser&apos;s own article number. This is what the cart needs; the MPN above will not work. Filled in automatically for parts created from a Mouser search.</source>
         <translation>Mousers eigene Artikelnummer. Der Warenkorb braucht sie; die MPN oben funktioniert nicht. Wird bei Bauteilen aus einer Mouser-Suche automatisch ausgefüllt.</translation>
     </message>
     <message>
@@ -526,7 +526,7 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>Bei Mouser öffnen</translation>
     </message>
     <message>
-        <source>Opens this part's page on mouser.com in your browser.</source>
+        <source>Opens this part&apos;s page on mouser.com in your browser.</source>
         <translation>Öffnet die Seite dieses Bauteils auf mouser.com in Ihrem Browser.</translation>
     </message>
     <message>
@@ -562,7 +562,7 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>Öffnen</translation>
     </message>
     <message>
-        <source>Open the stored datasheet in the system's default viewer.</source>
+        <source>Open the stored datasheet in the system&apos;s default viewer.</source>
         <translation>Öffnet das gespeicherte Datenblatt im Standardprogramm des Systems.</translation>
     </message>
     <message>
@@ -570,7 +570,7 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>Datei anhängen…</translation>
     </message>
     <message>
-        <source>Copy a file from this computer into the database's file store.</source>
+        <source>Copy a file from this computer into the database&apos;s file store.</source>
         <translation>Kopiert eine Datei von diesem Rechner in den Dateispeicher der Datenbank.</translation>
     </message>
     <message>
@@ -626,20 +626,20 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>Schließen</translation>
     </message>
     <message>
-        <source>What you want to see in the parts table. Freely chosen — e.g. "4k7 0603 1%" or "LM358 dual op-amp".</source>
-        <translation>Was Sie in der Bauteiltabelle sehen wollen. Frei wählbar — z. B. "4k7 0603 1%" oder "LM358 Doppel-OPV".</translation>
+        <source>What you want to see in the parts table. Freely chosen — e.g. &quot;4k7 0603 1%&quot; or &quot;LM358 dual op-amp&quot;.</source>
+        <translation>Was Sie in der Bauteiltabelle sehen wollen. Frei wählbar — z. B. &quot;4k7 0603 1%&quot; oder &quot;LM358 Doppel-OPV&quot;.</translation>
     </message>
     <message>
         <source>Who makes the part — e.g. Murata, Texas Instruments, Yageo.</source>
         <translation>Wer das Bauteil herstellt — z. B. Murata, Texas Instruments, Yageo.</translation>
     </message>
     <message>
-        <source>Manufacturer Part Number — the maker's own order code, e.g. "LM358DR" or "GRM188R71H104KA93D". Ordering does not use this; that is the Mouser P/N below.</source>
-        <translation>Manufacturer Part Number — die Bestellnummer des Herstellers, z. B. "LM358DR" oder "GRM188R71H104KA93D". Zum Bestellen wird sie nicht verwendet; dafür ist die Mouser-Art.-Nr. unten da.</translation>
+        <source>Manufacturer Part Number — the maker&apos;s own order code, e.g. &quot;LM358DR&quot; or &quot;GRM188R71H104KA93D&quot;. Ordering does not use this; that is the Mouser P/N below.</source>
+        <translation>Manufacturer Part Number — die Bestellnummer des Herstellers, z. B. &quot;LM358DR&quot; oder &quot;GRM188R71H104KA93D&quot;. Zum Bestellen wird sie nicht verwendet; dafür ist die Mouser-Art.-Nr. unten da.</translation>
     </message>
     <message>
-        <source>Mouser's own article number, e.g. "595-LM358DR". This is what the cart orders by — the MPN will not work. Filled in automatically when the part came from a Mouser search.</source>
-        <translation>Mousers eigene Artikelnummer, z. B. "595-LM358DR". Der Warenkorb bestellt danach — die MPN funktioniert nicht. Wird automatisch ausgefüllt, wenn das Bauteil aus einer Mouser-Suche stammt.</translation>
+        <source>Mouser&apos;s own article number, e.g. &quot;595-LM358DR&quot;. This is what the cart orders by — the MPN will not work. Filled in automatically when the part came from a Mouser search.</source>
+        <translation>Mousers eigene Artikelnummer, z. B. &quot;595-LM358DR&quot;. Der Warenkorb bestellt danach — die MPN funktioniert nicht. Wird automatisch ausgefüllt, wenn das Bauteil aus einer Mouser-Suche stammt.</translation>
     </message>
     <message>
         <source>The physical housing the part comes in — its body shape and pin arrangement, which is what decides the PCB footprint.
@@ -649,7 +649,7 @@ Not the same as THT vs SMD, though the name usually implies it:
 • THT examples: DIP-8, TO-220, TO-92, radial 5 mm, axial 0207
 • Mechanical parts: M3x10, M2.5 standoff
 
-Mouser fills this in from its "Package / Case" column.</source>
+Mouser fills this in from its &quot;Package / Case&quot; column.</source>
         <translation>Die Bauform, in der das Bauteil geliefert wird — Gehäuseform und Pinanordnung, was den Footprint auf der Leiterplatte bestimmt.
 
 Nicht dasselbe wie THT oder SMD, auch wenn der Name es meist mitliefert:
@@ -657,14 +657,14 @@ Nicht dasselbe wie THT oder SMD, auch wenn der Name es meist mitliefert:
 • THT-Beispiele: DIP-8, TO-220, TO-92, radial 5 mm, axial 0207
 • Mechanikteile: M3x10, M2.5-Abstandsbolzen
 
-Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
+Mouser füllt das aus seiner Spalte &quot;Package / Case&quot; aus.</translation>
     </message>
     <message>
         <source>e.g. 0603, SOIC-8, TO-220, DIP-8, M3x10</source>
         <translation>z. B. 0603, SOIC-8, TO-220, DIP-8, M3x10</translation>
     </message>
     <message>
-        <source>Free-text notes. Mouser's own product description lands here when the part came from a search.</source>
+        <source>Free-text notes. Mouser&apos;s own product description lands here when the part came from a search.</source>
         <translation>Freitextnotizen. Mousers eigene Produktbeschreibung landet hier, wenn das Bauteil aus einer Suche stammt.</translation>
     </message>
     <message>
@@ -672,8 +672,8 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>Bild</translation>
     </message>
     <message>
-        <source>A photo of the part, shown as a thumbnail in the first column of the parts table so the component is recognisable at a glance. It is stored as an ordinary attachment (role "image"), like the datasheet.</source>
-        <translation>Ein Foto des Bauteils, das als Miniaturbild in der ersten Spalte der Bauteiltabelle erscheint, damit das Bauelement auf einen Blick erkennbar ist. Es wird wie das Datenblatt als gewöhnlicher Anhang gespeichert (Rolle "image").</translation>
+        <source>A photo of the part, shown as a thumbnail in the first column of the parts table so the component is recognisable at a glance. It is stored as an ordinary attachment (role &quot;image&quot;), like the datasheet.</source>
+        <translation>Ein Foto des Bauteils, das als Miniaturbild in der ersten Spalte der Bauteiltabelle erscheint, damit das Bauelement auf einen Blick erkennbar ist. Es wird wie das Datenblatt als gewöhnlicher Anhang gespeichert (Rolle &quot;image&quot;).</translation>
     </message>
     <message>
         <source>none</source>
@@ -684,11 +684,11 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>Noch kein Bild angehängt.</translation>
     </message>
     <message>
-        <source>Copy a picture from this computer into the database's file store.</source>
+        <source>Copy a picture from this computer into the database&apos;s file store.</source>
         <translation>Kopiert ein Bild von diesem Rechner in den Dateispeicher der Datenbank.</translation>
     </message>
     <message>
-        <source>Fetch a picture from a URL — for example the product photo on the part's Mouser page.</source>
+        <source>Fetch a picture from a URL — for example the product photo on the part&apos;s Mouser page.</source>
         <translation>Holt ein Bild von einer URL — zum Beispiel das Produktfoto auf der Mouser-Seite des Bauteils.</translation>
     </message>
     <message>
@@ -708,7 +708,7 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>KiCad</translation>
     </message>
     <message>
-        <source>This part's own symbol and footprint. They are what "Generate Libraries" puts into the shared KiCad library, and an edit you make in KiCad is written back here the next time you regenerate — so the two copies stay identical.</source>
+        <source>This part&apos;s own symbol and footprint. They are what &quot;Generate Libraries&quot; puts into the shared KiCad library, and an edit you make in KiCad is written back here the next time you regenerate — so the two copies stay identical.</source>
         <translation>Das eigene Symbol und der eigene Footprint dieses Bauteils. Sie sind es, was „Bibliotheken erzeugen“ in die gemeinsame KiCad-Bibliothek schreibt, und eine Änderung, die Sie in KiCad machen, wird beim nächsten Erzeugen hierher zurückgeschrieben — so bleiben beide Kopien identisch.</translation>
     </message>
     <message>
@@ -716,15 +716,15 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <translation>Hersteller-ZIP importieren…</translation>
     </message>
     <message>
-        <source>Reads a library download such as "LIB_74HC4051PW-Q100,11.zip" from Component Search Engine, Ultra Librarian or SnapEDA, and takes the KiCad symbol, the footprint and the 3D model out of it. Everything for the other twenty CAD tools in the archive is ignored. The files are copied into this database, so the ZIP can be deleted afterwards.</source>
-        <translation>Liest einen Bibliotheks-Download wie "LIB_74HC4051PW-Q100,11.zip" von Component Search Engine, Ultra Librarian oder SnapEDA und entnimmt daraus das KiCad-Symbol, den Footprint und das 3D-Modell. Alles für die zwanzig anderen CAD-Werkzeuge im Archiv wird ignoriert. Die Dateien werden in diese Datenbank kopiert, das ZIP kann danach gelöscht werden.</translation>
+        <source>Reads a library download such as &quot;LIB_74HC4051PW-Q100,11.zip&quot; from Component Search Engine, Ultra Librarian or SnapEDA, and takes the KiCad symbol, the footprint and the 3D model out of it. Everything for the other twenty CAD tools in the archive is ignored. The files are copied into this database, so the ZIP can be deleted afterwards.</source>
+        <translation>Liest einen Bibliotheks-Download wie &quot;LIB_74HC4051PW-Q100,11.zip&quot; von Component Search Engine, Ultra Librarian oder SnapEDA und entnimmt daraus das KiCad-Symbol, den Footprint und das 3D-Modell. Alles für die zwanzig anderen CAD-Werkzeuge im Archiv wird ignoriert. Die Dateien werden in diese Datenbank kopiert, das ZIP kann danach gelöscht werden.</translation>
     </message>
     <message>
         <source>Symbol</source>
         <translation>Symbol</translation>
     </message>
     <message>
-        <source>A .kicad_sym file holding this part's schematic symbol. Without one the generated library uses a plain box or a generic resistor/capacitor outline, which works but has no real pinout.</source>
+        <source>A .kicad_sym file holding this part&apos;s schematic symbol. Without one the generated library uses a plain box or a generic resistor/capacitor outline, which works but has no real pinout.</source>
         <translation>Eine .kicad_sym-Datei mit dem Schaltplansymbol dieses Bauteils. Ohne sie verwendet die erzeugte Bibliothek einen einfachen Kasten oder einen generischen Widerstands-/Kondensatorumriss — funktionsfähig, aber ohne echte Pinbelegung.</translation>
     </message>
     <message>
@@ -848,7 +848,7 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
     <message>
         <source>The cart this order is currently pointing at will be left as it is, and a brand-new cart will be created when you stage.
 
-Mouser's API cannot delete a cart or list the carts on your account, so PartManager will not be able to find the old one again — clear it on mouser.com if you do not want it. Continue?</source>
+Mouser&apos;s API cannot delete a cart or list the carts on your account, so PartManager will not be able to find the old one again — clear it on mouser.com if you do not want it. Continue?</source>
         <translation>Der Warenkorb, auf den diese Bestellung derzeit zeigt, bleibt unverändert, und beim Übertragen wird ein völlig neuer angelegt.
 
 Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Kontos auflisten, daher findet PartManager den alten nicht wieder — leeren Sie ihn auf mouser.com, falls Sie ihn nicht wollen. Fortfahren?</translation>
@@ -894,7 +894,7 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
 <context>
     <name>PartManager::ColumnsDialog</name>
     <message>
-        <source>Columns shown for "%1".</source>
+        <source>Columns shown for &quot;%1&quot;.</source>
         <translation>Für „%1“ angezeigte Spalten.</translation>
     </message>
     <message>
@@ -1007,7 +1007,7 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
         <translation>Ihre Änderung verwerfen?</translation>
     </message>
     <message>
-        <source>“%1” will be overwritten with PartManager's generated version. Your changes to it are lost.</source>
+        <source>“%1” will be overwritten with PartManager&apos;s generated version. Your changes to it are lost.</source>
         <translation>„%1“ wird mit der von PartManager erzeugten Fassung überschrieben. Ihre Änderungen daran gehen verloren.</translation>
     </message>
     <message>
@@ -1030,7 +1030,7 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
         <translation>Kein Bauteil ausgewählt</translation>
     </message>
     <message>
-        <source>Select a part first — the 3D viewer shows that part's model.</source>
+        <source>Select a part first — the 3D viewer shows that part&apos;s model.</source>
         <translation>Wählen Sie zuerst ein Bauteil — der 3D-Betrachter zeigt dessen Modell.</translation>
     </message>
     <message>
@@ -1196,6 +1196,34 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
         <source>Attach a photo in the part editor, or import the part from Mouser — its product photo is downloaded automatically.</source>
         <translation>Hängen Sie im Bauteileditor ein Foto an oder importieren Sie das Bauteil von Mouser — dessen Produktfoto wird automatisch heruntergeladen.</translation>
     </message>
+    <message>
+        <source>The schematic symbol this part places in KiCad.</source>
+        <translation>Das Schaltplansymbol, das dieses Bauteil in KiCad platziert.</translation>
+    </message>
+    <message>
+        <source>The PCB footprint this part places in KiCad.</source>
+        <translation>Der Platinen-Footprint, den dieses Bauteil in KiCad platziert.</translation>
+    </message>
+    <message>
+        <source>Symbol file cannot be drawn.</source>
+        <translation>Symboldatei kann nicht gezeichnet werden.</translation>
+    </message>
+    <message>
+        <source>No symbol.</source>
+        <translation>Kein Symbol.</translation>
+    </message>
+    <message>
+        <source>generated</source>
+        <translation>generiert</translation>
+    </message>
+    <message>
+        <source>Footprint file cannot be drawn.</source>
+        <translation>Footprint-Datei kann nicht gezeichnet werden.</translation>
+    </message>
+    <message>
+        <source>No footprint.</source>
+        <translation>Kein Footprint.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::ManageDatabasesDialog</name>
@@ -1232,7 +1260,7 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
         <translation>Von einem neueren PartManager gespeichert (Schema v%1) — diese Version unterstützt nur bis v%2. Aktualisieren Sie PartManager, um sie zu öffnen.</translation>
     </message>
     <message>
-        <source>The entry file is gone from disk — the folder was moved, renamed or deleted. Use "Remove from list" to forget it.</source>
+        <source>The entry file is gone from disk — the folder was moved, renamed or deleted. Use &quot;Remove from list&quot; to forget it.</source>
         <translation>Die Einstiegsdatei ist von der Festplatte verschwunden — der Ordner wurde verschoben, umbenannt oder gelöscht. Mit „Aus Liste entfernen“ vergessen.</translation>
     </message>
     <message>
@@ -1248,7 +1276,7 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
         <translation>Beschreibung bearbeiten</translation>
     </message>
     <message>
-        <source>Description (stored as README.md in the database's folder):</source>
+        <source>Description (stored as README.md in the database&apos;s folder):</source>
         <translation>Beschreibung (wird als README.md im Datenbankordner gespeichert):</translation>
     </message>
     <message>
@@ -1307,7 +1335,7 @@ PartManager führt sie nicht mehr auf. Ihr Ordner, ihre Bauteile und alle Dateie
         <translation>Tag löschen</translation>
     </message>
     <message>
-        <source>Delete "%1"? It is removed from every part that carries it.</source>
+        <source>Delete &quot;%1&quot;? It is removed from every part that carries it.</source>
         <translation>„%1“ löschen? Es wird von jedem Bauteil entfernt, das es trägt.</translation>
     </message>
 </context>
@@ -1537,7 +1565,7 @@ Das passiert einmal pro Modell.</translation>
         <translation>Aus Mouser %1 vorausgefüllt — prüfen Sie jeden Wert, bevor Sie das Bauteil anlegen.</translation>
     </message>
     <message>
-        <source>Mouser's category did not map to a type template — pick one yourself.</source>
+        <source>Mouser&apos;s category did not map to a type template — pick one yourself.</source>
         <translation>Mousers Kategorie ließ sich keiner Typvorlage zuordnen — wählen Sie selbst eine aus.</translation>
     </message>
     <message>
@@ -1764,7 +1792,7 @@ Trotzdem anlegen?</translation>
     <message>
         <source>This part cannot be put in a Mouser cart: it has no Mouser part number.
 
-Open “%1” in the part editor and fill in the “Mouser P/N” field — Mouser's own article number, which looks like 595-DRV5053CAQLPGM. The MPN (%2) is the manufacturer's number and Mouser will not accept it when ordering.
+Open “%1” in the part editor and fill in the “Mouser P/N” field — Mouser&apos;s own article number, which looks like 595-DRV5053CAQLPGM. The MPN (%2) is the manufacturer&apos;s number and Mouser will not accept it when ordering.
 
 If you created this part from a Mouser search and still see this, check you are not looking at an older duplicate of the same part.</source>
         <translation>Dieses Bauteil kann nicht in einen Mouser-Warenkorb gelegt werden: Es hat keine Mouser-Artikelnummer.
@@ -1790,7 +1818,7 @@ Wenn Sie dieses Bauteil aus einer Mouser-Suche angelegt haben und das hier trotz
 %1</translation>
     </message>
     <message>
-        <source>Builds the cart on mouser.com from this order's outstanding lines.</source>
+        <source>Builds the cart on mouser.com from this order&apos;s outstanding lines.</source>
         <translation>Baut den Warenkorb auf mouser.com aus den offenen Positionen dieser Bestellung.</translation>
     </message>
     <message>
@@ -1933,7 +1961,7 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
         <translation>%1 (%2)</translation>
     </message>
     <message>
-        <source>%1 — the stored file is missing from this database's file store.</source>
+        <source>%1 — the stored file is missing from this database&apos;s file store.</source>
         <translation>%1 — die gespeicherte Datei fehlt im Dateispeicher dieser Datenbank.</translation>
     </message>
     <message>
@@ -1957,7 +1985,7 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
         <translation>Datenblatt nicht verfügbar</translation>
     </message>
     <message>
-        <source>The stored file is no longer in this database's file store.</source>
+        <source>The stored file is no longer in this database&apos;s file store.</source>
         <translation>Die gespeicherte Datei liegt nicht mehr im Dateispeicher dieser Datenbank.</translation>
     </message>
     <message>
@@ -1997,7 +2025,7 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
         <translation>Datenblatt entfernen</translation>
     </message>
     <message>
-        <source>Remove "%1" from this part?</source>
+        <source>Remove &quot;%1&quot; from this part?</source>
         <translation>„%1“ von diesem Bauteil entfernen?</translation>
     </message>
     <message>
@@ -2030,7 +2058,7 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
         <translation>Keine Tags übrig — in „Tags verwalten“ anlegen</translation>
     </message>
     <message>
-        <source>Enter this part's Mouser article number first — it is what the cart orders by, and it is not the same as the MPN.</source>
+        <source>Enter this part&apos;s Mouser article number first — it is what the cart orders by, and it is not the same as the MPN.</source>
         <translation>Tragen Sie zuerst die Mouser-Artikelnummer dieses Bauteils ein — danach bestellt der Warenkorb, und sie ist nicht dasselbe wie die MPN.</translation>
     </message>
     <message>
@@ -2183,7 +2211,7 @@ Ein Bibliotheksdownload ist eine .zip-Datei — falls Sie sie bereits entpackt h
         <translation>Nichts zu importieren</translation>
     </message>
     <message>
-        <source>This archive's KiCad folder holds only the old KiCad 5 format (.lib/.dcm/.mod). PartManager writes .kicad_sym libraries and cannot mix the two, so nothing was taken.
+        <source>This archive&apos;s KiCad folder holds only the old KiCad 5 format (.lib/.dcm/.mod). PartManager writes .kicad_sym libraries and cannot mix the two, so nothing was taken.
 
 Download the KiCad 6+ version, or convert it in KiCad and attach the result.</source>
         <translation>Der KiCad-Ordner dieses Archivs enthält nur das alte KiCad-5-Format (.lib/.dcm/.mod). PartManager schreibt .kicad_sym-Bibliotheken und kann beide Formate nicht mischen, daher wurde nichts übernommen.
@@ -2192,7 +2220,10 @@ Laden Sie die Fassung für KiCad 6+ herunter, oder wandeln Sie sie in KiCad um u
     </message>
     <message numerus="yes">
         <source>The archive has no KiCad files in it — %n entr(y/ies) for other CAD tools were skipped.</source>
-        <translation><numerusform>Das Archiv enthält keine KiCad-Dateien — %n Eintrag für andere CAD-Werkzeuge wurde übersprungen.</numerusform><numerusform>Das Archiv enthält keine KiCad-Dateien — %n Einträge für andere CAD-Werkzeuge wurden übersprungen.</numerusform></translation>
+        <translation>
+            <numerusform>Das Archiv enthält keine KiCad-Dateien — %n Eintrag für andere CAD-Werkzeuge wurde übersprungen.</numerusform>
+            <numerusform>Das Archiv enthält keine KiCad-Dateien — %n Einträge für andere CAD-Werkzeuge wurden übersprungen.</numerusform>
+        </translation>
     </message>
     <message>
         <source>Imported</source>
@@ -2249,6 +2280,34 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
     <message>
         <source>Remove the footprint</source>
         <translation>Footprint entfernen</translation>
+    </message>
+    <message>
+        <source>The schematic symbol this part places in KiCad.</source>
+        <translation>Das Schaltplansymbol, das dieses Bauteil in KiCad platziert.</translation>
+    </message>
+    <message>
+        <source>The PCB footprint this part places in KiCad.</source>
+        <translation>Der Platinen-Footprint, den dieses Bauteil in KiCad platziert.</translation>
+    </message>
+    <message>
+        <source>The attached symbol file has nothing this preview can draw.</source>
+        <translation>Die angehängte Symboldatei enthält nichts, was diese Vorschau zeichnen kann.</translation>
+    </message>
+    <message>
+        <source>No symbol.</source>
+        <translation>Kein Symbol.</translation>
+    </message>
+    <message>
+        <source>generated — placeholder pinout</source>
+        <translation>generiert — Platzhalter-Pinbelegung</translation>
+    </message>
+    <message>
+        <source>The attached footprint file has nothing this preview can draw.</source>
+        <translation>Die angehängte Footprint-Datei enthält nichts, was diese Vorschau zeichnen kann.</translation>
+    </message>
+    <message>
+        <source>No footprint attached.</source>
+        <translation>Kein Footprint angehängt.</translation>
     </message>
 </context>
 <context>
@@ -2629,11 +2688,11 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
         <translation>Entnehmen</translation>
     </message>
     <message>
-        <source>Add to "%1" — %2 on the shelf now.</source>
+        <source>Add to &quot;%1&quot; — %2 on the shelf now.</source>
         <translation>Zu „%1“ hinzufügen — derzeit %2 im Regal.</translation>
     </message>
     <message>
-        <source>Take out of "%1" — %2 on the shelf now.</source>
+        <source>Take out of &quot;%1&quot; — %2 on the shelf now.</source>
         <translation>Aus „%1“ entnehmen — derzeit %2 im Regal.</translation>
     </message>
     <message>
@@ -2771,7 +2830,7 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
         <translation>Multiplikator (Platinenanzahl)</translation>
     </message>
     <message>
-        <source>How many boards you are building. Every line's needed quantity is its per-board quantity times this.</source>
+        <source>How many boards you are building. Every line&apos;s needed quantity is its per-board quantity times this.</source>
         <translation>Wie viele Platinen Sie bauen. Der Bedarf jeder Zeile ist ihre Menge pro Platine mal diesem Wert.</translation>
     </message>
     <message>

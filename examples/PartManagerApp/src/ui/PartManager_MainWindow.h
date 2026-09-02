@@ -27,6 +27,7 @@ namespace RibbonWidget { class Ribbon; }
 namespace PartManager
 {
 
+	class KicadPreviewWidget;
 	class PartlistPanel;
 
 	class MainWindow : public QMainWindow
@@ -88,6 +89,11 @@ namespace PartManager
 		void closeEvent(QCloseEvent* event) override;
 
 	private:
+		// Repaints the §5a symbol and footprint previews for the selected part. Shows what the
+		// generated library *would* contain when the part has nothing attached yet, rather than
+		// an empty box — that is the state most parts are in, and it is not an error.
+		void updateKicadPreviews(const PartPreview& preview);
+
 		// Reveals the §4 partlist panel under the part table, giving it a usable share of the
 		// window the first time. Everything partlist-related goes through here rather than
 		// through a dialog, so a part can be dragged out of the table straight into a BOM.
@@ -121,6 +127,10 @@ namespace PartManager
 		RibbonWidget::Ribbon* m_ribbon = nullptr;
 		// The §4 screen, hidden until the ribbon asks for it. Owned by the splitter (Qt parent).
 		PartlistPanel* m_partlistPanel = nullptr;
+		// §5a: the part's schematic symbol and PCB footprint, under its photo. Built in code
+		// rather than in the .ui, which would need them promoted there first.
+		KicadPreviewWidget* m_symbolPreview = nullptr;
+		KicadPreviewWidget* m_footprintPreview = nullptr;
 		// Which category the table currently shows, so an edit can re-render it in place.
 		// The part the user last picked, kept across the table refills a stock write causes.
 		int m_selectedPartId = 0;

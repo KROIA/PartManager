@@ -84,6 +84,12 @@ namespace PartManager
 		std::vector<PreviewField> fields;   // manufacturer, mpn, package, attributes, stock, datasheet
 		std::vector<Tag> tags;              // §2d chips
 		QString imagePath;                  // same file the table's thumbnail comes from, shown full size
+		// §5a KiCad previews. The paths are empty when the part has nothing attached, which is
+		// the normal case — `typeName` is then what decides which generated base gets drawn, so
+		// the panel can still show what the part will look like once its library is generated.
+		QString kicadSymbolPath;
+		QString kicadFootprintPath;
+		QString typeName;
 	};
 
 	// Assembles the part_type forest from flat rows, honoring parent_type_id (§2b).

@@ -24,6 +24,7 @@ namespace PartManager
 {
 
 	class AttributeFormWidget;
+	class KicadPreviewWidget;
 
 	class PartEditorDialog : public QDialog
 	{
@@ -108,6 +109,10 @@ namespace PartManager
 		void updateImageState();
 		// The §5c KiCad rows: what is attached, or that the symbol is being generated instead.
 		void updateKicadState();
+		// Repaints the symbol and footprint previews from whatever is attached now. Called from
+		// updateKicadState(), so every attach, import and remove refreshes them without the
+		// individual slots having to remember to.
+		void updateKicadPreviews();
 		// Fills the Mouser row and enables Open only when there is something to open.
 		void updateMouserState();
 
@@ -116,6 +121,9 @@ namespace PartManager
 		// Same connection as m_controller, but every quantity change goes through §3's log.
 		StockController m_stock;
 		AttributeFormWidget* m_attributeForm;
+		// Built in code rather than in the .ui, which would need them promoted there first.
+		KicadPreviewWidget* m_symbolPreview = nullptr;
+		KicadPreviewWidget* m_footprintPreview = nullptr;
 		QTimer* m_saveTimer;
 		Part m_part;
 		// Blocks autosave while loadPart() writes into the widgets.

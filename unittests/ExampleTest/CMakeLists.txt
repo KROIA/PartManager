@@ -48,6 +48,8 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_OrderManagerDialog.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_CartStagingDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttributeFormWidget.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_DimensionLineEdit.cpp")
+## The part editor and the main window preview both embed the KiCad symbol/footprint painter.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KicadPreviewWidget.cpp")
 
 ## USER_SECTION_END
 

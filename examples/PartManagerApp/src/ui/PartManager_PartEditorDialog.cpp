@@ -2,6 +2,10 @@
 #include "ui_PartManager_PartEditorDialog.h"
 
 #include "widgets/PartManager_AttributeFormWidget.h"
+#include "widgets/PartManager_KicadPreviewWidget.h"
+
+#include <fstream>
+#include <iterator>
 
 #include <QAction>
 #include <QApplication>
@@ -9,6 +13,7 @@
 #include <QColor>
 #include <QDesktopServices>
 #include <QFileDialog>
+#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QInputDialog>
 #include <QLineEdit>
@@ -32,6 +37,14 @@ namespace PartManager
 		QString toQt(const std::string& text)
 		{
 			return QString::fromStdString(text);
+		}
+
+		// KiCad files are small (a few kB) and read on demand for the preview, so slurping is
+		// fine and keeps the parser taking plain text rather than a stream.
+		std::string readWholeFile(const std::string& path)
+		{
+			std::ifstream stream(path, std::ios::binary);
+			return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
 		}
 
 		// A failed download that has a URL behind it is nearly always a vendor CDN refusing an
@@ -79,6 +92,18 @@ namespace PartManager
 	{
 		m_ui->setupUi(this);
 		m_ui->attributeLayout->addWidget(m_attributeForm);
+
+		// Side by side under the KiCad rows: the symbol is what goes on the schematic, the
+		// footprint what goes on the board, and seeing both at once is how you catch a vendor
+		// zip that turned out to hold the wrong package.
+		m_symbolPreview = new KicadPreviewWidget(this);
+		m_footprintPreview = new KicadPreviewWidget(this);
+		m_symbolPreview->setToolTip(tr("The schematic symbol this part places in KiCad."));
+		m_footprintPreview->setToolTip(tr("The PCB footprint this part places in KiCad."));
+		QHBoxLayout* previewRow = new QHBoxLayout();
+		previewRow->addWidget(m_symbolPreview);
+		previewRow->addWidget(m_footprintPreview);
+		m_ui->kicadLayout->addLayout(previewRow);
 
 		m_saveTimer->setSingleShot(true);
 		m_saveTimer->setInterval(AutosaveDelayMs);
@@ -453,6 +478,55 @@ namespace PartManager
 		m_ui->removeFootprintButton->setEnabled(hasFootprint);
 		m_ui->attachSymbolButton->setText(hasSymbol ? tr("Replace…") : tr("Attach…"));
 		m_ui->attachFootprintButton->setText(hasFootprint ? tr("Replace…") : tr("Attach…"));
+
+		updateKicadPreviews();
+	}
+
+	void PartEditorDialog::updateKicadPreviews()
+	{
+		if (!m_symbolPreview || !m_footprintPreview) { return; }
+
+		// The attached symbol when there is one; otherwise what "Generate Libraries" would
+		// produce for this type, because that is what the user will actually get.
+		const std::string symbolPath = m_controller.roleFilePath(m_part.id, PartFileRole::KicadSymbol);
+		if (!symbolPath.empty())
+		{
+			const std::string text = readWholeFile(symbolPath);
+			// By the part's name, because that is what the generator renames a vendor symbol to
+			// when it adopts it. An unmatched name falls back to the file's own first symbol.
+			const KicadDrawing drawing = KicadGeometry::symbol(text, m_part.name);
+			m_symbolPreview->showDrawing(drawing,
+				tr("The attached symbol file has nothing this preview can draw."));
+			m_symbolPreview->setCaption(drawing.empty() ? QString() : toQt(drawing.name));
+		}
+		else
+		{
+			std::string typeName;
+			for (const PartType& type : m_controller.types())
+			{
+				if (type.id == m_part.partTypeId) { typeName = type.name; break; }
+			}
+			m_symbolPreview->showDrawing(KicadGeometry::genericSymbolForType(typeName),
+				tr("No symbol."));
+			// Named as generated rather than by the part, so it is obvious this is a template
+			// placeholder and not a real pinout somebody drew for this component.
+			m_symbolPreview->setCaption(tr("generated — placeholder pinout"));
+		}
+
+		const std::string footprintPath =
+			m_controller.roleFilePath(m_part.id, PartFileRole::KicadFootprint);
+		if (!footprintPath.empty())
+		{
+			const KicadDrawing drawing = KicadGeometry::footprint(readWholeFile(footprintPath));
+			m_footprintPreview->showDrawing(drawing,
+				tr("The attached footprint file has nothing this preview can draw."));
+			m_footprintPreview->setCaption(toQt(drawing.name));
+		}
+		else
+		{
+			m_footprintPreview->showMessage(tr("No footprint attached."));
+			m_footprintPreview->setCaption(QString());
+		}
 	}
 
 	void PartEditorDialog::importEcadArchive()
