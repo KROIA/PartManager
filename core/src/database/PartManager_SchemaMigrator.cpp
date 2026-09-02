@@ -6,6 +6,8 @@
 #include "persistence/PartManager_StockRepository.h"
 #include "persistence/PartManager_ListColumnRepository.h"
 #include "persistence/PartManager_PartlistRepository.h"
+#include "persistence/PartManager_SellerRepository.h"
+#include "persistence/PartManager_OrderRepository.h"
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 	#include "SQLite.h"
@@ -32,8 +34,9 @@ namespace PartManager
 		}
 
 		// storedSchemaVersion < CurrentSchemaVersion: run forward migrations in order.
-		// TODO(core/backup): once BackupManager exists, snapshot partmanager.db here before
-		// running any migration step (§9a) — the single riskiest mutation an install ever does.
+		// The §9a pre-migration snapshot is taken by DatabaseHandle::open() just before this
+		// call — here there is no file path to copy, only a connection, and the snapshot has to
+		// happen before the first statement runs either way.
 		if (storedSchemaVersion < 1 && db.isOpen())
 		{
 			// v0 -> v1: create the core/domain + core/persistence tables (§2, §3). CREATE TABLE IF NOT
@@ -76,6 +79,17 @@ namespace PartManager
 			// db.isOpen() reasoning as above. Nothing to backfill: a database that predates BOMs
 			// simply has none, and an empty partlist table is the correct starting state.
 			PartlistRepository::createSchema(db);
+		}
+		if (storedSchemaVersion < 6 && db.isOpen())
+		{
+			// v5 -> v6: seller/part_seller_link/price_history (§3) and mouser_order/
+			// mouser_order_item (§4). Same CREATE TABLE IF NOT EXISTS / db.isOpen() reasoning as
+			// above. No backfill: the parts imported before this existed genuinely have no
+			// recorded seller link (item 7 discarded the ProductDetailUrl it prefilled from), and
+			// inventing one from `part.mpn` would be a guess — an mpn is the manufacturer's
+			// number, not Mouser's, so it would produce links that fail at the Cart API.
+			SellerRepository::createSchema(db);
+			OrderRepository::createSchema(db);
 		}
 		return SchemaCompatibility::migrated;
 	}

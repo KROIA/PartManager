@@ -1,9 +1,12 @@
 #include "ui/PartManager_PartlistEditorDialog.h"
 #include "ui_PartManager_PartlistEditorDialog.h"
 
+#include "ui/PartManager_OrderManagerDialog.h"
+
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QHeaderView>
+#include <QMessageBox>
 #include <QSpinBox>
 #include <QTableWidgetItem>
 #include <QTimer>
@@ -69,6 +72,8 @@ namespace PartManager
 			this, &PartlistEditorDialog::updateButtons);
 		connect(m_ui->addLineButton, &QPushButton::clicked, this, &PartlistEditorDialog::addLine);
 		connect(m_ui->removeLineButton, &QPushButton::clicked, this, &PartlistEditorDialog::removeLine);
+		connect(m_ui->orderShortfallButton, &QPushButton::clicked,
+			this, &PartlistEditorDialog::orderShortfall);
 		connect(m_ui->closeButton, &QPushButton::clicked, this, &PartlistEditorDialog::accept);
 
 		reload();
@@ -361,6 +366,65 @@ namespace PartManager
 			url = QUrl(QStringLiteral("https://") + link);
 		}
 		QDesktopServices::openUrl(url);
+	}
+
+	void PartlistEditorDialog::orderShortfall()
+	{
+		// The grid's edits are written on the spot, but the header debounce may still be pending
+		// and the multiplier drives every needed quantity — flush it before measuring anything.
+		autosaveHeader();
+
+		OrderController orders(m_controller.handle());
+		const OrderDraftPreview preview = orders.previewFromPartlist(m_partlist.id);
+
+		if (preview.lines.empty())
+		{
+			QMessageBox::information(this, tr("Nothing to order"),
+				preview.skippedUnresolved > 0
+					? tr("Everything that is matched to a part is already in stock. "
+						 "%n line(s) still point at no part and could not be checked.",
+						 "", preview.skippedUnresolved)
+					: tr("Every line on this list is already covered by what is in stock."));
+			return;
+		}
+
+		QStringList summary;
+		for (const OrderLine& line : preview.lines)
+		{
+			summary.append(tr("%1 × %2%3")
+				.arg(line.item.quantityOrdered)
+				.arg(QString::fromStdString(line.partName))
+				.arg(line.stageable ? QString() : tr("  (no Mouser part number)")));
+		}
+		if (preview.skippedUnresolved > 0)
+		{
+			// Named, not dropped: an unresolved row is the one thing that silently under-orders
+			// a build, and the user is the only one who can fix it.
+			summary.append(tr("Not included: %n line(s) that point at no part yet.",
+				"", preview.skippedUnresolved));
+		}
+
+		if (QMessageBox::question(this, tr("Raise a draft order?"),
+			tr("This list is short of:\n\n%1\n\nCreate a draft order for it?")
+				.arg(summary.join(QStringLiteral("\n"))),
+			QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes) != QMessageBox::Yes)
+		{
+			return;
+		}
+
+		const int orderId = orders.createDraftFromPartlist(m_partlist.id);
+		if (orderId == NoOrderId)
+		{
+			QMessageBox::warning(this, tr("Could not create the order"),
+				tr("The database rejected the new order."));
+			return;
+		}
+
+		OrderManagerDialog dialog(m_controller.handle(), this);
+		dialog.selectOrder(orderId);
+		dialog.exec();
+		// Confirming an arrival in there restocks, which moves every shortfall on this screen.
+		reload();
 	}
 
 }

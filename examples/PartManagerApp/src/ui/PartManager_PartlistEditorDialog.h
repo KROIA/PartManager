@@ -11,10 +11,13 @@
 // `Shortfall` are computed by PartlistRepository::lines() and never editable;
 // changing the multiplier re-reads them for every row at once.
 //
-// **Not here, all of it item 9's:** "Check Stock", "Take Out Parts" and
-// "Checkout" from the mockup. They push shortfall rows into a `mouser_order`
-// draft, and that table does not exist yet. The shortfall number they need is
-// already shown per line.
+// "Order Shortfall" is §4's "Check Stock" + "Checkout" in one button: it diffs
+// the whole list against stock and raises a `mouser_order` draft. **The needed
+// quantity is summed per part before stock is subtracted**, so a BOM that lists
+// one resistor on three lines orders the combined shortfall once — adding up the
+// per-line shortfall column shown in this grid would under-order (each line was
+// measured against the same untouched stock). "Take Out Parts" from the mockup
+// is still open; it is the Stock group's take-out with the list as its reason.
 // @see docs/design/ARCHITECTURE.md §4, §10, §12b
 // @see PartManager_PartlistController.h, PartManager_PartlistManagerDialog.h
 #pragma once
@@ -63,6 +66,10 @@ namespace PartManager
 		void updateButtons();
 		// Opens the project link in the system browser.
 		void openProjectLink();
+		// §4 checkout: diffs the list against stock and raises a draft order for the shortfall,
+		// then hands the user straight to the order view. Unresolved lines cannot be ordered and
+		// are named rather than silently left out.
+		void orderShortfall();
 
 	private:
 		// Re-reads the partlist and its lines and rebuilds everything.

@@ -58,6 +58,8 @@ namespace PartManager
 
 	void NewPartDialog::setPrefill(const MouserPartPrefill& prefill)
 	{
+		m_prefill = prefill;
+
 		// Type first: switching the combo rebuilds the attribute form from scratch, which would
 		// throw away any values written into it beforehand.
 		bool typeMatched = false;
@@ -159,6 +161,13 @@ namespace PartManager
 				tr("The database rejected the new part."));
 			return;
 		}
+
+		// §3/§6: the part now exists, so the Mouser article number and the quote it was created
+		// from finally have somewhere to live. Until this ran, a part prefilled from Mouser kept
+		// no trace of where it came from and could never be staged into a cart. A no-op for a
+		// hand-made part, which carries no Mouser number.
+		m_controller.linkToMouser(m_createdPartId, m_prefill.mouserPartNumber,
+			m_prefill.productDetailUrl, m_prefill.priceBreaks);
 		accept();
 	}
 

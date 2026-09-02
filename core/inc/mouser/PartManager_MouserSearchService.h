@@ -18,6 +18,7 @@
 
 #include "PartManager_global.h"
 #include "domain/PartManager_Part.h"
+#include "domain/PartManager_Seller.h"
 #include "mouser/PartManager_MouserClient.h"
 #include <string>
 #include <vector>
@@ -34,7 +35,11 @@ namespace PartManager
 		std::string suggestedTypeName;     // 'MOSFET', 'Resistor', ...; empty = undecidable, leave it to the user
 		std::string datasheetUrl;          // MouserPart.DataSheetUrl, for the §6 auto-download step
 		std::string productDetailUrl;      // MouserPart.ProductDetailUrl — what "Open on Mouser" opens
-		std::string mouserPartNumber;      // needed later for cart staging; not a Part field
+		std::string mouserPartNumber;      // the Cart API's article number (§6); not a Part field
+		// The quote as seen, one entry per price break, ready for `price_history(source=
+		// 'mouser_api_quote')`. Carried through the prefill because the part does not exist yet
+		// at search time — the observation can only be written once there is a link to hang it on.
+		std::vector<PriceObservation> priceBreaks;
 		std::vector<std::string> unmappedAttributes; // Mouser AttributeNames left for manual entry
 	};
 
@@ -71,6 +76,13 @@ namespace PartManager
 		// in outUnmapped instead of being guessed at. Returns "{}" when nothing mapped.
 		static std::string attributesJson(const std::vector<MouserProductAttribute>& attributes,
 			std::vector<std::string>& outUnmapped);
+
+		// Mouser's PriceBreaks[] -> price observations. `Price` is a currency-formatted string
+		// that **already contains the currency** ("0.21 CHF"), so the separate `Currency` field is
+		// only a fallback — appending both is how the same currency ends up printed twice. Breaks
+		// whose price does not parse are dropped rather than recorded as 0.
+		static std::vector<PriceObservation> toPriceObservations(
+			const std::vector<MouserPriceBreak>& breaks);
 
 		// Mouser writes units as words ("4.7 kOhms", "10 Volts"). Rewrites them to the §2a
 		// dropdown symbols so ValueParser sees a unit it knows. Public because it is the one

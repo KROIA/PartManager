@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 
 namespace PartManager
 {
@@ -464,7 +465,89 @@ namespace PartManager
 		}
 
 		prefill.part.attributes = attributesJson(dto.productAttributes, prefill.unmappedAttributes);
+		prefill.priceBreaks = toPriceObservations(dto.priceBreaks);
 		return prefill;
+	}
+
+	std::vector<PriceObservation> MouserSearchService::toPriceObservations(
+		const std::vector<MouserPriceBreak>& breaks)
+	{
+		std::vector<PriceObservation> observations;
+		for (const MouserPriceBreak& priceBreak : breaks)
+		{
+			if (priceBreak.quantity <= 0)
+			{
+				continue;
+			}
+
+			// "0.21 CHF" / "CHF 0.21" / "$0.21" / "1'234.50 CHF" — take the first run of digits,
+			// separators and sign, and read the currency off whatever letters are left. Anything
+			// that yields no number at all is skipped: a price of 0 in the history would read as
+			// "it was free that day", which is worse than a gap.
+			std::string number;
+			std::string letters;
+			bool numberDone = false;
+			for (char c : priceBreak.price)
+			{
+				if ((c >= '0' && c <= '9') || c == '.' || c == '-')
+				{
+					if (!numberDone)
+					{
+						number += c;
+					}
+				}
+				else if (c == ',' || c == '\'')
+				{
+					// A thousands separator inside the digits; a decimal comma in a locale that
+					// uses one. Either way it is not a letter and must not end the number.
+					if (!numberDone && !number.empty())
+					{
+						number += '.';
+					}
+				}
+				else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+				{
+					if (!number.empty())
+					{
+						numberDone = true;
+					}
+					letters += c;
+				}
+				else if (!number.empty())
+				{
+					numberDone = true;
+				}
+			}
+			// A decimal comma leaves "0.21" alone but turns "1'234.50" into "1.234.50"; atof stops
+			// at the second dot, so drop every separator but the last.
+			const size_t lastDot = number.rfind('.');
+			if (lastDot != std::string::npos)
+			{
+				std::string cleaned;
+				for (size_t i = 0; i < number.size(); ++i)
+				{
+					if (number[i] != '.' || i == lastDot)
+					{
+						cleaned += number[i];
+					}
+				}
+				number = cleaned;
+			}
+			if (number.empty())
+			{
+				continue;
+			}
+
+			PriceObservation observation;
+			observation.quantityBreak = priceBreak.quantity;
+			observation.unitPrice = std::atof(number.c_str());
+			// The currency embedded in Price wins; the separate field is only the fallback,
+			// because concatenating both prints it twice (found live, not in a fixture).
+			observation.currency = letters.empty() ? priceBreak.currency : letters;
+			observation.source = PriceSource::MouserApiQuote;
+			observations.push_back(observation);
+		}
+		return observations;
 	}
 
 }

@@ -158,6 +158,16 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="orderShortfallButton">
+       <property name="text">
+        <string>Order Shortfall…</string>
+       </property>
+       <property name="toolTip">
+        <string>Checks this list against stock and raises a draft Mouser order for whatever is missing.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="footerSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>

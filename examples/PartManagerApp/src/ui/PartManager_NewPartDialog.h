@@ -52,6 +52,9 @@ namespace PartManager
 		Ui::NewPartDialog* m_ui;
 		PartEditorController m_controller;
 		AttributeFormWidget* m_attributeForm;
+		// Kept past setPrefill() because the seller link and its price quote can only be written
+		// once the part exists — at prefill time there is nothing to hang them on (§3, §6).
+		MouserPartPrefill m_prefill;
 		int m_createdPartId = 0;
 	};
 

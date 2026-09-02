@@ -16,6 +16,7 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_PartEditor
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_StockController.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_PartlistController.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_DatabaseSelectorController.cpp")
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_OrderController.cpp")
 
 ## The app's display setup, so the GUI tests render at the same scale and font size the user's
 ## app does. A suite that runs unscaled cannot see a layout that only breaks on the real screen.
@@ -38,6 +39,9 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_StockDialog.cpp")
 ## widget stack has to come along -- the dialog alone would link but render an empty form.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_NewPartDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartlistEditorDialog.cpp")
+## The partlist editor's "Order Shortfall" opens the order view, so the whole §4 checkout tail
+## comes along -- the editor alone would compile but not link.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_OrderManagerDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttributeFormWidget.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_DimensionLineEdit.cpp")
 
@@ -85,6 +89,14 @@ exampleMaster(${LIBRARY_NAME} ${LIB_PROFILE_DEFINE} ${QT_ENABLE} ${QT_DEPLOY} "$
 
 ## The app's .ui files live in the app tree, not here, so AUTOUIC has to be told where to look.
 set_target_properties(ExampleTest PROPERTIES AUTOUIC ON AUTOUIC_SEARCH_PATHS "${APP_SRC_DIR}/ui")
+
+## Every suite is a header full of templates included into one translation unit, so main.cpp's
+## object file grows a COMDAT section per test function. It crossed MSVC's 65279-section limit at
+## 29 suites (C1128). /bigobj raises it; splitting tests.h across several .cpp files would too,
+## but this is one line instead of a per-suite registration dance.
+if(MSVC)
+    target_compile_options(ExampleTest PRIVATE /bigobj)
+endif()
 
 ## USER_SECTION_START 5
 
