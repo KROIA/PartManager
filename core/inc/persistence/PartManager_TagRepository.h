@@ -21,6 +21,8 @@
 
 #include "PartManager_global.h"
 #include "domain/PartManager_Tag.h"
+#include "domain/PartManager_TagCategory.h"
+#include <string>
 #include <vector>
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
@@ -34,9 +36,35 @@ namespace PartManager
 	{
 		TagRepository() = delete;
 	public:
+		// One step of a category's colour family: `base` blended towards white by `index`/`count`.
+		// Index 0 is the base itself and the ramp stops well short of white, so the last member of
+		// a ten-tag family is still visibly that colour rather than a grey chip.
+		//
+		// Pure string maths on `#RRGGBB` — no database, no Qt. A colour it cannot read comes back
+		// unchanged, so a hand-edited category colour can never turn a tag into an empty string.
+		static std::string shadeOf(const std::string& baseHex, int index, int count);
+
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
-		// Creates tag/part_type_tag/part_tag if missing. Idempotent.
+		// Creates tag_category/tag/part_type_tag/part_tag if missing, and adds `tag.category_id`
+		// to a `tag` table written before categories existed. Idempotent.
 		static bool createSchema(SQLiteWrapper::SQLite& db);
+
+		// tag_category CRUD. Deleting a category does NOT delete its tags — they fall back to
+		// uncategorised, because a mis-click on a heading must not take a part's tags with it.
+		static int insertCategory(SQLiteWrapper::SQLite& db, const TagCategory& category);
+		static bool updateCategory(SQLiteWrapper::SQLite& db, const TagCategory& category);
+		static bool deleteCategory(SQLiteWrapper::SQLite& db, int categoryId);
+		static bool findCategory(SQLiteWrapper::SQLite& db, int categoryId, TagCategory& outCategory);
+		static std::vector<TagCategory> listCategories(SQLiteWrapper::SQLite& db);
+
+		// The tags in one family, or the uncategorised ones for NoTagCategoryId.
+		static std::vector<Tag> listTagsInCategory(SQLiteWrapper::SQLite& db, int categoryId);
+
+		// Moves a tag into a category (or out of one with NoTagCategoryId). When `recolour` is
+		// set the tag also takes the next shade of its new family, which is what the tag tree's
+		// re-parent does; pass false to move a tag whose colour the user chose deliberately.
+		static bool setTagCategory(SQLiteWrapper::SQLite& db, int tagId, int categoryId,
+			bool recolour = true);
 
 		// tag CRUD
 		// Inserts a new tag, returns its new id (NoTagId on failure, e.g. duplicate name).
@@ -67,8 +95,15 @@ namespace PartManager
 		// No-op (returns true) if the part already has any part_tag rows.
 		static bool seedTagsForNewPart(SQLiteWrapper::SQLite& db, int partId, int partTypeId);
 
-		// Seeds the starting tag vocabulary (SMD, THT, Favourite, Obsolete, Do not use,
-		// Needs datasheet) on a fresh database. No-op (returns true) if `tag` already has rows.
+		// Seeds the starting vocabulary: the Bus protocols / PCB placement / Lifecycle /
+		// Voltage domain / Handling families and their tags, plus the loose Favourite flag.
+		//
+		// Per-name and per-category, so it is safe to re-run — that is how a database created
+		// before a family existed ever gets it. A tag the user renamed, recoloured or deleted is
+		// theirs and is left alone. Tags seeded before categories existed (SMD, THT, Obsolete,
+		// ...) are adopted into their family, and recoloured into its ramp only when they still
+		// carry the exact colour this function gave them.
+		//
 		// No type default tags are attached: a default lands on every new part of that type, and a
 		// wrong one is then on every part before anyone notices.
 		static bool seedDefaultTags(SQLiteWrapper::SQLite& db);

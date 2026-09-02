@@ -29,7 +29,7 @@ namespace PartManager
 {
 
 	// The schema (table/column structure) version this build of PartManager understands.
-	constexpr int CurrentSchemaVersion = 7;
+	constexpr int CurrentSchemaVersion = 8;
 
 	// Outcome of comparing a database's stored schema_version against CurrentSchemaVersion.
 	enum class SchemaCompatibility

@@ -12,7 +12,9 @@
 //   - free text  -> case-insensitive substring over name/mpn/manufacturer/description
 //   - key op val -> compared against `attr_<key>`; a part whose column is NULL or whose
 //                   type has no such attribute never matches, including for `!=`
-//   - tag:name   -> the part carries a tag of that name (case-insensitive, exact)
+//   - tag:name   -> the part carries a tag of that name (case-insensitive, exact). A comma-
+//                  separated term (`tag:I2C,SPI`) matches any one of them; separate `tag:`
+//                  terms still AND, so a filter can say "any bus protocol, and SMD".
 // `=` and `!=` use the §2a ±0.5% relative tolerance, because a REAL column that
 // round-tripped through an SI prefix is rarely bit-identical to the typed number.
 //

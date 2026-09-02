@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>460</width>
-    <height>420</height>
+    <width>620</width>
+    <height>480</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
    <item>
     <widget class="QLabel" name="headerLabel">
      <property name="text">
-      <string>Tags are a shared vocabulary — every part picks from this list.</string>
+      <string>Tags are a shared vocabulary — every part picks from this list. Group them into categories so one family of tags reads as one colour.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
@@ -28,13 +28,21 @@
     </widget>
    </item>
    <item>
-    <widget class="QListWidget" name="tagList">
-     <property name="alternatingRowColors">
-      <bool>true</bool>
-     </property>
+    <widget class="QTreeWidget" name="tagTree">
      <property name="selectionMode">
       <enum>QAbstractItemView::SingleSelection</enum>
      </property>
+     <property name="rootIsDecorated">
+      <bool>true</bool>
+     </property>
+     <property name="headerHidden">
+      <bool>true</bool>
+     </property>
+     <column>
+      <property name="text">
+       <string notr="true">Tag</string>
+      </property>
+     </column>
     </widget>
    </item>
    <item>
@@ -57,6 +65,13 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="newCategoryButton">
+       <property name="text">
+        <string>New Category...</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="renameButton">
        <property name="text">
         <string>Rename...</string>
@@ -71,12 +86,22 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="moveButton">
+       <property name="text">
+        <string>Move to...</string>
+       </property>
+       <property name="toolTip">
+        <string>Puts the tag in another category, and recolours it into that family.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="deleteButton">
        <property name="text">
         <string>Delete</string>
        </property>
        <property name="toolTip">
-        <string>Removes the tag from every part that carries it.</string>
+        <string>A tag is removed from every part that carries it; a category only loses its heading, its tags stay.</string>
        </property>
       </widget>
      </item>

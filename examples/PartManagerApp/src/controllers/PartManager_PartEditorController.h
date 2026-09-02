@@ -28,6 +28,7 @@
 #include "domain/PartManager_PartTypeFileSlot.h"
 #include "domain/PartManager_Seller.h"
 #include "domain/PartManager_Tag.h"
+#include "domain/PartManager_TagCategory.h"
 #include <QString>
 #include <map>
 #include <string>
@@ -219,6 +220,14 @@ namespace PartManager
 		int createTag(const Tag& tag) const;
 		bool updateTag(const Tag& tag) const;
 		bool deleteTag(int tagId) const;
+
+		// §2d's second level: the families tags are grouped under. Deleting one leaves its tags
+		// behind as uncategorised — see TagRepository::deleteCategory.
+		std::vector<TagCategory> tagCategories() const;
+		int createTagCategory(const TagCategory& category) const;
+		bool updateTagCategory(const TagCategory& category) const;
+		bool deleteTagCategory(int categoryId) const;
+		bool setTagCategory(int tagId, int categoryId, bool recolour = true) const;
 
 	private:
 		DatabaseHandle* m_handle;

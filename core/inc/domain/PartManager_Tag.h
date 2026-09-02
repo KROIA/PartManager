@@ -9,6 +9,7 @@
 #pragma once
 
 #include "PartManager_global.h"
+#include "domain/PartManager_TagCategory.h"
 #include <string>
 
 namespace PartManager
@@ -24,6 +25,9 @@ namespace PartManager
 		std::string name;      // unique, user-managed vocabulary (§2d)
 		std::string color;     // hex chip background, e.g. '#E53935'
 		int sortOrder = 0;     // display order in the managed tag list
+		// The family this tag belongs to, or NoTagCategoryId for a loose tag. Optional by
+		// design — a tag is still a tag without one (see PartManager_TagCategory.h).
+		int categoryId = NoTagCategoryId;
 	};
 
 }

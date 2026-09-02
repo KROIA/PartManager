@@ -125,7 +125,8 @@ Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an 
             </property>
             <property name="toolTip">
              <string>Filters the rows of the selected category only.
-Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</string>
+Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).
+A comma ORs tags within one term: tag:I2C,SPI matches either; tag:I2C,SPI tag:SMD matches either bus and surface mount.</string>
             </property>
             <property name="clearButtonEnabled">
              <bool>true</bool>

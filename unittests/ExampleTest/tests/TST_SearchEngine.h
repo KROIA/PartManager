@@ -23,6 +23,8 @@ public:
 	{
 		// Grammar tests need no database at all — that is the point of SearchQuery being pure.
 		ADD_TEST(TST_SearchEngine::parseTermForms);
+		ADD_TEST(TST_SearchEngine::parseTagGroupsOrTogether);
+		ADD_TEST(TST_SearchEngine::tagTermsAreRewrittenWithoutTouchingTheRest);
 		ADD_TEST(TST_SearchEngine::parseMalformedQueriesFailCleanly);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_SearchEngine::numericComparisonsAgainstAttrColumns);
@@ -53,8 +55,9 @@ private:
 		TEST_ASSERT(query.ok);
 		TEST_COMPARE(query.textTerms.size(), static_cast<size_t>(1));
 		TEST_COMPARE(query.textTerms[0], std::string("yageo"));   // lowercased for substring matching
-		TEST_COMPARE(query.tagNames.size(), static_cast<size_t>(1));
-		TEST_COMPARE(query.tagNames[0], std::string("smd"));
+		TEST_COMPARE(query.tagGroups.size(), static_cast<size_t>(1));
+		TEST_COMPARE(query.tagGroups[0].size(), static_cast<size_t>(1));
+		TEST_COMPARE(query.tagGroups[0][0], std::string("smd"));
 		TEST_COMPARE(query.attributeTerms.size(), static_cast<size_t>(2));
 
 		TEST_COMPARE(query.attributeTerms[0].key, std::string("resistance"));
@@ -77,7 +80,7 @@ private:
 		TEST_ASSERT(query.ok);
 		TEST_COMPARE(query.textTerms.size(), static_cast<size_t>(1));
 		TEST_COMPARE(query.textTerms[0], std::string("power supply"));
-		TEST_COMPARE(query.tagNames[0], std::string("do not use"));
+		TEST_COMPARE(query.tagGroups[0][0], std::string("do not use"));
 		TEST_COMPARE(query.attributeTerms[0].key, std::string("resistance"));
 		TEST_ASSERT(query.attributeTerms[0].op == PartManager::SearchCompareOp::NotEqual);
 
@@ -85,6 +88,86 @@ private:
 		TEST_ASSERT(query.attributeTerms[0].op == PartManager::SearchCompareOp::Less);
 		TEST_COMPARE(query.attributeTerms[0].value, 1e6);
 		TEST_ASSERT(query.attributeTerms[1].op == PartManager::SearchCompareOp::GreaterEqual);
+	}
+
+	// §2d's filter tree writes these, and a hand-typed query can say the same thing. Within one
+	// term the tags OR, between terms they AND — the only OR in the whole grammar.
+	TEST_FUNCTION(parseTagGroupsOrTogether)
+	{
+		TEST_START;
+
+		PartManager::SearchQuery query = PartManager::SearchQuery::parse("tag:I2C,SPI,UART");
+		TEST_ASSERT(query.ok);
+		TEST_COMPARE(query.tagGroups.size(), static_cast<size_t>(1));
+		TEST_COMPARE(query.tagGroups[0].size(), static_cast<size_t>(3));
+		TEST_COMPARE(query.tagGroups[0][0], std::string("i2c"));
+		TEST_COMPARE(query.tagGroups[0][2], std::string("uart"));
+
+		// Separate terms stay separate: (I2C or SPI) and SMD.
+		query = PartManager::SearchQuery::parse("tag:I2C,SPI tag:SMD");
+		TEST_COMPARE(query.tagGroups.size(), static_cast<size_t>(2));
+		TEST_COMPARE(query.tagGroups[0].size(), static_cast<size_t>(2));
+		TEST_COMPARE(query.tagGroups[1].size(), static_cast<size_t>(1));
+
+		// Quotes still work per name inside a group, which is what lets a tag with a space
+		// be ORed with anything else.
+		query = PartManager::SearchQuery::parse("tag:\"Do not use\",Obsolete");
+		TEST_COMPARE(query.tagGroups[0].size(), static_cast<size_t>(2));
+		TEST_COMPARE(query.tagGroups[0][0], std::string("do not use"));
+		TEST_COMPARE(query.tagGroups[0][1], std::string("obsolete"));
+
+		// A half-typed `tag:I2C,` is a keystroke on the way to somewhere, not an error.
+		query = PartManager::SearchQuery::parse("tag:I2C,");
+		TEST_ASSERT_M(query.ok, "a trailing comma must not paint the box red mid-typing");
+		TEST_COMPARE(query.tagGroups[0].size(), static_cast<size_t>(1));
+
+		// Nothing but separators has no tag in it at all, which is a real mistake.
+		TEST_ASSERT(!PartManager::SearchQuery::parse("tag:,,").ok);
+		TEST_ASSERT(!PartManager::SearchQuery::parse("tag:").ok);
+	}
+
+	// The filter tree owns the tag terms and the user owns the rest of the box. Neither may
+	// overwrite the other, and what is written back has to parse to what was asked for.
+	TEST_FUNCTION(tagTermsAreRewrittenWithoutTouchingTheRest)
+	{
+		TEST_START;
+
+		const std::vector<std::vector<std::string>> groups = {
+			{ "I2C", "SPI" },
+			{ "Do not use" },
+		};
+		const std::string written = PartManager::SearchQuery::withTagGroups(
+			"YAGEO resistance>1k tag:Obsolete", groups);
+
+		// The old tag term is gone, everything else survives verbatim.
+		TEST_ASSERT_M(written.find("Obsolete") == std::string::npos,
+			"the picker replaces the tag terms it owns: " + written);
+		TEST_ASSERT_M(written.find("YAGEO") != std::string::npos, written);
+		TEST_ASSERT_M(written.find("resistance>1k") != std::string::npos, written);
+
+		// And it round-trips: what was written parses back to exactly the groups asked for.
+		const PartManager::SearchQuery reparsed = PartManager::SearchQuery::parse(written);
+		TEST_ASSERT(reparsed.ok);
+		TEST_COMPARE(reparsed.tagGroups.size(), static_cast<size_t>(2));
+		TEST_COMPARE(reparsed.tagGroups[0][0], std::string("i2c"));
+		TEST_COMPARE(reparsed.tagGroups[0][1], std::string("spi"));
+		TEST_ASSERT_M(reparsed.tagGroups[1][0] == "do not use",
+			"a name with a space has to come back as one name, not two");
+		TEST_COMPARE(reparsed.textTerms.size(), static_cast<size_t>(1));
+		TEST_COMPARE(reparsed.attributeTerms.size(), static_cast<size_t>(1));
+
+		// Free text with spaces keeps its quotes, or the rewrite splits the user's term in two.
+		const std::string quoted = PartManager::SearchQuery::withTagGroups(
+			"\"power supply\" tag:SMD", {});
+		TEST_COMPARE(PartManager::SearchQuery::parse(quoted).textTerms.size(), static_cast<size_t>(1));
+		TEST_COMPARE(PartManager::SearchQuery::parse(quoted).textTerms[0], std::string("power supply"));
+		TEST_ASSERT_M(PartManager::SearchQuery::parse(quoted).tagGroups.empty(),
+			"clearing every tick clears the tag terms");
+
+		// A name containing a comma cannot be written as one term, so it is dropped rather than
+		// silently becoming two tags that would then OR.
+		const std::string dropped = PartManager::SearchQuery::withTagGroups("", { { "a,b" } });
+		TEST_ASSERT_M(dropped.empty(), "an unwritable name must not turn into two: " + dropped);
 	}
 
 	TEST_FUNCTION(parseMalformedQueriesFailCleanly)
@@ -121,6 +204,8 @@ private:
 		int r220Id = 0;
 		int c100nId = 0;
 		int smdTagId = 0;
+		// A second tag on a *different* part, so an OR over the two can be told apart from an AND.
+		int precisionTagId = 0;
 	};
 
 	static void addAttribute(SQLiteWrapper::SQLite& db, int typeId, const std::string& key,
@@ -191,6 +276,14 @@ private:
 		fixture.smdTagId = PartManager::TagRepository::insertTag(db, smd);
 		PartManager::TagRepository::addPartTag(db, fixture.r10kId, fixture.smdTagId);
 		PartManager::TagRepository::addPartTag(db, fixture.c100nId, fixture.smdTagId);
+
+		// On the one part SMD is *not* on, so `tag:SMD,Precision` returning everything is only
+		// possible if the comma really ORs.
+		PartManager::Tag precision;
+		precision.name = "Precision";
+		precision.color = "#C62828";
+		fixture.precisionTagId = PartManager::TagRepository::insertTag(db, precision);
+		PartManager::TagRepository::addPartTag(db, fixture.r220Id, fixture.precisionTagId);
 		return fixture;
 	}
 
@@ -270,6 +363,23 @@ private:
 		TEST_COMPARE(PartManager::SearchEngine::search(db, "tag:SMD", fixture.capacitorTypeId).size(),
 			static_cast<size_t>(1));
 		TEST_COMPARE(PartManager::SearchEngine::search(db, "tag:THT").size(), static_cast<size_t>(0));
+
+		// A comma ORs inside one term: an unticked family must not narrow the result to nothing.
+		// Only the resistor carries `Precision`, only two parts carry `SMD`, and asking for
+		// either has to return all three of them rather than their intersection.
+		std::vector<PartManager::Part> either =
+			PartManager::SearchEngine::search(db, "tag:SMD,Precision");
+		TEST_COMPARE(either.size(), static_cast<size_t>(3));
+		TEST_ASSERT(containsPart(either, fixture.r10kId) && containsPart(either, fixture.r220Id)
+			&& containsPart(either, fixture.c100nId));
+
+		// A name nobody uses simply contributes nothing to the OR rather than voiding it.
+		TEST_COMPARE(PartManager::SearchEngine::search(db, "tag:SMD,Nonexistent").size(),
+			static_cast<size_t>(2));
+
+		// Separate terms still AND, so the two can be combined: (SMD or Precision) and Precision.
+		TEST_COMPARE(PartManager::SearchEngine::search(db, "tag:SMD,Precision tag:Precision").size(),
+			static_cast<size_t>(1));
 
 		// Scope restricts a query that would otherwise match across types.
 		TEST_COMPARE(PartManager::SearchEngine::search(db, "0603", fixture.capacitorTypeId).size(),

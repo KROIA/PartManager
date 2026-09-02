@@ -678,6 +678,36 @@ namespace PartManager
 		return db && TagRepository::deleteTag(*db, tagId);
 	}
 
+	std::vector<TagCategory> PartEditorController::tagCategories() const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db ? TagRepository::listCategories(*db) : std::vector<TagCategory>();
+	}
+
+	int PartEditorController::createTagCategory(const TagCategory& category) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db ? TagRepository::insertCategory(*db, category) : NoTagCategoryId;
+	}
+
+	bool PartEditorController::updateTagCategory(const TagCategory& category) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db && TagRepository::updateCategory(*db, category);
+	}
+
+	bool PartEditorController::deleteTagCategory(int categoryId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db && TagRepository::deleteCategory(*db, categoryId);
+	}
+
+	bool PartEditorController::setTagCategory(int tagId, int categoryId, bool recolour) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db && TagRepository::setTagCategory(*db, tagId, categoryId, recolour);
+	}
+
 #else
 
 	std::vector<PartType> PartEditorController::types() const { return std::vector<PartType>(); }
@@ -712,6 +742,11 @@ namespace PartManager
 	int PartEditorController::createTag(const Tag&) const { return NoTagId; }
 	bool PartEditorController::updateTag(const Tag&) const { return false; }
 	bool PartEditorController::deleteTag(int) const { return false; }
+	std::vector<TagCategory> PartEditorController::tagCategories() const { return std::vector<TagCategory>(); }
+	int PartEditorController::createTagCategory(const TagCategory&) const { return NoTagCategoryId; }
+	bool PartEditorController::updateTagCategory(const TagCategory&) const { return false; }
+	bool PartEditorController::deleteTagCategory(int) const { return false; }
+	bool PartEditorController::setTagCategory(int, int, bool) const { return false; }
 
 #endif
 

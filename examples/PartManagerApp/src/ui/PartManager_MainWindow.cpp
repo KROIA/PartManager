@@ -18,9 +18,11 @@
 #include "ui/PartManager_SettingsDialog.h"
 #include "ui/PartManager_StockDialog.h"
 #include "widgets/PartManager_TagChipDelegate.h"
+#include "widgets/PartManager_TagFilterButton.h"
 #include "widgets/PartManager_TypeIconPainter.h"
 
 #include "backup/PartManager_BackupManager.h"
+#include "search/PartManager_SearchQuery.h"
 #include "settings/PartManager_Settings.h"
 
 #include <QApplication>
@@ -419,6 +421,28 @@ namespace PartManager
 		};
 		wire(m_ui->treeFilterEdit, &MainWindow::reloadCategories);
 		wire(m_ui->tableFilterEdit, &MainWindow::refreshCurrentCategory);
+
+		// §2d's tag picker sits beside the table box and writes into it, rather than filtering on
+		// its own: one pipeline, and the user can see and hand-edit what the ticks produced.
+		m_tagFilter = new TagFilterButton(m_ui->partsPanel);
+		m_ui->partsHeaderLayout->insertWidget(
+			m_ui->partsHeaderLayout->indexOf(m_ui->tableFilterEdit), m_tagFilter);
+		connect(m_tagFilter, &TagFilterButton::selectionChanged, this, [this]()
+		{
+			m_ui->tableFilterEdit->setText(QString::fromStdString(SearchQuery::withTagGroups(
+				m_ui->tableFilterEdit->text().toStdString(), m_tagFilter->selectedGroups())));
+		});
+		reloadTagFilter();
+	}
+
+	void MainWindow::reloadTagFilter()
+	{
+		if (m_tagFilter == nullptr)
+		{
+			return;
+		}
+		const PartEditorController tags(m_controller.handle());
+		m_tagFilter->setVocabulary(tags.tagCategories(), tags.allTags());
 	}
 
 	void MainWindow::markFilterError(QLineEdit* edit, const QString& error)
@@ -719,7 +743,9 @@ namespace PartManager
 	{
 		ManageTagsDialog dialog(m_controller.handle(), this);
 		dialog.exec();
-		// A renamed/recoloured/deleted tag changes the chips painted in the table.
+		// A renamed/recoloured/deleted tag changes the chips painted in the table, and the
+		// vocabulary the filter drop-down offers.
+		reloadTagFilter();
 		refreshCurrentCategory();
 	}
 
@@ -836,6 +862,13 @@ namespace PartManager
 		// than in the .ui — the one part of this screen Designer genuinely cannot express.
 		const QString filter = m_ui->tableFilterEdit->text();
 		markFilterError(m_ui->tableFilterEdit, searchError(filter));
+		// The box is the source of truth, so a hand-typed or cleared `tag:` term ticks the
+		// picker rather than the two disagreeing. setSelectedGroups() emits nothing, so this
+		// cannot bounce back into the box.
+		if (m_tagFilter != nullptr)
+		{
+			m_tagFilter->setSelectedGroups(SearchQuery::parse(filter.toStdString()).tagGroups);
+		}
 
 		m_currentColumns = m_controller.columnsFor(typeId);
 		const std::vector<PartColumn>& columns = m_currentColumns;

@@ -30,6 +30,7 @@ namespace PartManager
 	class KicadPreviewWidget;
 	class MeshCacheBuilder;
 	class Model3DViewer;
+	class TagFilterButton;
 	class PartlistPanel;
 
 	class MainWindow : public QMainWindow
@@ -113,8 +114,12 @@ namespace PartManager
 
 		// Builds the Home/Parts tabs of §7 into the .ui file's ribbonToolBar.
 		void buildRibbon();
-		// Wires both §7a filter boxes to their debounce timers.
+		// Wires both §7a filter boxes to their debounce timers, and builds the tag filter
+		// drop-down that writes `tag:` terms into the table box.
 		void setupFilters();
+		// Re-reads the tag vocabulary into the filter drop-down, after Manage Tags or a
+		// database switch changed it.
+		void reloadTagFilter();
 		// Red border + tooltip when a filter box holds a malformed query; clears both when it doesn't.
 		void markFilterError(QLineEdit* edit, const QString& error);
 		// Adds one CategoryNode and its children under `parent` (nullptr = a tree root). While the
@@ -142,6 +147,8 @@ namespace PartManager
 		// are ever selected.
 		Model3DViewer* m_modelPreview = nullptr;
 		MeshCacheBuilder* m_meshBuilder = nullptr;
+		// §7a/§2d: ticks tags into the table filter box. Owned by the header layout (Qt parent).
+		TagFilterButton* m_tagFilter = nullptr;
 		// Which category the table currently shows, so an edit can re-render it in place.
 		// The part the user last picked, kept across the table refills a stock write causes.
 		int m_selectedPartId = 0;

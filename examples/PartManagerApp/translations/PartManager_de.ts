@@ -110,7 +110,7 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in &quot;Anführungszeiche
     <message>
         <source>Filters the rows of the selected category only.
 Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</source>
-        <translation>Filtert nur die Zeilen der ausgewählten Kategorie.
+        <translation type="vanished">Filtert nur die Zeilen der ausgewählten Kategorie.
 Begriffe werden UND-verknüpft: Freitext (Leerzeichen in &quot;Anführungszeichen&quot;), tag:name oder ein Attributvergleich wie resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</translation>
     </message>
     <message>
@@ -140,6 +140,14 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in &quot;Anführungszeiche
     <message>
         <source>Opens this part&apos;s page on mouser.com. Needs a Mouser P/N, which you can set in the part editor.</source>
         <translation>Öffnet die Seite dieses Bauteils auf mouser.com. Benötigt eine Mouser-Art.-Nr., die Sie im Bauteileditor eintragen können.</translation>
+    </message>
+    <message>
+        <source>Filters the rows of the selected category only.
+Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).
+A comma ORs tags within one term: tag:I2C,SPI matches either; tag:I2C,SPI tag:SMD matches either bus and surface mount.</source>
+        <translation>Filtert nur die Zeilen der ausgewählten Kategorie.
+Begriffe werden UND-verknüpft: Freitext (&quot;Anführungszeichen&quot; für Leerzeichen), tag:Name oder ein Attributvergleich wie resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).
+Ein Komma ODER-verknüpft Tags innerhalb eines Begriffs: tag:I2C,SPI trifft auf beide zu; tag:I2C,SPI tag:SMD trifft auf beide Busse und SMD zu.</translation>
     </message>
 </context>
 <context>
@@ -201,7 +209,7 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in &quot;Anführungszeiche
     </message>
     <message>
         <source>Tags are a shared vocabulary — every part picks from this list.</source>
-        <translation>Tags sind ein gemeinsames Vokabular — jedes Bauteil wählt aus dieser Liste.</translation>
+        <translation type="vanished">Tags sind ein gemeinsames Vokabular — jedes Bauteil wählt aus dieser Liste.</translation>
     </message>
     <message>
         <source>No tags yet — &quot;New Tag...&quot; creates the first one.</source>
@@ -225,11 +233,31 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in &quot;Anführungszeiche
     </message>
     <message>
         <source>Removes the tag from every part that carries it.</source>
-        <translation>Entfernt den Tag von jedem Bauteil, das ihn trägt.</translation>
+        <translation type="vanished">Entfernt den Tag von jedem Bauteil, das ihn trägt.</translation>
     </message>
     <message>
         <source>Close</source>
         <translation>Schließen</translation>
+    </message>
+    <message>
+        <source>Tags are a shared vocabulary — every part picks from this list. Group them into categories so one family of tags reads as one colour.</source>
+        <translation>Tags sind ein gemeinsames Vokabular — jedes Bauteil wählt aus dieser Liste. Gruppiere sie in Kategorien, damit eine Tag-Familie als eine Farbe erkennbar ist.</translation>
+    </message>
+    <message>
+        <source>New Category...</source>
+        <translation>Neue Kategorie...</translation>
+    </message>
+    <message>
+        <source>Move to...</source>
+        <translation>Verschieben nach...</translation>
+    </message>
+    <message>
+        <source>Puts the tag in another category, and recolours it into that family.</source>
+        <translation>Verschiebt das Tag in eine andere Kategorie und färbt es in deren Familie um.</translation>
+    </message>
+    <message>
+        <source>A tag is removed from every part that carries it; a category only loses its heading, its tags stay.</source>
+        <translation>Ein Tag wird von jedem Bauteil entfernt, das es trägt; eine Kategorie verliert nur ihre Überschrift, ihre Tags bleiben.</translation>
     </message>
 </context>
 <context>
@@ -1508,7 +1536,7 @@ PartManager führt sie nicht mehr auf. Ihr Ordner, ihre Bauteile und alle Dateie
     </message>
     <message>
         <source>Could not rename tag</source>
-        <translation>Tag konnte nicht umbenannt werden</translation>
+        <translation type="vanished">Tag konnte nicht umbenannt werden</translation>
     </message>
     <message>
         <source>Tag colour</source>
@@ -1521,6 +1549,62 @@ PartManager führt sie nicht mehr auf. Ihr Ordner, ihre Bauteile und alle Dateie
     <message>
         <source>Delete &quot;%1&quot;? It is removed from every part that carries it.</source>
         <translation>„%1“ löschen? Es wird von jedem Bauteil entfernt, das es trägt.</translation>
+    </message>
+    <message>
+        <source>Uncategorised</source>
+        <translation>Ohne Kategorie</translation>
+    </message>
+    <message>
+        <source>New Category</source>
+        <translation>Neue Kategorie</translation>
+    </message>
+    <message>
+        <source>Category name:</source>
+        <translation>Kategoriename:</translation>
+    </message>
+    <message>
+        <source>Could not create category</source>
+        <translation>Kategorie konnte nicht erstellt werden</translation>
+    </message>
+    <message>
+        <source>A category with that name already exists.</source>
+        <translation>Eine Kategorie mit diesem Namen existiert bereits.</translation>
+    </message>
+    <message>
+        <source>Rename Category</source>
+        <translation>Kategorie umbenennen</translation>
+    </message>
+    <message>
+        <source>Could not rename</source>
+        <translation>Umbenennen nicht möglich</translation>
+    </message>
+    <message>
+        <source>Something with that name already exists.</source>
+        <translation>Etwas mit diesem Namen existiert bereits.</translation>
+    </message>
+    <message>
+        <source>Category colour</source>
+        <translation>Kategoriefarbe</translation>
+    </message>
+    <message>
+        <source>(no category)</source>
+        <translation>(keine Kategorie)</translation>
+    </message>
+    <message>
+        <source>Move Tag</source>
+        <translation>Tag verschieben</translation>
+    </message>
+    <message>
+        <source>Category for &quot;%1&quot;:</source>
+        <translation>Kategorie für &quot;%1&quot;:</translation>
+    </message>
+    <message>
+        <source>Delete category</source>
+        <translation>Kategorie löschen</translation>
+    </message>
+    <message>
+        <source>Delete &quot;%1&quot;? Its tags are kept and become uncategorised.</source>
+        <translation>&quot;%1&quot; löschen? Ihre Tags bleiben erhalten und sind dann ohne Kategorie.</translation>
     </message>
 </context>
 <context>
@@ -2939,6 +3023,21 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
     <message>
         <source>Leaves %1 in stock.</source>
         <translation>Verbleiben %1 auf Lager.</translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::TagFilterButton</name>
+    <message>
+        <source>Filter by tag. Tags in one category match any; across categories, all.</source>
+        <translation>Nach Tags filtern. Tags innerhalb einer Kategorie sind ODER-verknüpft, über Kategorien hinweg UND-verknüpft.</translation>
+    </message>
+    <message>
+        <source>Tags</source>
+        <translation>Tags</translation>
+    </message>
+    <message>
+        <source>Tags (%1)</source>
+        <translation>Tags (%1)</translation>
     </message>
 </context>
 <context>

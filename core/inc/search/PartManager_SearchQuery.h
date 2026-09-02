@@ -9,7 +9,10 @@
 //
 // The grammar is deliberately tiny (§7a asks for a filter box, not a query
 // language): whitespace-separated terms, ANDed together, double quotes to keep
-// spaces inside one term. No OR, no parentheses, no negation.
+// spaces inside one term. No parentheses, no negation. The one piece of OR is a
+// comma inside a single `tag:` term, which is what the tag filter tree needs to
+// say "any of these" — and it composes without precedence rules, because OR can
+// only ever appear inside one term and AND only ever between them.
 //
 //   1k5              free text, matched case-insensitively against name/mpn/manufacturer/description
 //   "power supply"   same, as one term including the space
@@ -17,6 +20,13 @@
 //   voltage<=25V     ops: = != < <= > >=
 //   tag:SMD          tag filter by exact (case-insensitive) tag name
 //   tag:"Do not use" tag names with spaces
+//   tag:I2C,SPI      any of these tags — one whole family, or a hand-picked few
+//   tag:I2C,SPI tag:SMD   (I2C or SPI) and SMD
+//
+// A comma always separates: a tag whose *name* contains one cannot be searched
+// for as a single term. Quoting does not help, and deliberately so — quotes
+// already mean "one token, spaces included" and giving them a second meaning
+// inside `tag:` would make `tag:"a,b"` unreadable at a glance.
 //
 // @see docs/design/ARCHITECTURE.md §2a, §2d, §7a
 // @see PartManager_SearchEngine.h, PartManager_ValueParser.h
@@ -57,13 +67,25 @@ namespace PartManager
 		std::string error;                               // human-readable reason, empty when ok
 		std::vector<std::string> textTerms;              // lowercased free-text substrings
 		std::vector<SearchAttributeTerm> attributeTerms;
-		std::vector<std::string> tagNames;               // lowercased tag names
+		// One entry per `tag:` term; the names inside one entry OR together, the entries AND.
+		// A plain `tag:SMD` is therefore a group of one, so nothing special-cases the common case.
+		std::vector<std::vector<std::string>> tagGroups;
 
 		// True for a parse of empty/whitespace-only text: matches everything rather than nothing.
 		bool isEmpty() const;
 
 		// The one entry point. Never throws; malformed input returns ok == false.
 		static SearchQuery parse(const std::string& text);
+
+		// `text` with every `tag:` term replaced by `groups`, everything else left exactly as
+		// typed. This is what a tag-picker writes back into the search box: the picker owns the
+		// tag terms, the user owns the rest, and neither overwrites the other.
+		//
+		// Names are quoted when they need it, so the result always parses back to `groups`. A
+		// name containing a comma cannot be written (see the grammar note above) and is dropped
+		// rather than emitted as two tags that would then be ORed.
+		static std::string withTagGroups(const std::string& text,
+			const std::vector<std::vector<std::string>>& groups);
 	};
 
 }

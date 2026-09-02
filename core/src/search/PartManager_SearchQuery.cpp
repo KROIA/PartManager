@@ -131,7 +131,53 @@ namespace PartManager
 
 	bool SearchQuery::isEmpty() const
 	{
-		return textTerms.empty() && attributeTerms.empty() && tagNames.empty();
+		return textTerms.empty() && attributeTerms.empty() && tagGroups.empty();
+	}
+
+	std::string SearchQuery::withTagGroups(const std::string& text,
+		const std::vector<std::vector<std::string>>& groups)
+	{
+		std::string result;
+		for (const std::string& token : tokenize(text))
+		{
+			if (startsWithTagPrefix(token))
+			{
+				continue;   // the picker owns these; whatever was there is being replaced
+			}
+			if (!result.empty())
+			{
+				result += " ";
+			}
+			// Re-quote what the tokenizer unquoted, or the term comes back as several.
+			result += (token.find(' ') == std::string::npos) ? token : ("\"" + token + "\"");
+		}
+
+		for (const std::vector<std::string>& group : groups)
+		{
+			std::string term;
+			for (const std::string& name : group)
+			{
+				if (name.empty() || name.find(',') != std::string::npos)
+				{
+					continue;
+				}
+				if (!term.empty())
+				{
+					term += ",";
+				}
+				term += (name.find(' ') == std::string::npos) ? name : ("\"" + name + "\"");
+			}
+			if (term.empty())
+			{
+				continue;
+			}
+			if (!result.empty())
+			{
+				result += " ";
+			}
+			result += TagPrefix + term;
+		}
+		return result;
 	}
 
 	SearchQuery SearchQuery::parse(const std::string& text)
@@ -141,12 +187,34 @@ namespace PartManager
 		{
 			if (startsWithTagPrefix(token))
 			{
-				const std::string name = token.substr(std::string(TagPrefix).size());
-				if (name.empty())
+				const std::string names = token.substr(std::string(TagPrefix).size());
+				if (names.empty())
 				{
 					return failure("empty tag name in '" + token + "'");
 				}
-				query.tagNames.push_back(toLower(name));
+				// Commas OR the names together. A trailing one is a half-typed `tag:I2C,` rather
+				// than a mistake — the box filters on every keystroke — so it is simply dropped,
+				// but a term made of nothing but separators has no tag in it at all.
+				std::vector<std::string> group;
+				std::string current;
+				for (char c : names + ",")
+				{
+					if (c != ',')
+					{
+						current.push_back(c);
+						continue;
+					}
+					if (!current.empty())
+					{
+						group.push_back(toLower(current));
+					}
+					current.clear();
+				}
+				if (group.empty())
+				{
+					return failure("empty tag name in '" + token + "'");
+				}
+				query.tagGroups.push_back(group);
 				continue;
 			}
 

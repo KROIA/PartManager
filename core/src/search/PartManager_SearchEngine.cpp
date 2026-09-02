@@ -112,7 +112,7 @@ namespace PartManager
 		{
 			return {};
 		}
-		if (!query.tagNames.empty() && (!db.tableExists("part_tag") || !db.tableExists("tag")))
+		if (!query.tagGroups.empty() && (!db.tableExists("part_tag") || !db.tableExists("tag")))
 		{
 			return {};   // tag schema was never created in this database, so no part can carry a tag
 		}
@@ -163,11 +163,18 @@ namespace PartManager
 			}
 		}
 
-		for (const std::string& tagName : query.tagNames)
+		// One EXISTS per group, so the groups AND. Inside a group the names are an IN list, which
+		// is the OR: a part carrying any one of them satisfies that group.
+		for (const std::vector<std::string>& group : query.tagGroups)
 		{
 			sql += " AND EXISTS (SELECT 1 FROM part_tag pt JOIN tag t ON t.id=pt.tag_id"
-				" WHERE pt.part_id=part.id AND lower(t.name)=?)";
-			binds.push_back(BoundValue::fromText(tagName));
+				" WHERE pt.part_id=part.id AND lower(t.name) IN (";
+			for (size_t i = 0; i < group.size(); ++i)
+			{
+				sql += (i == 0 ? "?" : ",?");
+				binds.push_back(BoundValue::fromText(group[i]));
+			}
+			sql += "))";
 		}
 
 		sql += " ORDER BY id;";

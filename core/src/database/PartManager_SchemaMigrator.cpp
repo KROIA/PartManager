@@ -101,6 +101,14 @@ namespace PartManager
 			// disk that it did not write.
 			KicadEditTracker::createSchema(db);
 		}
+		if (storedSchemaVersion < 8 && db.isOpen())
+		{
+			// v7 -> v8: tag categories (§2d) — `tag_category`, plus `tag.category_id` added to the
+			// existing table. createSchema() does both and is idempotent. Every tag written before
+			// this defaults to uncategorised, which is a valid state rather than something to
+			// backfill; the seed adopts the ones it recognises when DatabaseHandle re-runs it.
+			TagRepository::createSchema(db);
+		}
 		return SchemaCompatibility::migrated;
 	}
 #endif
