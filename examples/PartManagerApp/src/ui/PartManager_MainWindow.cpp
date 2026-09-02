@@ -11,6 +11,7 @@
 #include "ui/PartManager_PartlistImportDialog.h"
 #include "ui/PartManager_PartlistManagerDialog.h"
 #include "ui/PartManager_OrderManagerDialog.h"
+#include "ui/PartManager_KicadLibraryDialog.h"
 #include "ui/PartManager_Model3DDialog.h"
 #include "ui/PartManager_SettingsDialog.h"
 #include "ui/PartManager_StockDialog.h"
@@ -112,6 +113,12 @@ namespace PartManager
 	void MainWindow::onNotImplemented()
 	{
 		// Ribbon actions land in later slices; the buttons exist so the shell matches §7.
+	}
+
+	void MainWindow::onGenerateKicadLibraries()
+	{
+		KicadLibraryDialog dialog(m_controller.handle(), this);
+		dialog.exec();
 	}
 
 	void MainWindow::onView3DModel()
@@ -702,6 +709,7 @@ namespace PartManager
 		RibbonWidget::RibbonButtonGroup* viewGroup = new RibbonWidget::RibbonButtonGroup(tr("View"), homeTab);
 		RibbonWidget::RibbonButtonGroup* manageGroup = new RibbonWidget::RibbonButtonGroup(tr("Manage"), partsTab);
 		RibbonWidget::RibbonButtonGroup* filesGroup = new RibbonWidget::RibbonButtonGroup(tr("Files"), partsTab);
+		RibbonWidget::RibbonButtonGroup* kicadGroup = new RibbonWidget::RibbonButtonGroup(tr("KiCad"), partsTab);
 
 		auto addButton = [this](RibbonWidget::RibbonButtonGroup* group, const QString& text,
 			const QString& iconPath, void (MainWindow::*slot)())
@@ -727,6 +735,7 @@ namespace PartManager
 		addButton(manageGroup, tr("Manage Tags"), QStringLiteral(":/icons/manage-tags.png"), &MainWindow::onManageTags);
 		addButton(manageGroup, tr("Settings"), QStringLiteral(":/icons/settings.png"), &MainWindow::onSettings);
 		addButton(manageGroup, tr("Import from Mouser"), QStringLiteral(":/icons/mouser-search.png"), &MainWindow::onNewPartFromMouser);
+		addButton(kicadGroup, tr("Generate Libraries"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onGenerateKicadLibraries);
 		addButton(filesGroup, tr("Attach File"), QStringLiteral(":/icons/attach-file.png"), &MainWindow::onNotImplemented);
 		addButton(filesGroup, tr("Open Datasheet"), QStringLiteral(":/icons/open-datasheet.png"), &MainWindow::onNotImplemented);
 #endif

@@ -8,6 +8,7 @@
 #include "persistence/PartManager_PartlistRepository.h"
 #include "persistence/PartManager_SellerRepository.h"
 #include "persistence/PartManager_OrderRepository.h"
+#include "kicad/PartManager_KicadEditTracker.h"
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 	#include "SQLite.h"
@@ -90,6 +91,15 @@ namespace PartManager
 			// number, not Mouser's, so it would produce links that fail at the Cart API.
 			SellerRepository::createSchema(db);
 			OrderRepository::createSchema(db);
+		}
+		if (storedSchemaVersion < 7 && db.isOpen())
+		{
+			// v6 -> v7: kicad_generated_item (§5a). Same CREATE TABLE IF NOT EXISTS / db.isOpen()
+			// reasoning as above. Nothing to backfill, and backfilling would be actively wrong:
+			// an empty table means "PartManager has never generated any of these", so the first
+			// generation writes everything fresh instead of believing it already owns files on
+			// disk that it did not write.
+			KicadEditTracker::createSchema(db);
 		}
 		return SchemaCompatibility::migrated;
 	}

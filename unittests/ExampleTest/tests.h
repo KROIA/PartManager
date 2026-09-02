@@ -34,4 +34,5 @@
 #include "tests/TST_BackupManager.h"
 #include "tests/TST_Model3DFormat.h"
 #include "tests/TST_StepConverter.h"
+#include "tests/TST_KicadLibrary.h"
 //#include "test_nasted.h"
