@@ -50,6 +50,7 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttributeFormW
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_DimensionLineEdit.cpp")
 ## The part editor and the main window preview both embed the KiCad symbol/footprint painter.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KicadPreviewWidget.cpp")
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_TypeIconPainter.cpp")
 
 ## USER_SECTION_END
 

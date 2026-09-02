@@ -3,6 +3,7 @@
 
 #include "widgets/PartManager_AttributeFormWidget.h"
 #include "widgets/PartManager_KicadPreviewWidget.h"
+#include "widgets/PartManager_TypeIconPainter.h"
 
 #include <fstream>
 #include <iterator>
@@ -338,8 +339,16 @@ namespace PartManager
 		}
 		if (pixmap.isNull())
 		{
-			m_ui->imagePreviewLabel->setPixmap(QPixmap());
-			m_ui->imagePreviewLabel->setText(tr("none"));
+			// The same type placeholder the table and the main preview draw, so the editor does
+			// not disagree with them about what a part with no photo looks like.
+			std::string typeName;
+			for (const PartType& type : m_controller.types())
+			{
+				if (type.id == m_part.partTypeId) { typeName = type.name; break; }
+			}
+			m_ui->imagePreviewLabel->setText(QString());
+			m_ui->imagePreviewLabel->setPixmap(TypeIconPainter::icon(toQt(typeName),
+				m_ui->imagePreviewLabel->maximumHeight(), devicePixelRatioF()));
 		}
 		else
 		{

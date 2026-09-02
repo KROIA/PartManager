@@ -15,6 +15,7 @@
 #include "ui/PartManager_SettingsDialog.h"
 #include "ui/PartManager_StockDialog.h"
 #include "widgets/PartManager_TagChipDelegate.h"
+#include "widgets/PartManager_TypeIconPainter.h"
 
 #include "backup/PartManager_BackupManager.h"
 #include "settings/PartManager_Settings.h"
@@ -727,13 +728,22 @@ namespace PartManager
 					cell->setData(Qt::UserRole, row.partId);
 					// The product photo, so a part is identifiable without reading the row. It is
 					// just another attachment (role='image'), set in New Part or the editor.
+					QPixmap thumbnail;
 					if (!row.imagePath.isEmpty())
 					{
-						const QPixmap thumbnail = thumbnailFor(row.imagePath);
-						if (!thumbnail.isNull())
-						{
-							cell->setData(Qt::DecorationRole, thumbnail);
-						}
+						thumbnail = thumbnailFor(row.imagePath);
+					}
+					if (thumbnail.isNull())
+					{
+						// No photo is the normal state — a CSV import brings none at all — so the
+						// column falls back to a coloured glyph for the part's type rather than
+						// leaving a blank that makes every such row look alike.
+						thumbnail = TypeIconPainter::icon(row.typeName, ThumbnailSize,
+							devicePixelRatioF());
+					}
+					if (!thumbnail.isNull())
+					{
+						cell->setData(Qt::DecorationRole, thumbnail);
 					}
 				}
 				if (columns[static_cast<size_t>(columnIndex)].key == "stock_qty" && row.stockQty < 0)
@@ -824,11 +834,17 @@ namespace PartManager
 		}
 		if (graphic.isNull())
 		{
-			m_ui->previewGraphicLabel->setPixmap(QPixmap());
-			m_ui->previewGraphicLabel->setText(hasPart ? tr("[ no image ]") : QString());
+			// Same placeholder the table draws, at panel size — so the preview of a part with no
+			// photo still says what kind of thing it is instead of "[ no image ]".
+			m_ui->previewGraphicLabel->setText(QString());
+			m_ui->previewGraphicLabel->setPixmap(hasPart
+				? TypeIconPainter::icon(preview.typeName,
+					m_ui->previewGraphicLabel->maximumHeight(), devicePixelRatioF())
+				: QPixmap());
 			m_ui->previewGraphicLabel->setToolTip(hasPart
-				? tr("Attach a photo in the part editor, or import the part from Mouser — its "
-					 "product photo is downloaded automatically.")
+				? tr("No photo yet — this is a placeholder for “%1”. Attach one in the part "
+					 "editor, or import the part from Mouser, which downloads its product photo.")
+					.arg(preview.typeName)
 				: QString());
 		}
 		else

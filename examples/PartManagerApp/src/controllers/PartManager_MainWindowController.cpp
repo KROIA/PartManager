@@ -525,6 +525,14 @@ namespace PartManager
 			query = SearchQuery::parse(filterText.toStdString());
 		}
 
+		// Type names for the placeholder icon a part with no photo gets. Looked up once for the
+		// whole table rather than per row, which would be a query per part.
+		std::map<int, QString> typeNameById;
+		for (const PartType& type : PartTypeRepository::listTypes(db))
+		{
+			typeNameById[type.id] = toQt(type.name);
+		}
+
 		for (int id : typeIdWithDescendants(PartTypeRepository::listTypes(db), typeId))
 		{
 			// The table filter is scoped to the selected category, but that category includes
@@ -548,6 +556,8 @@ namespace PartManager
 				row.stockMinQty = part.stockMinQty;
 				row.tags = TagRepository::listPartTags(db, part.id);
 				row.imagePath = imageByPart.count(part.id) ? imageByPart[part.id] : QString();
+				row.typeName = typeNameById.count(part.partTypeId)
+					? typeNameById[part.partTypeId] : QString();
 
 				for (const PartColumn& column : columns)
 				{

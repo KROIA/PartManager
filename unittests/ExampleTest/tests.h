@@ -36,5 +36,6 @@
 #include "tests/TST_Model3DFormat.h"
 #include "tests/TST_StepConverter.h"
 #include "tests/TST_KicadGeometry.h"
+#include "tests/TST_TypeIcon.h"
 #include "tests/TST_KicadLibrary.h"
 //#include "test_nasted.h"

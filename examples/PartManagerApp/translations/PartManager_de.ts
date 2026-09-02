@@ -1190,11 +1190,11 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
     </message>
     <message>
         <source>[ no image ]</source>
-        <translation>[ kein Bild ]</translation>
+        <translation type="vanished">[ kein Bild ]</translation>
     </message>
     <message>
         <source>Attach a photo in the part editor, or import the part from Mouser — its product photo is downloaded automatically.</source>
-        <translation>Hängen Sie im Bauteileditor ein Foto an oder importieren Sie das Bauteil von Mouser — dessen Produktfoto wird automatisch heruntergeladen.</translation>
+        <translation type="vanished">Hängen Sie im Bauteileditor ein Foto an oder importieren Sie das Bauteil von Mouser — dessen Produktfoto wird automatisch heruntergeladen.</translation>
     </message>
     <message>
         <source>The schematic symbol this part places in KiCad.</source>
@@ -1223,6 +1223,10 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
     <message>
         <source>No footprint.</source>
         <translation>Kein Footprint.</translation>
+    </message>
+    <message>
+        <source>No photo yet — this is a placeholder for “%1”. Attach one in the part editor, or import the part from Mouser, which downloads its product photo.</source>
+        <translation>Noch kein Foto — dies ist ein Platzhalter für „%1“. Hängen Sie eines im Bauteil-Editor an, oder importieren Sie das Bauteil von Mouser, wodurch das Produktfoto heruntergeladen wird.</translation>
     </message>
 </context>
 <context>
@@ -2075,7 +2079,7 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
     </message>
     <message>
         <source>none</source>
-        <translation>keins</translation>
+        <translation type="vanished">keins</translation>
     </message>
     <message>
         <source>No image attached yet.</source>

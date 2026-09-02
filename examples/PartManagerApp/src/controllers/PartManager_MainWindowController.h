@@ -65,6 +65,9 @@ namespace PartManager
 		// stored file is gone. Painted as a thumbnail in the first column so a part is
 		// recognisable without reading the row.
 		QString imagePath;
+		// The part's type, which decides the placeholder glyph when `imagePath` is empty —
+		// which is the normal state, not an exception (a CSV import brings no photos at all).
+		QString typeName;
 	};
 
 	// One label/value line of the §7c preview panel.
