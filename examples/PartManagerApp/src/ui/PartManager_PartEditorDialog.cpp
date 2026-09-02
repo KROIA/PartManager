@@ -16,7 +16,9 @@
 #include <QDesktopServices>
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QHash>
 #include <QHeaderView>
+#include <QIcon>
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QLocale>
@@ -39,6 +41,21 @@ namespace PartManager
 		QString toQt(const std::string& text)
 		{
 			return QString::fromStdString(text);
+		}
+
+		// A tag's colour as a menu icon. The chips are coloured, so the menu that adds them has
+		// to be too — otherwise picking "SPI" out of the Bus protocols submenu gives no hint
+		// which of the blue shades is about to land on the part.
+		QIcon tagSwatch(const std::string& color)
+		{
+			const QColor fill(toQt(color));
+			if (!fill.isValid())
+			{
+				return QIcon();
+			}
+			QPixmap pixmap(12, 12);
+			pixmap.fill(fill);
+			return QIcon(pixmap);
 		}
 
 		// KiCad files are small (a few kB) and read on demand for the preview, so slurping is
@@ -916,10 +933,41 @@ namespace PartManager
 		const std::vector<Tag> available =
 			availableTagsToAdd(m_controller.allTags(), m_controller.partTags(m_part.id));
 
+		// One submenu per tag family, same two levels the filter drop-down and Manage Tags show.
+		// A flat list of the 31 seeded tags is a menu nobody can aim at, and it also hides which
+		// family a tag belongs to — which is half of what the colour is telling you.
+		QHash<int, QMenu*> submenus;
+		for (const TagCategory& category : m_controller.tagCategories())
+		{
+			bool hasAny = false;
+			for (const Tag& tag : available)
+			{
+				if (tag.categoryId == category.id) { hasAny = true; break; }
+			}
+			// A family whose tags the part already carries would otherwise be an empty submenu,
+			// which looks broken and cannot be dismissed by clicking it.
+			if (hasAny)
+			{
+				submenus.insert(category.id, menu->addMenu(toQt(category.name)));
+			}
+		}
+		// Loose tags sit at the top level, below the families — they belong to no heading and
+		// inventing one for them would be a lie about the vocabulary.
+		if (!submenus.isEmpty())
+		{
+			bool hasLoose = false;
+			for (const Tag& tag : available)
+			{
+				if (tag.categoryId == NoTagCategoryId) { hasLoose = true; break; }
+			}
+			if (hasLoose) { menu->addSeparator(); }
+		}
+
 		for (const Tag& tag : available)
 		{
 			const int tagId = tag.id;
-			QAction* action = menu->addAction(toQt(tag.name)); // user data
+			QMenu* owner = submenus.value(tag.categoryId, menu);
+			QAction* action = owner->addAction(tagSwatch(tag.color), toQt(tag.name));
 			connect(action, &QAction::triggered, this, [this, tagId]()
 			{
 				m_controller.addPartTag(m_part.id, tagId);
