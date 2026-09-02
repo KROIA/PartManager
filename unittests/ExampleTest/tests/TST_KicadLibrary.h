@@ -4,6 +4,7 @@
 #include "kicad/PartManager_KicadEditTracker.h"
 #include "kicad/PartManager_KicadLibraryGenerator.h"
 #include "kicad/PartManager_KicadSymbolWriter.h"
+#include "filestore/PartManager_FileStore.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
 #include <filesystem>
@@ -34,6 +35,21 @@ public:
 	}
 
 private:
+
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+	// The part id behind a name, so a test can reach the row the generator wrote back into.
+	static int partIdOf(SQLiteWrapper::SQLite& db, const std::string& name)
+	{
+		for (const PartManager::Part& part : PartManager::PartRepository::listParts(db))
+		{
+			if (part.name == name)
+			{
+				return part.id;
+			}
+		}
+		return 0;
+	}
+#endif
 
 	static std::string readFile(const std::filesystem::path& path)
 	{
@@ -274,19 +290,50 @@ private:
 			"the hand edit was overwritten - generated libraries cannot be trusted");
 		TEST_ASSERT(after.find("\"R-10K\"") != std::string::npos);
 
-		// It keeps being reported until the user decides, rather than quietly becoming the new
-		// baseline.
+		// §5c: the edit did not merely survive — it was written into the part's own
+		// `part_file(role='kicad_symbol')`, which is the copy that outlives kicad_libs/.
+		TEST_COMPARE(third.symbolsSyncedBack, 1);
+		PartManager::PartFile attached;
+		TEST_ASSERT_M(PartManager::FileStore::roleFile(db, partIdOf(db, "R-4K7"),
+			PartManager::PartFileRole::KicadSymbol, attached),
+			"the KiCad edit was not written back into the part");
+		const std::string storedSymbol =
+			readFile(std::filesystem::path(filestore) / attached.relativePath);
+		TEST_ASSERT_M(storedSymbol.find("HandEdited") != std::string::npos,
+			"the part's own .kicad_sym does not carry the edit");
+		// Stored as a whole one-symbol library, so KiCad opens it directly and the generator can
+		// splice it straight back in.
+		TEST_ASSERT(storedSymbol.find("kicad_symbol_lib") != std::string::npos);
+
+		// Having been adopted, it stops being reported: it is now what PartManager itself would
+		// write, so there is nothing left for the user to decide. The edit is still on disk.
 		PartManager::KicadGenerationResult fourth =
 			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
-		TEST_COMPARE(fourth.symbolsPreserved, 1);
+		TEST_COMPARE(fourth.symbolsPreserved, 0);
+		TEST_COMPARE(fourth.symbolsSyncedBack, 0);
+		TEST_COMPARE(fourth.symbolsFromAttachment, 1);
+		TEST_ASSERT_M(readFile(library).find("HandEdited") != std::string::npos,
+			"the adopted edit must be regenerated from the attachment, not dropped");
 
-		// Force-regenerate discards the edit, which is the other half of the choice §5a gives.
+		// And it is stable: a fifth run neither re-reports nor rewrites anything.
+		PartManager::KicadGenerationResult fifth =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_COMPARE(fifth.symbolsPreserved, 0);
+		TEST_COMPARE(fifth.symbolsSyncedBack, 0);
+		TEST_ASSERT_M(readFile(library).find("HandEdited") != std::string::npos,
+			"the adopted edit must not decay over repeated runs");
+
+		// Deleting the wrong thing by hand is how a sync feature loses data, so: removing the
+		// attachment is what puts the part back on the generic template. Nothing else does.
+		PartManager::FileStore store(filestore);
+		TEST_ASSERT(store.detachFile(db, attached.id));
 		PartManager::KicadGenerationResult forced = PartManager::KicadLibraryGenerator::generate(
 			db, libs, filestore, { "Resistors.kicad_sym:R-4K7" });
 		TEST_COMPARE(forced.symbolsPreserved, 0);
 		TEST_COMPARE(forced.symbolsGenerated, 2);
+		TEST_COMPARE(forced.symbolsFromAttachment, 0);
 		TEST_ASSERT_M(readFile(library).find("HandEdited") == std::string::npos,
-			"force-regenerate must actually discard the edit");
+			"with the attachment gone, force-regenerate must discard the edit");
 	}
 
 #endif

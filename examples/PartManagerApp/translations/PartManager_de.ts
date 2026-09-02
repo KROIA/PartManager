@@ -703,6 +703,58 @@ Mouser füllt das aus seiner Spalte "Package / Case" aus.</translation>
         <source>Removes this part from the database for good, together with its stock history, tags, attachments and Mouser link. Partlists that reference it are left with an unresolved line. You are asked to confirm first.</source>
         <translation>Entfernt dieses Bauteil endgültig aus der Datenbank, zusammen mit seiner Bestandshistorie, seinen Tags, seinen Anhängen und seiner Mouser-Verknüpfung. Stücklisten, die es verwenden, behalten eine nicht zugeordnete Zeile. Sie werden vorher um Bestätigung gebeten.</translation>
     </message>
+    <message>
+        <source>KiCad</source>
+        <translation>KiCad</translation>
+    </message>
+    <message>
+        <source>This part's own symbol and footprint. They are what "Generate Libraries" puts into the shared KiCad library, and an edit you make in KiCad is written back here the next time you regenerate — so the two copies stay identical.</source>
+        <translation>Das eigene Symbol und der eigene Footprint dieses Bauteils. Sie sind es, was „Bibliotheken erzeugen“ in die gemeinsame KiCad-Bibliothek schreibt, und eine Änderung, die Sie in KiCad machen, wird beim nächsten Erzeugen hierher zurückgeschrieben — so bleiben beide Kopien identisch.</translation>
+    </message>
+    <message>
+        <source>Import vendor ZIP…</source>
+        <translation>Hersteller-ZIP importieren…</translation>
+    </message>
+    <message>
+        <source>Reads a library download such as "LIB_74HC4051PW-Q100,11.zip" from Component Search Engine, Ultra Librarian or SnapEDA, and takes the KiCad symbol, the footprint and the 3D model out of it. Everything for the other twenty CAD tools in the archive is ignored. The files are copied into this database, so the ZIP can be deleted afterwards.</source>
+        <translation>Liest einen Bibliotheks-Download wie "LIB_74HC4051PW-Q100,11.zip" von Component Search Engine, Ultra Librarian oder SnapEDA und entnimmt daraus das KiCad-Symbol, den Footprint und das 3D-Modell. Alles für die zwanzig anderen CAD-Werkzeuge im Archiv wird ignoriert. Die Dateien werden in diese Datenbank kopiert, das ZIP kann danach gelöscht werden.</translation>
+    </message>
+    <message>
+        <source>Symbol</source>
+        <translation>Symbol</translation>
+    </message>
+    <message>
+        <source>A .kicad_sym file holding this part's schematic symbol. Without one the generated library uses a plain box or a generic resistor/capacitor outline, which works but has no real pinout.</source>
+        <translation>Eine .kicad_sym-Datei mit dem Schaltplansymbol dieses Bauteils. Ohne sie verwendet die erzeugte Bibliothek einen einfachen Kasten oder einen generischen Widerstands-/Kondensatorumriss — funktionsfähig, aber ohne echte Pinbelegung.</translation>
+    </message>
+    <message>
+        <source>Generated from the type template.</source>
+        <translation>Aus der Typvorlage erzeugt.</translation>
+    </message>
+    <message>
+        <source>Attach…</source>
+        <translation>Anhängen…</translation>
+    </message>
+    <message>
+        <source>Puts this part back on the generic generated symbol.</source>
+        <translation>Setzt dieses Bauteil auf das generisch erzeugte Symbol zurück.</translation>
+    </message>
+    <message>
+        <source>Footprint</source>
+        <translation>Footprint</translation>
+    </message>
+    <message>
+        <source>A .kicad_mod file — the copper pads and courtyard. KiCad keeps footprints as one file each inside a .pretty folder, which is how they are written out.</source>
+        <translation>Eine .kicad_mod-Datei — die Kupferflächen und der Sperrbereich. KiCad hält Footprints als je eine Datei in einem .pretty-Ordner, und genau so werden sie auch geschrieben.</translation>
+    </message>
+    <message>
+        <source>None.</source>
+        <translation>Keiner.</translation>
+    </message>
+    <message>
+        <source>3D model</source>
+        <translation>3D-Modell</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::CartStagingDialog</name>
@@ -1621,7 +1673,10 @@ Trotzdem anlegen?</translation>
     </message>
     <message numerus="yes">
         <source>Open %n link(s) in browser</source>
-        <translation><numerusform>%n Link im Browser öffnen</numerusform><numerusform>%n Links im Browser öffnen</numerusform></translation>
+        <translation>
+            <numerusform>%n Link im Browser öffnen</numerusform>
+            <numerusform>%n Links im Browser öffnen</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -2070,6 +2125,130 @@ Das lässt sich in der App nicht rückgängig machen — nur durch Wiederherstel
     <message>
         <source>%1 — stored, but it will not display. Either the format needs a Qt image plugin this build has not got, or the file is not really an image: a download that was blocked by the vendor can save their web page under this name. Remove it and attach the picture from disk.</source>
         <translation>%1 — gespeichert, wird aber nicht angezeigt. Entweder braucht das Format ein Qt-Bild-Plugin, das dieses Build nicht hat, oder die Datei ist gar kein Bild: Ein vom Anbieter blockierter Download kann dessen Webseite unter diesem Namen ablegen. Entfernen Sie sie und hängen Sie das Bild von der Festplatte an.</translation>
+    </message>
+    <message>
+        <source>Generated from the type template — a working symbol, but with no real pinout.</source>
+        <translation>Aus der Typvorlage erzeugt — ein funktionsfähiges Symbol, aber ohne echte Pinbelegung.</translation>
+    </message>
+    <message>
+        <source>None. Without one the symbol has no footprint to place.</source>
+        <translation>Keiner. Ohne ihn hat das Symbol keinen Footprint zum Platzieren.</translation>
+    </message>
+    <message>
+        <source>None. Attach one in the 3D viewer, or import a vendor ZIP.</source>
+        <translation>Keins. Hängen Sie eines im 3D-Betrachter an oder importieren Sie ein Hersteller-ZIP.</translation>
+    </message>
+    <message>
+        <source>Replace…</source>
+        <translation>Ersetzen…</translation>
+    </message>
+    <message>
+        <source>Attach…</source>
+        <translation>Anhängen…</translation>
+    </message>
+    <message>
+        <source>Choose a vendor library download</source>
+        <translation>Hersteller-Bibliotheksdownload auswählen</translation>
+    </message>
+    <message>
+        <source>Library archives (*.zip);;All files (*)</source>
+        <translation>Bibliotheksarchive (*.zip);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Could not read the archive</source>
+        <translation>Archiv konnte nicht gelesen werden</translation>
+    </message>
+    <message>
+        <source>%1
+
+A library download is a .zip — if you unpacked it already, use the Attach buttons on the files inside instead.</source>
+        <translation>%1
+
+Ein Bibliotheksdownload ist eine .zip-Datei — falls Sie sie bereits entpackt haben, verwenden Sie stattdessen die Schaltflächen „Anhängen“ für die enthaltenen Dateien.</translation>
+    </message>
+    <message>
+        <source>the schematic symbol</source>
+        <translation>das Schaltplansymbol</translation>
+    </message>
+    <message>
+        <source>the footprint</source>
+        <translation>den Footprint</translation>
+    </message>
+    <message>
+        <source>the 3D model</source>
+        <translation>das 3D-Modell</translation>
+    </message>
+    <message>
+        <source>Nothing to import</source>
+        <translation>Nichts zu importieren</translation>
+    </message>
+    <message>
+        <source>This archive's KiCad folder holds only the old KiCad 5 format (.lib/.dcm/.mod). PartManager writes .kicad_sym libraries and cannot mix the two, so nothing was taken.
+
+Download the KiCad 6+ version, or convert it in KiCad and attach the result.</source>
+        <translation>Der KiCad-Ordner dieses Archivs enthält nur das alte KiCad-5-Format (.lib/.dcm/.mod). PartManager schreibt .kicad_sym-Bibliotheken und kann beide Formate nicht mischen, daher wurde nichts übernommen.
+
+Laden Sie die Fassung für KiCad 6+ herunter, oder wandeln Sie sie in KiCad um und hängen Sie das Ergebnis an.</translation>
+    </message>
+    <message numerus="yes">
+        <source>The archive has no KiCad files in it — %n entr(y/ies) for other CAD tools were skipped.</source>
+        <translation><numerusform>Das Archiv enthält keine KiCad-Dateien — %n Eintrag für andere CAD-Werkzeuge wurde übersprungen.</numerusform><numerusform>Das Archiv enthält keine KiCad-Dateien — %n Einträge für andere CAD-Werkzeuge wurden übersprungen.</numerusform></translation>
+    </message>
+    <message>
+        <source>Imported</source>
+        <translation>Importiert</translation>
+    </message>
+    <message>
+        <source>Took %1 out of the archive.
+
+The files were copied into this database, so the ZIP can be deleted. The symbol is what “Generate Libraries” will now put into KiCad instead of the generic one.</source>
+        <translation>%1 aus dem Archiv übernommen.
+
+Die Dateien wurden in diese Datenbank kopiert, das ZIP kann gelöscht werden. Das Symbol ist es, was „Bibliotheken erzeugen“ jetzt anstelle des generischen nach KiCad schreibt.</translation>
+    </message>
+    <message>
+        <source>, </source>
+        <translation>, </translation>
+    </message>
+    <message>
+        <source>Choose a KiCad symbol</source>
+        <translation>KiCad-Symbol auswählen</translation>
+    </message>
+    <message>
+        <source>KiCad symbol libraries (*.kicad_sym);;All files (*)</source>
+        <translation>KiCad-Symbolbibliotheken (*.kicad_sym);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Could not attach the symbol</source>
+        <translation>Symbol konnte nicht angehängt werden</translation>
+    </message>
+    <message>
+        <source>Remove the symbol</source>
+        <translation>Symbol entfernen</translation>
+    </message>
+    <message>
+        <source>This part goes back to the generic generated symbol, and the next regeneration replaces it in the KiCad library.
+
+Any edit you made in KiCad and that was synced back into this file is lost with it. Remove it?</source>
+        <translation>Dieses Bauteil fällt auf das generisch erzeugte Symbol zurück, und das nächste Erzeugen ersetzt es in der KiCad-Bibliothek.
+
+Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückgeschrieben wurde, geht damit verloren. Entfernen?</translation>
+    </message>
+    <message>
+        <source>Choose a KiCad footprint</source>
+        <translation>KiCad-Footprint auswählen</translation>
+    </message>
+    <message>
+        <source>KiCad footprints (*.kicad_mod);;All files (*)</source>
+        <translation>KiCad-Footprints (*.kicad_mod);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Could not attach the footprint</source>
+        <translation>Footprint konnte nicht angehängt werden</translation>
+    </message>
+    <message>
+        <source>Remove the footprint</source>
+        <translation>Footprint entfernen</translation>
     </message>
 </context>
 <context>

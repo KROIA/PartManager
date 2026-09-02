@@ -84,6 +84,20 @@ namespace PartManager
 		// carried across as the exact bytes KiCad wrote.
 		static std::vector<std::string> splitSymbols(const std::string& libraryText);
 
+		// The value of a symbol's `(property "<key>" "<value>" ...)`, empty when it has none.
+		static std::string symbolProperty(const std::string& symbolBlock, const std::string& key);
+
+		// The block with that property's value replaced, or the property appended when it was
+		// absent. Everything else is byte-identical — which is what lets a vendor symbol keep its
+		// real pins and graphics while still carrying PartManager's fields (§5c).
+		static std::string withProperty(const std::string& symbolBlock, const std::string& key,
+			const std::string& value);
+
+		// The block renamed. KiCad ties a symbol's unit bodies to their parent by the
+		// `"<Parent>_<unit>_<style>"` naming convention, so the nested `(symbol ...)` names are
+		// renamed with it — renaming only the outer one produces a symbol that draws nothing.
+		static std::string renamedSymbol(const std::string& symbolBlock, const std::string& newName);
+
 		// Escapes a string for an s-expression literal: `"` and `\` only, which is all the format
 		// defines. Newlines are legal inside a KiCad string and pass through.
 		static std::string escape(const std::string& text);

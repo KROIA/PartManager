@@ -281,6 +281,187 @@ namespace PartManager
 		return out;
 	}
 
+	namespace
+	{
+		// Walks to the end of the string literal that starts at `openQuote` (the index of its
+		// opening `"`). Returns the index of the closing quote, or npos when unterminated.
+		size_t endOfLiteral(const std::string& text, size_t openQuote)
+		{
+			for (size_t i = openQuote + 1; i < text.size(); ++i)
+			{
+				if (text[i] == '\\')
+				{
+					++i;        // the escaped byte is never the terminator
+					continue;
+				}
+				if (text[i] == '"')
+				{
+					return i;
+				}
+			}
+			return std::string::npos;
+		}
+
+		// The literal's contents with escapes resolved.
+		std::string literalAt(const std::string& text, size_t openQuote, size_t closeQuote)
+		{
+			std::string value;
+			for (size_t i = openQuote + 1; i < closeQuote; ++i)
+			{
+				if (text[i] == '\\' && i + 1 < closeQuote)
+				{
+					++i;
+				}
+				value += text[i];
+			}
+			return value;
+		}
+
+		// Index of the `(property "<key>"` whose key matches, or npos. Scans the whole block:
+		// properties only ever sit directly under the symbol, and a nested unit body has none.
+		size_t findProperty(const std::string& block, const std::string& key, size_t& outKeyOpen,
+			size_t& outKeyClose)
+		{
+			size_t at = 0;
+			while ((at = block.find("(property", at)) != std::string::npos)
+			{
+				size_t i = at + 9;
+				while (i < block.size() && (block[i] == ' ' || block[i] == '\t' || block[i] == '\n'
+					|| block[i] == '\r'))
+				{
+					++i;
+				}
+				if (i >= block.size() || block[i] != '"')
+				{
+					at += 9;
+					continue;
+				}
+				const size_t close = endOfLiteral(block, i);
+				if (close == std::string::npos)
+				{
+					return std::string::npos;
+				}
+				if (literalAt(block, i, close) == key)
+				{
+					outKeyOpen = i;
+					outKeyClose = close;
+					return at;
+				}
+				at = close;
+			}
+			return std::string::npos;
+		}
+	}
+
+	std::string KicadSymbolWriter::symbolProperty(const std::string& symbolBlock,
+		const std::string& key)
+	{
+		size_t keyOpen = 0;
+		size_t keyClose = 0;
+		if (findProperty(symbolBlock, key, keyOpen, keyClose) == std::string::npos)
+		{
+			return std::string();
+		}
+		// The value is the next literal after the key.
+		const size_t valueOpen = symbolBlock.find('"', keyClose + 1);
+		if (valueOpen == std::string::npos)
+		{
+			return std::string();
+		}
+		const size_t valueClose = endOfLiteral(symbolBlock, valueOpen);
+		return valueClose == std::string::npos
+			? std::string() : literalAt(symbolBlock, valueOpen, valueClose);
+	}
+
+	std::string KicadSymbolWriter::withProperty(const std::string& symbolBlock,
+		const std::string& key, const std::string& value)
+	{
+		size_t keyOpen = 0;
+		size_t keyClose = 0;
+		if (findProperty(symbolBlock, key, keyOpen, keyClose) != std::string::npos)
+		{
+			const size_t valueOpen = symbolBlock.find('"', keyClose + 1);
+			if (valueOpen != std::string::npos)
+			{
+				const size_t valueClose = endOfLiteral(symbolBlock, valueOpen);
+				if (valueClose != std::string::npos)
+				{
+					return symbolBlock.substr(0, valueOpen + 1) + escape(value)
+						+ symbolBlock.substr(valueClose);
+				}
+			}
+			return symbolBlock;   // malformed; better untouched than truncated
+		}
+
+		if (value.empty())
+		{
+			return symbolBlock;   // nothing to add, and an empty property is noise
+		}
+		// Appended just before the block's own closing paren, so it lands inside the symbol.
+		const size_t lastParen = symbolBlock.rfind(')');
+		if (lastParen == std::string::npos)
+		{
+			return symbolBlock;
+		}
+		size_t insertAt = lastParen;
+		while (insertAt > 0 && (symbolBlock[insertAt - 1] == '\t' || symbolBlock[insertAt - 1] == ' '))
+		{
+			--insertAt;
+		}
+		return symbolBlock.substr(0, insertAt) + hiddenProperty(key, value)
+			+ symbolBlock.substr(insertAt);
+	}
+
+	std::string KicadSymbolWriter::renamedSymbol(const std::string& symbolBlock,
+		const std::string& newName)
+	{
+		const std::string oldName = symbolNameOf(symbolBlock);
+		const std::string sanitized = sanitizeSymbolName(newName);
+		if (oldName.empty() || oldName == sanitized)
+		{
+			return symbolBlock;
+		}
+
+		std::string out;
+		out.reserve(symbolBlock.size() + 32);
+		size_t i = 0;
+		bool renamedParent = false;
+		while (i < symbolBlock.size())
+		{
+			const size_t at = symbolBlock.find("(symbol \"", i);
+			if (at == std::string::npos)
+			{
+				out += symbolBlock.substr(i);
+				break;
+			}
+			const size_t quote = at + 8;                    // index of the opening `"`
+			const size_t close = endOfLiteral(symbolBlock, quote);
+			if (close == std::string::npos)
+			{
+				out += symbolBlock.substr(i);
+				break;
+			}
+			const std::string name = literalAt(symbolBlock, quote, close);
+
+			std::string replacement = name;
+			if (!renamedParent)
+			{
+				replacement = sanitized;
+				renamedParent = true;
+			}
+			else if (name.rfind(oldName + "_", 0) == 0)
+			{
+				// A unit body: "<Parent>_1_1". Only the parent prefix moves.
+				replacement = sanitized + name.substr(oldName.size());
+			}
+
+			out += symbolBlock.substr(i, quote + 1 - i);
+			out += escape(replacement);
+			i = close;                                       // the closing quote is copied next
+		}
+		return out;
+	}
+
 	std::string KicadSymbolWriter::symbolNameOf(const std::string& symbolBlock)
 	{
 		const size_t open = symbolBlock.find("(symbol \"");

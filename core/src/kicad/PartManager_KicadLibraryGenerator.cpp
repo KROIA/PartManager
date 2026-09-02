@@ -1,5 +1,6 @@
 #include "kicad/PartManager_KicadLibraryGenerator.h"
 #include "kicad/PartManager_KicadSymbolWriter.h"
+#include "filestore/PartManager_FileStore.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_SellerRepository.h"
@@ -57,11 +58,20 @@ namespace PartManager
 		}
 		std::string text = std::to_string(symbolsGenerated) + " symbol(s) in "
 			+ std::to_string(librariesWritten) + " library file(s)";
+		if (symbolsFromAttachment > 0)
+		{
+			text += " (" + std::to_string(symbolsFromAttachment) + " from the part's own KiCad file)";
+		}
 		if (symbolsPreserved > 0)
 		{
 			// Named first among the caveats because it is the one the user has to act on.
 			text += ", " + std::to_string(symbolsPreserved) + " left alone because they were "
 				"edited in KiCad";
+		}
+		if (symbolsSyncedBack + footprintsSyncedBack > 0)
+		{
+			text += ", " + std::to_string(symbolsSyncedBack + footprintsSyncedBack)
+				+ " edit(s) written back into the parts";
 		}
 		if (footprintsCopied > 0)
 		{
@@ -172,6 +182,112 @@ namespace PartManager
 			}
 			return spec;
 		}
+
+		// Which of a library file's symbols is *the part's*.
+		//
+		// **Not simply the first.** A `.kicad_sym` PartManager wrote starts with the embedded
+		// base symbols every generated symbol `(extends ...)`, so the first block is `PM_R` and
+		// taking it would silently replace the part with a bare resistor outline. A vendor's
+		// file, by contrast, holds exactly one symbol under its own name.
+		//
+		// So: the block named after the part if it is there, otherwise the first block that is
+		// not one of the bases.
+		std::string pickPartSymbol(const std::vector<std::string>& blocks,
+			const std::string& symbolName)
+		{
+			std::vector<std::string> baseNames;
+			for (const std::string& base : KicadSymbolWriter::baseSymbolBlocks())
+			{
+				baseNames.push_back(KicadSymbolWriter::symbolNameOf(base));
+			}
+
+			std::string firstNonBase;
+			for (const std::string& block : blocks)
+			{
+				const std::string name = KicadSymbolWriter::symbolNameOf(block);
+				if (name == symbolName)
+				{
+					return block;
+				}
+				if (firstNonBase.empty()
+					&& std::find(baseNames.begin(), baseNames.end(), name) == baseNames.end())
+				{
+					firstNonBase = block;
+				}
+			}
+			return firstNonBase;
+		}
+
+		// §5c: the symbol block for a part, taken from its attached `.kicad_sym` when it has one.
+		// The attachment is a whole library file holding a single symbol, so it is split and the
+		// first block taken; the block is then renamed to the part's symbol name and given
+		// PartManager's own fields, so a vendor symbol keeps its real pins and graphics while
+		// still resolving its footprint and pointing back at the part row.
+		//
+		// Empty when the part has no attachment or the file will not parse — the caller falls
+		// back to the generated `(extends ...)` symbol rather than writing nothing.
+		std::string symbolFromAttachment(SQLiteWrapper::SQLite& db, const Part& part,
+			const std::string& filestorePath, const std::string& symbolName,
+			const std::string& footprintRef, const KicadSymbolSpec& spec)
+		{
+			PartFile file;
+			if (!FileStore::roleFile(db, part.id, PartFileRole::KicadSymbol, file))
+			{
+				return std::string();
+			}
+			const std::string text =
+				readFile(std::filesystem::path(filestorePath) / file.relativePath);
+			const std::string picked = pickPartSymbol(
+				KicadSymbolWriter::splitSymbols(text), symbolName);
+			if (picked.empty())
+			{
+				return std::string();
+			}
+
+			std::string block = KicadSymbolWriter::renamedSymbol(picked, symbolName);
+			// The vendor writes a bare footprint name ("SOP65P640X110-16N"), which KiCad cannot
+			// resolve without a library nickname in front of it.
+			if (!footprintRef.empty())
+			{
+				block = KicadSymbolWriter::withProperty(block, "Footprint", footprintRef);
+			}
+			// The round trip back into this app, and the two fields the user actually looks for.
+			block = KicadSymbolWriter::withProperty(block, "PM_PartID",
+				spec.partId > 0 ? std::to_string(spec.partId) : std::string());
+			if (!spec.mouserPartNumber.empty())
+			{
+				block = KicadSymbolWriter::withProperty(block, "Mouser P/N", spec.mouserPartNumber);
+			}
+			if (!spec.datasheet.empty())
+			{
+				block = KicadSymbolWriter::withProperty(block, "Datasheet", spec.datasheet);
+			}
+			if (!spec.model3DPath.empty())
+			{
+				block = KicadSymbolWriter::withProperty(block, "PM_3DModel", spec.model3DPath);
+			}
+			return block;
+		}
+
+		// §5c: writes `content` into the part's slot, but only when it differs from what is
+		// already there — an unconditional write would make a new filestore row on every
+		// regeneration and the "2 copies" would drift apart in metadata if not in bytes.
+		// Returns true when something was actually written.
+		bool syncAttachment(SQLiteWrapper::SQLite& db, FileStore& store, int partId,
+			PartFileRole role, const std::string& content, const std::string& fileName)
+		{
+			if (content.empty())
+			{
+				return false;
+			}
+			PartFile existing;
+			if (FileStore::roleFile(db, partId, role, existing)
+				&& existing.contentHash == FileStore::hashBytes(content))
+			{
+				return false;   // already identical, which is the steady state
+			}
+			return store.replaceRoleFileBytes(db, partId, role, content, fileName) != 0;
+		}
 	}
 
 	KicadGenerationResult KicadLibraryGenerator::generate(SQLiteWrapper::SQLite& db,
@@ -186,6 +302,10 @@ namespace PartManager
 		}
 
 		KicadEditTracker::createSchema(db);
+
+		// §5c writes back into the part's attachments, so the generator needs the store the
+		// editor uses — the same single-slot rule, from the same place.
+		FileStore store(filestorePath);
 
 		const std::filesystem::path root(kicadLibsPath);
 		const std::filesystem::path symbolsDir = root / "symbols";
@@ -219,20 +339,37 @@ namespace PartManager
 				const std::string symbolName = KicadSymbolWriter::sanitizeSymbolName(part.name);
 				const std::string targetPath = libraryName + ".kicad_sym:" + symbolName;
 
-				const KicadSymbolSpec spec = specFor(db, part, type.name, filestorePath, modelsDir,
+				KicadSymbolSpec spec = specFor(db, part, type.name, filestorePath, modelsDir,
 					result.modelsCopied);
-				symbolsByCategory[libraryName].push_back(KicadSymbolWriter::symbolBlock(spec));
+				// The footprint the symbol should reference, whether or not the part has one
+				// attached — the .pretty entry is written under the symbol's name either way.
+				PartFile footprintRow;
+				const bool hasFootprint =
+					FileStore::roleFile(db, part.id, PartFileRole::KicadFootprint, footprintRow);
+				if (hasFootprint)
+				{
+					spec.footprint = libraryName + ":" + symbolName;
+				}
+
+				// §5c: the part's own `.kicad_sym` wins over the generic template.
+				std::string block = symbolFromAttachment(db, part, filestorePath, symbolName,
+					spec.footprint, spec);
+				if (block.empty())
+				{
+					block = KicadSymbolWriter::symbolBlock(spec);
+				}
+				else
+				{
+					++result.symbolsFromAttachment;
+				}
+				symbolsByCategory[libraryName].push_back(block);
 				targetsByCategory[libraryName].push_back({ targetPath, part.id });
 
 				// Footprints are per-file, so they are a straight hash check against the file.
-				for (const PartFile& file : PartRepository::listFiles(db, part.id))
+				if (hasFootprint)
 				{
-					if (partFileRoleFromString(file.role) != PartFileRole::KicadFootprint)
-					{
-						continue;
-					}
 					const std::filesystem::path stored =
-						std::filesystem::path(filestorePath) / file.relativePath;
+						std::filesystem::path(filestorePath) / footprintRow.relativePath;
 					const std::filesystem::path target = footprintsDir
 						/ (libraryName + ".pretty")
 						/ (symbolName + ".kicad_mod");
@@ -242,6 +379,15 @@ namespace PartManager
 						target.string()) != forcePaths.end();
 					if (state == KicadItemState::EditedExternally && !forced)
 					{
+						// §5c: the edit in KiCad wins and goes back into the part's attachment, so
+						// the two copies agree again and the edit outlives `kicad_libs/`.
+						if (syncAttachment(db, store, part.id, PartFileRole::KicadFootprint, onDisk,
+							footprintRow.originalFilename.empty()
+								? symbolName + ".kicad_mod" : footprintRow.originalFilename))
+						{
+							++result.footprintsSyncedBack;
+							KicadEditTracker::rebaseline(db, target.string(), onDisk);
+						}
 						KicadSkippedItem skipped;
 						skipped.partId = part.id;
 						skipped.partName = part.name;
@@ -288,9 +434,20 @@ namespace PartManager
 					!= forcePaths.end();
 				if (state == KicadItemState::EditedExternally && !forced)
 				{
-					// The user's version wins and goes back into the file unchanged. The baseline
-					// is deliberately left alone, so it keeps being reported until they decide.
+					// The user's version wins and goes back into the file unchanged...
 					blocks.push_back(existing);
+					// ...and into the part's own attachment, so the edit survives `kicad_libs/`
+					// being deleted and the next run splices the edited symbol straight back in
+					// (§5c). The attachment is stored as a whole one-symbol library, which is
+					// exactly what symbolFromAttachment() reads and what KiCad opens directly.
+					if (syncAttachment(db, store, partId, PartFileRole::KicadSymbol,
+						KicadSymbolWriter::library({ existing }), symbolName + ".kicad_sym"))
+					{
+						++result.symbolsSyncedBack;
+						// Re-baselined because the edit is now *ours* — it is what the attachment
+						// holds, so the next run regenerates the same bytes and stops reporting it.
+						KicadEditTracker::rebaseline(db, targetPath, existing);
+					}
 					KicadSkippedItem skipped;
 					skipped.partId = partId;
 					skipped.partName = symbolName;

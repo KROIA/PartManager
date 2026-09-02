@@ -11,10 +11,24 @@
 //     kicad_libs/partmanager-sym-lib-table
 //     kicad_libs/partmanager-fp-lib-table
 //
-// **Hand edits survive.** Every symbol goes through `KicadEditTracker`: a
-// symbol whose on-disk bytes still match what PartManager last wrote is
-// regenerated, one that does not is carried across **verbatim** and reported.
+// **Hand edits survive, and they are synced back.** Every symbol goes through
+// `KicadEditTracker`: a symbol whose on-disk bytes still match what PartManager
+// last wrote is regenerated, one that does not is carried across **verbatim**,
+// reported, *and written into that part's own `part_file(role='kicad_symbol')`*.
 // The file as a whole is rewritten every run; individual symbol bodies are not.
+//
+// **Every KiCad artifact therefore lives in exactly two places, byte-identical**
+// (§5c): the part's attachment, and the generated bundle. Which one is the
+// source depends on who touched it last —
+//
+//   - attachment newer (a vendor ZIP was imported) → it is spliced into the bundle
+//   - bundle newer (edited in KiCad)               → it is written into the attachment
+//   - neither touched                              → regenerated from the template
+//
+// A part with no attached symbol still gets the generic `(extends ...)` one, and
+// editing *that* in KiCad creates the attachment — which is what makes the edit
+// survive a database move, since `kicad_libs/` is regenerable and the filestore
+// is not.
 //
 // **Only parts whose type is `kicad_relevant` are generated**, and a type with
 // no `kicad_category` inherits its nearest ancestor's (§2b). A part whose type
@@ -53,6 +67,12 @@ namespace PartManager
 		int librariesWritten = 0;
 		int symbolsGenerated = 0;
 		int symbolsPreserved = 0;        // hand-edited, carried across untouched
+		// §5c: hand-edited in KiCad and written back into the part's own attachment, so the two
+		// copies agree again. `preserved` still lists them — they were not regenerated.
+		int symbolsSyncedBack = 0;
+		int footprintsSyncedBack = 0;
+		// Symbols taken from the part's attached `.kicad_sym` instead of the generic template.
+		int symbolsFromAttachment = 0;
 		int footprintsCopied = 0;
 		int modelsCopied = 0;
 		// Parts whose type is KiCad-relevant but resolves to no category — they went nowhere and
