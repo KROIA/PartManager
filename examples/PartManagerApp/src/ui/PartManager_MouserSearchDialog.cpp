@@ -17,6 +17,8 @@
 #include <QThreadPool>
 #include <QUrl>
 
+#include <algorithm>
+
 namespace PartManager
 {
 	namespace
@@ -26,11 +28,17 @@ namespace PartManager
 			return QString::fromStdString(text);
 		}
 
-		// One screenful. The spec caps a keyword response at 50, and a search that needs more
-		// than 25 rows to find the part wants a better query, not more paging UI.
-		// ponytail: no paging. startingRecord is already plumbed through MouserClient if it is
-		// ever wanted; only the Next/Previous chrome would be missing.
+		// One screenful, which is what the first search fetches — a broad query would otherwise
+		// pay for hundreds of rows nobody scrolls to.
 		constexpr int KeywordRecords = 25;
+
+		// The spec caps one keyword response at 50, so "load 200 more" is four requests. They run
+		// back to back inside one Load more press rather than making the user press it four times.
+		constexpr int MaxRecordsPerRequest = 50;
+
+		// Load-more choices. 0 means "everything Mouser says it has", which is bounded by
+		// NumberOfResult and so cannot run away.
+		const int LoadMoreChoices[] = { 25, 50, 100, 250, 0 };
 
 		// Row picture height. Mouser's `lrg` variant is around 800 px wide, so it is scaled down
 		// hard — but it is the same URL the part will be given on "Use this part", so the bytes
@@ -121,7 +129,15 @@ namespace PartManager
 		m_ui->resultsTable->setColumnWidth(ColumnThumbnail, ThumbnailSize + 8);
 		m_ui->resultsTable->horizontalHeader()->setSectionResizeMode(ColumnDescription, QHeaderView::Stretch);
 
+		for (const int choice : LoadMoreChoices)
+		{
+			m_ui->loadMoreCombo->addItem(choice == 0
+				? tr("all of them") : tr("%n more", "", choice), choice);
+		}
+		m_ui->loadMoreCombo->setCurrentIndex(1);   // 50: one request, a screenful and a half
+
 		connect(m_ui->searchButton, &QPushButton::clicked, this, &MouserSearchDialog::search);
+		connect(m_ui->loadMoreButton, &QPushButton::clicked, this, &MouserSearchDialog::loadMore);
 		connect(m_ui->searchEdit, &QLineEdit::returnPressed, this, &MouserSearchDialog::search);
 		connect(m_ui->resultsTable, &QTableWidget::itemSelectionChanged, this, &MouserSearchDialog::updateButtons);
 		connect(m_ui->resultsTable, &QTableWidget::itemDoubleClicked, this, &MouserSearchDialog::useSelected);
@@ -190,14 +206,15 @@ namespace PartManager
 			needle = fromUrl;
 		}
 
-		bool byKeyword = false;
+		m_needle = needle;
+		m_byKeyword = false;
 		MouserSearchResult result = m_client.searchByPartNumber(needle);
 		if (result.ok && result.parts.empty())
 		{
 			// Not a part number then. The keyword endpoint is the only other thing to try, and
 			// trying it beats making the user pick the right endpoint before they know the answer.
 			result = m_client.searchByKeyword(needle, KeywordRecords);
-			byKeyword = true;
+			m_byKeyword = true;
 		}
 
 		QApplication::restoreOverrideCursor();
@@ -206,12 +223,14 @@ namespace PartManager
 		if (!result.ok)
 		{
 			m_results.clear();
+			m_totalResults = 0;
 			showResults();
 			m_ui->statusLabel->setText(tr("Search failed: %1").arg(toQt(result.errorMessage)));
 			return;
 		}
 
 		m_results = result.parts;
+		m_totalResults = result.numberOfResults;
 		// rankByMatch scores part numbers; on a keyword query nothing scores and it degrades to
 		// a stable no-op, leaving Mouser's own relevance order — which is the right order there.
 		MouserSearchService::rankByMatch(m_results, needle);
@@ -222,17 +241,109 @@ namespace PartManager
 			m_ui->statusLabel->setText(tr("Mouser has nothing for “%1”.").arg(query));
 			return;
 		}
+		showResultCount();
+	}
+
+	void MouserSearchDialog::showResultCount()
+	{
 		const int shown = static_cast<int>(m_results.size());
-		if (result.numberOfResults > shown)
+		if (m_totalResults > shown)
 		{
 			m_ui->statusLabel->setText(tr("Showing %1 of %2 keyword matches, most relevant first.")
-				.arg(shown).arg(result.numberOfResults));
+				.arg(shown).arg(m_totalResults));
 		}
 		else
 		{
-			m_ui->statusLabel->setText(byKeyword
+			m_ui->statusLabel->setText(m_byKeyword
 				? tr("%n keyword match(es), most relevant first.", "", shown)
 				: tr("%n part-number match(es), closest first.", "", shown));
+		}
+	}
+
+	void MouserSearchDialog::updateLoadMore()
+	{
+		// Only a keyword search pages. /search/partnumber takes no startingRecord and hands back
+		// everything it matched, so there is never a next page to ask for.
+		const int shown = static_cast<int>(m_results.size());
+		const bool more = m_byKeyword && shown > 0 && m_totalResults > shown;
+		m_ui->loadMoreButton->setEnabled(more);
+		m_ui->loadMoreCombo->setEnabled(more);
+		m_ui->loadMoreButton->setToolTip(more
+			? tr("%n further result(s) available.", "", m_totalResults - shown)
+			: QString());
+	}
+
+	void MouserSearchDialog::loadMore()
+	{
+		const int already = static_cast<int>(m_results.size());
+		if (!m_byKeyword || m_needle.empty() || m_totalResults <= already)
+		{
+			return;
+		}
+		// showResults() rebuilds every row, which drops the selection and scrolls back to the
+		// top. Appending 200 rows and losing the one the user was reading is the worse of the
+		// two, so the row is put back afterwards.
+		const int selectedBefore = m_ui->resultsTable->currentRow();
+
+		const int asked = m_ui->loadMoreCombo->currentData().toInt();
+		// 0 is the combo's "all of them"; either way the ceiling is what Mouser says exists, so
+		// a wrong NumberOfResult can cost one empty request, not an unbounded loop.
+		const int target = asked == 0
+			? m_totalResults : std::min(m_totalResults, already + asked);
+
+		m_ui->loadMoreButton->setEnabled(false);
+		m_ui->searchButton->setEnabled(false);
+		QApplication::setOverrideCursor(Qt::WaitCursor);
+
+		QString failure;
+		while (static_cast<int>(m_results.size()) < target)
+		{
+			const int startingRecord = static_cast<int>(m_results.size());
+			const int wanted = std::min(MaxRecordsPerRequest, target - startingRecord);
+
+			// Each request blocks for up to the client's timeout, so "load 250 more" can sit here
+			// for a while. The status line is repainted between requests rather than only at the
+			// end — without it a five-request fetch looks like a hung window.
+			m_ui->statusLabel->setText(tr("Fetching results %1–%2 of %3…")
+				.arg(startingRecord + 1).arg(startingRecord + wanted).arg(m_totalResults));
+			QApplication::processEvents();
+
+			const MouserSearchResult page =
+				m_client.searchByKeyword(m_needle, wanted, startingRecord);
+			if (!page.ok)
+			{
+				failure = toQt(page.errorMessage);
+				break;
+			}
+			if (page.parts.empty())
+			{
+				// NumberOfResult promised more than the endpoint will hand over. Believing the
+				// promise over the evidence is what would loop forever.
+				m_totalResults = static_cast<int>(m_results.size());
+				break;
+			}
+			m_results.insert(m_results.end(), page.parts.begin(), page.parts.end());
+			// Deliberately not re-ranked: rankByMatch is a no-op on keyword hits anyway, and
+			// re-sorting the whole set would shuffle rows the user is already looking at.
+		}
+
+		QApplication::restoreOverrideCursor();
+		m_ui->searchButton->setEnabled(true);
+		showResults();
+		if (selectedBefore >= 0 && selectedBefore < m_ui->resultsTable->rowCount())
+		{
+			m_ui->resultsTable->selectRow(selectedBefore);
+			m_ui->resultsTable->scrollToItem(m_ui->resultsTable->item(selectedBefore, 0));
+		}
+		if (failure.isEmpty())
+		{
+			showResultCount();
+		}
+		else
+		{
+			// The pages that did arrive are kept and shown; only the rest is lost.
+			m_ui->statusLabel->setText(tr("Showing %1 of %2 — loading more failed: %3")
+				.arg(m_results.size()).arg(m_totalResults).arg(failure));
 		}
 	}
 
@@ -288,6 +399,7 @@ namespace PartManager
 		m_ui->resultsTable->setColumnWidth(ColumnFiles, 4 * FileGlyphSize + 3 * 3 + 12);
 		m_ui->resultsTable->horizontalHeader()->setSectionResizeMode(ColumnDescription, QHeaderView::Stretch);
 		updateButtons();
+		updateLoadMore();
 	}
 
 	void MouserSearchDialog::requestThumbnail(const QString& url)

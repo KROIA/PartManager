@@ -47,6 +47,9 @@ namespace PartManager
 	private slots:
 		// Runs the search and refills the table. Blocking, see the header note.
 		void search();
+		// Fetches the next N keyword hits and appends them, N being the footer combo's choice.
+		// Blocking, and for N > 50 it really is several requests — see the .cpp note.
+		void loadMore();
 		// Turns the selected row into a prefill and closes.
 		void useSelected();
 		// Opens the selected row's ProductDetailUrl in the system browser (§6).
@@ -57,6 +60,12 @@ namespace PartManager
 	private:
 		// Fills the table from m_results, already ranked.
 		void showResults();
+		// Enables the Load more button and says what it would fetch. Only a keyword search can
+		// page: the part-number endpoint has no startingRecord and returns everything it has.
+		void updateLoadMore();
+		// The status line under the table, from the current result count. One function because
+		// the first search and every appended page have to word it the same way.
+		void showResultCount();
 		// The MouserPartDto behind the selected row, nullptr when nothing is selected.
 		const MouserPartDto* selectedDto() const;
 
@@ -83,6 +92,12 @@ namespace PartManager
 		MouserClient m_client;
 		std::vector<MouserPartDto> m_results;
 		MouserPartPrefill m_prefill;
+		// What the current result set came from, so Load more can ask for the next page of the
+		// same thing. `m_needle` is the resolved query — a pasted product link has already been
+		// reduced to its part number by then, and paging must repeat that, not the raw URL.
+		std::string m_needle;
+		bool m_byKeyword = false;
+		int m_totalResults = 0;         // NumberOfResult, i.e. how many exist, not how many are shown
 		// Mouser reuses one stock photo across a whole series, so a 25-row result set is
 		// routinely a handful of distinct pictures. Cache holds a null pixmap for a failed or
 		// undecodable download too, so a dead URL is attempted once and not once per search.

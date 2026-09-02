@@ -87,6 +87,23 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="loadMoreButton">
+       <property name="text">
+        <string>Load more</string>
+       </property>
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="loadMoreCombo">
+       <property name="toolTip">
+        <string>How many further results to fetch. Mouser caps one response at 50, so a larger number is fetched in several requests.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="footerSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
