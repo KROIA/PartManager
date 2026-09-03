@@ -81,6 +81,19 @@ namespace PartManager
 			const std::string& category, const std::string& description,
 			std::string* outPackage = nullptr);
 
+		// The chip size an MPN spells out — "CRT0603-BY-1002ELF" -> "0603" — "" when it does not.
+		//
+		// The last of the three sources for `part.package`, after the API's own attribute (which
+		// this account receives as `Gehäuse-Code - Inch`, when it receives it at all) and the
+		// description. Manufacturers put the case code in the part number far more reliably than
+		// Mouser puts it in either, which is why an empty Gehäuse field survived both.
+		//
+		// Only whole digit runs are compared, and only against the standard imperial sizes:
+		// "1002" and "5102" in the example above are runs of their own and match nothing, and
+		// "1038" (a Bourns case code) is not a chip size. A substring search would instead find a
+		// "0603" inside any long digit group and fill the field with a coincidence.
+		static std::string packageFromPartNumber(const std::string& partNumber);
+
 		// A pasted Mouser product page URL -> the part number in its path, "" for anything else.
 		// `.../ProductDetail/<Manufacturer>/<PartNumber>?qs=...` on any of Mouser's country
 		// domains; the query string and fragment are dropped. Feeding the result to

@@ -26,6 +26,7 @@ public:
 		ADD_TEST(TST_MouserSearchService::anEmptyDatasheetUrlFallsBackToTheManufacturer);
 		ADD_TEST(TST_MouserSearchService::descriptionsFillTheTemplatesSlots);
 		ADD_TEST(TST_MouserSearchService::anAmbiguousDescriptionTokenIsLeftAlone);
+		ADD_TEST(TST_MouserSearchService::thePartNumberIsTheLastSourceOfAPackage);
 	}
 
 private:
@@ -444,6 +445,29 @@ private:
 		S::attributesFromDescription("Inductor", "Power Inductors - SMD",
 			"Power Inductors - SMD 5uH 30% SMD 1038", &package);
 		TEST_ASSERT_M(package.empty(), package);
+	}
+
+	// Every MPN here is one the user actually stocks. The negatives matter more than the
+	// positives: this runs on every imported part, and a coincidence in a long digit group would
+	// fill the Gehäuse field with a wrong size that looks exactly like a right one.
+	TEST_FUNCTION(thePartNumberIsTheLastSourceOfAPackage)
+	{
+		TEST_START;
+		using S = PartManager::MouserSearchService;
+
+		TEST_COMPARE(S::packageFromPartNumber("CRT0603-BY-1002ELF"), std::string("0603"));
+		TEST_COMPARE(S::packageFromPartNumber("CR0805-FX-5102ELF"), std::string("0805"));
+		TEST_COMPARE(S::packageFromPartNumber("CR0603-JW-202ELF"), std::string("0603"));
+
+		// Digit runs are compared whole. "7002" and "4448" are not chip sizes, "1038" is a Bourns
+		// case code, and the Wurth and Samsung numbers are one long run with no size in them.
+		TEST_COMPARE(S::packageFromPartNumber("2N7002-7-F"), std::string());
+		TEST_COMPARE(S::packageFromPartNumber("1N4448"), std::string());
+		TEST_COMPARE(S::packageFromPartNumber("SRU1038-5R0Y"), std::string());
+		TEST_COMPARE(S::packageFromPartNumber("885012207054"), std::string());
+		TEST_COMPARE(S::packageFromPartNumber("150120YS75000"), std::string());
+		TEST_COMPARE(S::packageFromPartNumber("CL05B104KA5NNNC"), std::string());
+		TEST_COMPARE(S::packageFromPartNumber(""), std::string());
 	}
 };
 

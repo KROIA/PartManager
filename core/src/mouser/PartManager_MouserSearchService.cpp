@@ -791,6 +791,35 @@ namespace PartManager
 		return json;
 	}
 
+	std::string MouserSearchService::packageFromPartNumber(const std::string& partNumber)
+	{
+		// Whole digit runs only. A chip size is written as its own group inside an MPN
+		// ("CRT0603-BY-1002ELF", "CR0805-FX-5102ELF"), so a run is compared as a unit and never
+		// searched inside: "1002" and "5102" sit in runs of their own and match nothing, while a
+		// substring search would find "100" and "510" in half the catalogue.
+		size_t index = 0;
+		while (index < partNumber.size())
+		{
+			if (partNumber[index] < '0' || partNumber[index] > '9')
+			{
+				++index;
+				continue;
+			}
+			size_t end = index;
+			while (end < partNumber.size() && partNumber[end] >= '0' && partNumber[end] <= '9')
+			{
+				++end;
+			}
+			const std::string run = partNumber.substr(index, end - index);
+			if (isPackageCode(run))
+			{
+				return run;
+			}
+			index = end;
+		}
+		return std::string();
+	}
+
 	std::string MouserSearchService::attributesFromDescription(const std::string& typeName,
 		const std::string& category, const std::string& description, std::string* outPackage)
 	{
@@ -923,7 +952,13 @@ namespace PartManager
 
 		// Mouser has no dedicated package field — it lives in the parametric table under one of
 		// a handful of names.
-		static const char* const packageNames[] = { "package / case", "package/case", "package", "case code (imperial)" };
+		// The German spellings are here because this key is region-bound: the same account reads
+		// "Gehäuse-Code - Inch" where an en-US one reads "Case Code (Imperial)". Cheap to accept
+		// both, and a locale change would otherwise silently stop filling the field.
+		static const char* const packageNames[] = { "package / case", "package/case", "package",
+			"case code (imperial)", "case code (inch)", "case code - inch",
+			"geh\xC3\xA4use-code - inch", "geh\xC3\xA4usecode - inch", "geh\xC3\xA4use-code inch",
+			"geh\xC3\xA4use" };
 		for (const char* wanted : packageNames)
 		{
 			for (const MouserProductAttribute& attribute : dto.productAttributes)
@@ -962,6 +997,10 @@ namespace PartManager
 		if (prefill.part.package.empty())
 		{
 			prefill.part.package = describedPackage;
+		}
+		if (prefill.part.package.empty())
+		{
+			prefill.part.package = packageFromPartNumber(dto.manufacturerPartNumber);
 		}
 
 		prefill.priceBreaks = toPriceObservations(dto.priceBreaks);
