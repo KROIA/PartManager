@@ -1,5 +1,7 @@
 #include "ui/PartManager_KicadLibraryDialog.h"
 
+#include "kicad/PartManager_KicadLibTable.h"
+
 #include <QDesktopServices>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -138,9 +140,16 @@ namespace PartManager
 		// earlier session — the button does not wait for a Generate in this one.
 		const QStringList names = m_controller.lastLibraryNames();
 		m_installButton->setEnabled(!names.isEmpty());
-		m_librariesLabel->setText(names.isEmpty()
+		// The nicknames, not the file names — what KiCad's chooser shows and what the user has
+		// to search for there.
+		QStringList nicknames;
+		for (const QString& name : names)
+		{
+			nicknames.append(QString::fromStdString(KicadLibTable::nicknameFor(name.toStdString())));
+		}
+		m_librariesLabel->setText(nicknames.isEmpty()
 			? tr("No libraries generated yet.")
-			: tr("Libraries: %1").arg(names.join(QStringLiteral(", "))));
+			: tr("In KiCad they are called: %1").arg(nicknames.join(QStringLiteral(", "))));
 	}
 
 	QString KicadLibraryDialog::chooseInstallTarget(bool& outIsGlobal)
@@ -216,10 +225,12 @@ namespace PartManager
 		}
 		QMessageBox::information(this, tr("Installed"),
 			isGlobal
-			? tr("The libraries are in KiCad's global tables. Open KiCad and they are in the "
-				 "symbol and footprint choosers — no restart of PartManager needed.")
-			: tr("The libraries are in that project's tables. They appear when the project is "
-				 "open, and nowhere else."));
+			? tr("The libraries are in KiCad's global tables and pinned, so they sit at the top of "
+				 "the symbol and footprint choosers under \"%1\".")
+				.arg(QString::fromLatin1(KicadLibTable::NicknamePrefix))
+			: tr("The libraries are in that project's tables and pinned, so they sit at the top of "
+				 "the choosers under \"%1\" when the project is open.")
+				.arg(QString::fromLatin1(KicadLibTable::NicknamePrefix)));
 	}
 
 	void KicadLibraryDialog::regenerateSelected()

@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QObject>
@@ -80,22 +81,53 @@ namespace PartManager
 			return file.write(text.toUtf8()) == text.toUtf8().size();
 		}
 
-		// PARTMANAGER_KICAD_LIBS in KiCad's own `kicad_common.json` (`environment.vars`). The
-		// footprints' `(model ...)` paths are written against it, so a library installed without
-		// it shows symbols and footprints and no 3D models — which reads as a broken export
-		// rather than a missing setting.
-		bool writePathVariable(const QString& configDir, const QString& value, QString* outError)
+		QJsonArray toArray(const QStringList& values)
+		{
+			QJsonArray array;
+			for (const QString& value : values)
+			{
+				array.append(value);
+			}
+			return array;
+		}
+
+		// Two settings in KiCad's own `kicad_common.json`:
+		//
+		//   - **`environment.vars`** — PARTMANAGER_KICAD_LIBS. The footprints' `(model ...)` paths
+		//     are written against it, so a library installed without it shows symbols and
+		//     footprints and no 3D models, which reads as a broken export rather than a missing
+		//     setting.
+		//   - **`session.pinned_symbol_libs` / `pinned_fp_libs`** — KiCad's "favourite" libraries,
+		//     which it floats to the top of the symbol and footprint choosers. Measured against a
+		//     real KiCad 9 install; this is where its own Pin button writes.
+		bool writeCommonSettings(const QString& configDir, const QString& libraryRoot,
+			const QStringList& nicknames, QString* outError)
 		{
 			const QString path = QDir(configDir).absoluteFilePath(QStringLiteral("kicad_common.json"));
 			QJsonObject root = QJsonDocument::fromJson(readTextFile(path).toUtf8()).object();
+
 			QJsonObject environment = root.value(QStringLiteral("environment")).toObject();
 			QJsonObject vars = environment.value(QStringLiteral("vars")).toObject();
 			// Forward slashes: KiCad stores paths this way on Windows too, and a backslash would
 			// have to be escaped in the JSON for no gain.
 			vars.insert(QString::fromLatin1(KicadLibraryGenerator::PathVariable),
-				QDir::fromNativeSeparators(value));
+				QDir::fromNativeSeparators(libraryRoot));
 			environment.insert(QStringLiteral("vars"), vars);
 			root.insert(QStringLiteral("environment"), environment);
+
+			QJsonObject session = root.value(QStringLiteral("session")).toObject();
+			for (const char* key : { "pinned_symbol_libs", "pinned_fp_libs" })
+			{
+				QStringList existing;
+				for (const QJsonValue& value : session.value(QLatin1String(key)).toArray())
+				{
+					existing.append(value.toString());
+				}
+				session.insert(QLatin1String(key),
+					toArray(KicadController::mergePinned(existing, nicknames)));
+			}
+			root.insert(QStringLiteral("session"), session);
+
 			return writeTextFileWithBackup(path,
 				QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented)), outError);
 		}
@@ -259,14 +291,47 @@ namespace PartManager
 				"not found, so %1 has to be added by hand under Preferences → Configure Paths.")
 				.arg(QString::fromLatin1(KicadLibraryGenerator::PathVariable)));
 		}
+		QStringList nicknames;
+		for (const QString& name : names)
+		{
+			nicknames.append(QString::fromStdString(KicadLibTable::nicknameFor(name.toStdString())));
+		}
 		for (const QString& configDir : configDirs)
 		{
-			if (!writePathVariable(configDir, root, outError))
+			if (!writeCommonSettings(configDir, root, nicknames, outError))
 			{
 				return false;
 			}
 		}
 		return true;
+	}
+
+	QStringList KicadController::mergePinned(const QStringList& existing, const QStringList& ours)
+	{
+		// Everything the user pinned themselves is kept, in their order. Ours that are gone are
+		// dropped — a pin for a library that no longer exists is dead weight in the chooser — but
+		// only ours: a stale pin of the user's is theirs to remove.
+		const QString prefix = QString::fromLatin1(KicadLibTable::NicknamePrefix);
+		QStringList merged;
+		for (const QString& pinned : existing)
+		{
+			if (pinned.startsWith(prefix) && !ours.contains(pinned))
+			{
+				continue;
+			}
+			if (!merged.contains(pinned))
+			{
+				merged.append(pinned);
+			}
+		}
+		for (const QString& nickname : ours)
+		{
+			if (!merged.contains(nickname))
+			{
+				merged.append(nickname);
+			}
+		}
+		return merged;
 	}
 
 	QString KicadController::setupInstructions() const

@@ -63,6 +63,12 @@ namespace PartManager
 		// The libraries as they were last generated, for a table written without regenerating.
 		QStringList lastLibraryNames() const;
 
+		// `ours` merged into KiCad's pinned-library list. The user's own pins are kept in their
+		// order; a PartManager pin whose library no longer exists is dropped, since a pin for a
+		// missing library is dead weight at the top of the chooser. Public because it is the one
+		// piece of this worth asserting on without a KiCad install.
+		static QStringList mergePinned(const QStringList& existing, const QStringList& ours);
+
 	private:
 		// The nicknames of the libraries currently on disk under libraryPath()/symbols.
 		QStringList libraryNamesOnDisk() const;

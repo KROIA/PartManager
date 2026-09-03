@@ -35,6 +35,7 @@ public:
 		ADD_TEST(TST_KicadLibrary::editStateComparesAgainstTheBaselineNotACandidate);
 		ADD_TEST(TST_KicadLibrary::mergingIntoKicadsTableKeepsWhatIsAlreadyThere);
 		ADD_TEST(TST_KicadLibrary::kicadsOwnSettingsFolderIsFound);
+		ADD_TEST(TST_KicadLibrary::pinningKeepsWhatTheUserPinned);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_KicadLibrary::handEditedSymbolsSurviveRegeneration);
 #endif
@@ -372,6 +373,15 @@ private:
 		TEST_ASSERT_M(merged.find("${PARTMANAGER_KICAD_LIBS}/symbols/ICs.kicad_sym")
 			!= std::string::npos, merged);
 
+		// The nickname is prefixed and the path is not: KiCad's chooser is one flat alphabetical
+		// list of every library on the machine, so an unprefixed "Resistors" is unfindable among
+		// KiCad's own - but renaming the file would strand every edit-tracker baseline.
+		TEST_ASSERT_M(merged.find("(name \"PartManager_Resistors\")") != std::string::npos, merged);
+		TEST_COMPARE(Table::nicknameFor("Resistors"), std::string("PartManager_Resistors"));
+		// Idempotent, so a name that already carries the prefix is not doubled.
+		TEST_COMPARE(Table::nicknameFor("PartManager_Resistors"),
+			std::string("PartManager_Resistors"));
+
 		// Idempotent: installing twice must not accumulate rows, or KiCad reports duplicate
 		// nicknames and refuses the table.
 		TEST_COMPARE(Table::merge(merged, "sym_lib_table", entries), merged);
@@ -387,7 +397,7 @@ private:
 		// the marker decides, not the name.
 		const std::string clash =
 			"(sym_lib_table\n  (version 7)\n"
-			"  (lib (name \"Resistors\")(type \"KiCad\")(uri \"/somewhere/mine.kicad_sym\")"
+			"  (lib (name \"PartManager_Resistors\")(type \"KiCad\")(uri \"/somewhere/mine.kicad_sym\")"
 			"(options \"\")(descr \"mine\"))\n)\n";
 		TEST_ASSERT_M(Table::merge(clash, "sym_lib_table", entries).find("/somewhere/mine.kicad_sym")
 			!= std::string::npos, "a same-named library of the user's must not be replaced");
@@ -437,6 +447,37 @@ private:
 		{
 			TEST_MESSAGE("no KiCad on this machine - only the shape of the answer was checked");
 		}
+	}
+
+	// KiCad's "favourite" libraries (`session.pinned_symbol_libs` in kicad_common.json, measured
+	// against a real KiCad 9 install). The list is shared with whatever the user pinned by hand,
+	// so the interesting cases are all about not trampling those.
+	TEST_FUNCTION(pinningKeepsWhatTheUserPinned)
+	{
+		TEST_START;
+		using Controller = PartManager::KicadController;
+
+		const QStringList ours{ "PartManager_Resistors", "PartManager_ICs" };
+
+		// The user's own pins keep their place, ours are appended.
+		const QStringList merged = Controller::mergePinned(QStringList{ "Device", "Connector" }, ours);
+		TEST_COMPARE(merged.size(), 4);
+		TEST_COMPARE(merged.at(0), QString("Device"));
+		TEST_COMPARE(merged.at(1), QString("Connector"));
+		TEST_ASSERT_M(merged.contains("PartManager_Resistors"), merged.join(",").toStdString());
+
+		// Idempotent - installing twice must not pin the same library twice.
+		TEST_COMPARE(Controller::mergePinned(merged, ours), merged);
+
+		// A PartManager pin whose library is gone is dropped: it would sit at the top of the
+		// chooser pointing at nothing.
+		const QStringList fewer = Controller::mergePinned(merged, QStringList{ "PartManager_Resistors" });
+		TEST_ASSERT_M(!fewer.contains("PartManager_ICs"), fewer.join(",").toStdString());
+		TEST_ASSERT_M(fewer.contains("Device"), fewer.join(",").toStdString());
+
+		// A stale pin of the *user's* is theirs, not ours to clean up.
+		const QStringList untouched = Controller::mergePinned(QStringList{ "SomethingOld" }, ours);
+		TEST_ASSERT_M(untouched.contains("SomethingOld"), untouched.join(",").toStdString());
 	}
 
 };

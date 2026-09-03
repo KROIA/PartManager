@@ -51,6 +51,19 @@ namespace PartManager
 		// What marks a row as PartManager's, in the `descr` field KiCad round-trips untouched.
 		static const char* const Marker;
 
+		// What every nickname starts with. KiCad's symbol chooser is a flat alphabetical list of
+		// every library on the machine, so "Capacitors" lands among KiCad's own and cannot be
+		// found; "PartManager_Capacitors" groups them together under one letter.
+		static const char* const NicknamePrefix;
+
+		// The nickname KiCad shows for a generated library. Idempotent, so a category someone
+		// already named `PartManager_Something` is not prefixed twice.
+		//
+		// **Only the nickname is prefixed, not the file.** `kicad_libs/symbols/Capacitors.kicad_sym`
+		// keeps its name, so this renames nothing on disk, invalidates no `KicadEditTracker`
+		// baseline (they are keyed by file path) and leaves no stale libraries behind.
+		static std::string nicknameFor(const std::string& libraryName);
+
 		// The rows for a set of generated libraries.
 		static std::vector<KicadLibEntry> symbolEntries(const std::vector<std::string>& libraryNames,
 			const std::string& pathVariable);

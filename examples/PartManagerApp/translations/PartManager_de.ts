@@ -1258,7 +1258,7 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
     </message>
     <message>
         <source>Libraries: %1</source>
-        <translation>Bibliotheken: %1</translation>
+        <translation type="vanished">Bibliotheken: %1</translation>
     </message>
     <message>
         <source>Install in KiCad</source>
@@ -1328,11 +1328,23 @@ Fortfahren?</translation>
     </message>
     <message>
         <source>The libraries are in KiCad&apos;s global tables. Open KiCad and they are in the symbol and footprint choosers — no restart of PartManager needed.</source>
-        <translation>Die Bibliotheken stehen in KiCads globalen Tabellen. KiCad öffnen und sie sind in der Symbol- und Footprint-Auswahl — PartManager muss nicht neu gestartet werden.</translation>
+        <translation type="vanished">Die Bibliotheken stehen in KiCads globalen Tabellen. KiCad öffnen und sie sind in der Symbol- und Footprint-Auswahl — PartManager muss nicht neu gestartet werden.</translation>
     </message>
     <message>
         <source>The libraries are in that project&apos;s tables. They appear when the project is open, and nowhere else.</source>
-        <translation>Die Bibliotheken stehen in den Tabellen dieses Projekts. Sie erscheinen, wenn das Projekt geöffnet ist, und sonst nirgends.</translation>
+        <translation type="vanished">Die Bibliotheken stehen in den Tabellen dieses Projekts. Sie erscheinen, wenn das Projekt geöffnet ist, und sonst nirgends.</translation>
+    </message>
+    <message>
+        <source>In KiCad they are called: %1</source>
+        <translation>In KiCad heißen sie: %1</translation>
+    </message>
+    <message>
+        <source>The libraries are in KiCad&apos;s global tables and pinned, so they sit at the top of the symbol and footprint choosers under &quot;%1&quot;.</source>
+        <translation>Die Bibliotheken stehen in KiCads globalen Tabellen und sind angeheftet — sie stehen unter „%1“ ganz oben in der Symbol- und Footprint-Auswahl.</translation>
+    </message>
+    <message>
+        <source>The libraries are in that project&apos;s tables and pinned, so they sit at the top of the choosers under &quot;%1&quot; when the project is open.</source>
+        <translation>Die Bibliotheken stehen in den Tabellen dieses Projekts und sind angeheftet — sie stehen unter „%1“ ganz oben in der Auswahl, wenn das Projekt geöffnet ist.</translation>
     </message>
 </context>
 <context>
@@ -3678,7 +3690,7 @@ Das Bauteil selbst ist davon nicht betroffen.</translation>
      ${%1}/footprints/&lt;Category&gt;.pretty
 
 The generated partmanager-sym-lib-table and partmanager-fp-lib-table in the folder above list every entry, so they can be pasted in rather than typed.</source>
-        <translation>„In KiCad installieren" erledigt das. Von Hand geht es so:
+        <translation>„In KiCad installieren&quot; erledigt das. Von Hand geht es so:
 
 1. KiCad → Einstellungen → Pfade konfigurieren: Variable anlegen
      %1  =  %2
