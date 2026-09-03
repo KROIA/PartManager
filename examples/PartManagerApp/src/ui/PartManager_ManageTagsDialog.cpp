@@ -2,6 +2,8 @@
 #include "ui_PartManager_ManageTagsDialog.h"
 #include "persistence/PartManager_TagRepository.h"
 
+#include <algorithm>
+
 #include <QColorDialog>
 #include <QFont>
 #include <QInputDialog>
@@ -53,6 +55,10 @@ namespace PartManager
 		connect(m_ui->renameButton, &QPushButton::clicked, this, &ManageTagsDialog::onRename);
 		connect(m_ui->colorButton, &QPushButton::clicked, this, &ManageTagsDialog::onRecolour);
 		connect(m_ui->moveButton, &QPushButton::clicked, this, &ManageTagsDialog::onMoveToCategory);
+		connect(m_ui->moveUpButton, &QPushButton::clicked, this, &ManageTagsDialog::onMoveUp);
+		connect(m_ui->moveDownButton, &QPushButton::clicked, this, &ManageTagsDialog::onMoveDown);
+		connect(m_ui->gradientButton, &QPushButton::clicked, this,
+			&ManageTagsDialog::onRecalculateGradient);
 		connect(m_ui->deleteButton, &QPushButton::clicked, this, &ManageTagsDialog::onDelete);
 		connect(m_ui->closeButton, &QPushButton::clicked, this, &ManageTagsDialog::accept);
 		connect(m_ui->tagTree, &QTreeWidget::itemSelectionChanged, this, &ManageTagsDialog::updateButtons);
@@ -147,12 +153,134 @@ namespace PartManager
 
 	void ManageTagsDialog::updateButtons()
 	{
-		const bool isTag = selectedTag().id != NoTagId;
-		const bool isCategory = selectedCategory().id != NoTagCategoryId;
+		const Tag tag = selectedTag();
+		const TagCategory category = selectedCategory();
+		const bool isTag = tag.id != NoTagId;
+		const bool isCategory = category.id != NoTagCategoryId;
 		m_ui->renameButton->setEnabled(isTag || isCategory);
 		m_ui->colorButton->setEnabled(isTag || isCategory);
 		m_ui->deleteButton->setEnabled(isTag || isCategory);
 		m_ui->moveButton->setEnabled(isTag);
+
+		// Up/Down move a tag inside whatever group it sits in, the uncategorised one included,
+		// and are dead at the ends rather than silently doing nothing.
+		int position = -1;
+		int groupSize = 0;
+		if (isTag)
+		{
+			const std::vector<Tag> group = tagsInCategory(tag.categoryId);
+			groupSize = static_cast<int>(group.size());
+			for (int i = 0; i < groupSize; ++i)
+			{
+				if (group[static_cast<size_t>(i)].id == tag.id)
+				{
+					position = i;
+				}
+			}
+		}
+		m_ui->moveUpButton->setEnabled(position > 0);
+		m_ui->moveDownButton->setEnabled(position >= 0 && position < groupSize - 1);
+		// Two tags are both endpoints, so a gradient over them would compute nothing. Three is
+		// the first size where the button has something to say.
+		m_ui->gradientButton->setEnabled(isCategory
+			&& tagsInCategory(category.id).size() >= 3);
+	}
+
+	std::vector<Tag> ManageTagsDialog::tagsInCategory(int categoryId) const
+	{
+		// From m_tags, which arrives ordered by sort_order — the same order the tree paints and
+		// the order the gradient walks. Re-querying per category would answer the same thing.
+		std::vector<Tag> group;
+		for (const Tag& tag : m_tags)
+		{
+			if (tag.categoryId == categoryId)
+			{
+				group.push_back(tag);
+			}
+		}
+		return group;
+	}
+
+	void ManageTagsDialog::moveSelectedTag(int offset)
+	{
+		const Tag tag = selectedTag();
+		if (tag.id == NoTagId)
+		{
+			return;
+		}
+		std::vector<Tag> group = tagsInCategory(tag.categoryId);
+		const int size = static_cast<int>(group.size());
+		int position = -1;
+		for (int i = 0; i < size; ++i)
+		{
+			if (group[static_cast<size_t>(i)].id == tag.id)
+			{
+				position = i;
+			}
+		}
+		const int target = position + offset;
+		if (position < 0 || target < 0 || target >= size)
+		{
+			return;
+		}
+		std::swap(group[static_cast<size_t>(position)], group[static_cast<size_t>(target)]);
+
+		// The whole group is renumbered, not just the two that swapped: seeded and hand-made tags
+		// can share a sort_order (ties break by name), and one pair of writes into that leaves an
+		// order that reads as unchanged.
+		for (int i = 0; i < size; ++i)
+		{
+			Tag member = group[static_cast<size_t>(i)];
+			if (member.sortOrder == i)
+			{
+				continue;
+			}
+			member.sortOrder = i;
+			m_controller.updateTag(member);
+		}
+		refreshTree();
+	}
+
+	void ManageTagsDialog::onMoveUp()
+	{
+		moveSelectedTag(-1);
+	}
+
+	void ManageTagsDialog::onMoveDown()
+	{
+		moveSelectedTag(1);
+	}
+
+	void ManageTagsDialog::onRecalculateGradient()
+	{
+		const TagCategory category = selectedCategory();
+		if (category.id == NoTagCategoryId)
+		{
+			return;
+		}
+		const std::vector<Tag> group = tagsInCategory(category.id);
+		const int size = static_cast<int>(group.size());
+		if (size < 3)
+		{
+			return;
+		}
+
+		// The ends are what the user coloured; only what lies between them is derived. Rewriting
+		// the endpoints too would make the button destroy its own inputs on a second press.
+		const std::string first = group.front().color;
+		const std::string last = group.back().color;
+		for (int i = 1; i < size - 1; ++i)
+		{
+			Tag member = group[static_cast<size_t>(i)];
+			const std::string blended = TagRepository::blendOf(first, last, i, size);
+			if (member.color == blended)
+			{
+				continue;
+			}
+			member.color = blended;
+			m_controller.updateTag(member);
+		}
+		refreshTree();
 	}
 
 	Tag ManageTagsDialog::selectedTag() const

@@ -11,6 +11,15 @@
 // the point of having families at all; a tag can still be given its own colour
 // afterwards and keeps it.
 //
+// **Gradient** is the second way to colour a family, for the ramps a single base
+// colour cannot express — a lifecycle reading green through amber to red. It
+// spreads the members evenly between the *first and last tag's own* colours, so
+// the two ends are chosen with the ordinary colour picker and the middle is
+// derived. That makes the order inside a category meaningful, which is what Up /
+// Down are for; they rewrite `tag.sort_order` for the whole group, and every list
+// in the app orders by it, so the ramp reads the same in the chips, the "+ Tag"
+// menu and the filter drop-down.
+//
 // Reachable from the Parts ribbon tab's *Manage* group. Every action writes
 // through immediately (there is no OK/Cancel over the tree), which matches §10:
 // these are all already-existing records the moment they are created.
@@ -40,6 +49,9 @@ namespace PartManager
 		void onRename();
 		void onRecolour();
 		void onMoveToCategory();
+		void onMoveUp();
+		void onMoveDown();
+		void onRecalculateGradient();
 		void onDelete();
 
 	private:
@@ -47,6 +59,12 @@ namespace PartManager
 		// Categories stay expanded across a refresh so an edit does not collapse the tree.
 		void refreshTree();
 		void updateButtons();
+
+		// The tags of one category in display order, which is the order the gradient walks.
+		std::vector<Tag> tagsInCategory(int categoryId) const;
+		// Swaps the selected tag with its neighbour `offset` places away, and writes the whole
+		// group's sort_order back. Nothing happens at either end.
+		void moveSelectedTag(int offset);
 
 		// The selected tag, or a default-constructed one (id == NoTagId) when the selection is a
 		// category or nothing.

@@ -259,6 +259,30 @@ Ein Komma ODER-verknüpft Tags innerhalb eines Begriffs: tag:I2C,SPI trifft auf 
         <source>A tag is removed from every part that carries it; a category only loses its heading, its tags stay.</source>
         <translation>Ein Tag wird von jedem Bauteil entfernt, das es trägt; eine Kategorie verliert nur ihre Überschrift, ihre Tags bleiben.</translation>
     </message>
+    <message>
+        <source>Up</source>
+        <translation>Hoch</translation>
+    </message>
+    <message>
+        <source>Moves the tag up inside its category. The order decides where the gradient puts it.</source>
+        <translation>Verschiebt das Tag innerhalb seiner Kategorie nach oben. Die Reihenfolge bestimmt, wo der Verlauf es einordnet.</translation>
+    </message>
+    <message>
+        <source>Down</source>
+        <translation>Runter</translation>
+    </message>
+    <message>
+        <source>Moves the tag down inside its category. The order decides where the gradient puts it.</source>
+        <translation>Verschiebt das Tag innerhalb seiner Kategorie nach unten. Die Reihenfolge bestimmt, wo der Verlauf es einordnet.</translation>
+    </message>
+    <message>
+        <source>Gradient</source>
+        <translation>Farbverlauf</translation>
+    </message>
+    <message>
+        <source>Spreads the colours of this category&apos;s tags evenly between the first tag&apos;s colour and the last one&apos;s. Colour those two by hand first, then reorder the rest into the ramp you want.</source>
+        <translation>Verteilt die Farben der Tags dieser Kategorie gleichmäßig zwischen der Farbe des ersten und der des letzten Tags. Diese beiden zuerst von Hand färben, dann die übrigen in die gewünschte Reihenfolge bringen.</translation>
+    </message>
 </context>
 <context>
     <name>MouserSearchDialog</name>

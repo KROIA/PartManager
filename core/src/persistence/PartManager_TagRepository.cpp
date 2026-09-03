@@ -33,6 +33,36 @@ namespace PartManager
 		}
 	}
 
+	std::string TagRepository::blendOf(const std::string& fromHex, const std::string& toHex,
+		int index, int count)
+	{
+		if (fromHex.size() != 7 || fromHex[0] != '#' || toHex.size() != 7 || toHex[0] != '#')
+		{
+			return fromHex;   // same tolerance as shadeOf: hand back a colour, never an empty one
+		}
+		int from[3] = { 0, 0, 0 };
+		int to[3] = { 0, 0, 0 };
+		for (int i = 0; i < 3; ++i)
+		{
+			from[i] = hexByte(fromHex, 1 + static_cast<size_t>(i) * 2);
+			to[i] = hexByte(toHex, 1 + static_cast<size_t>(i) * 2);
+			if (from[i] < 0 || to[i] < 0)
+			{
+				return fromHex;
+			}
+		}
+
+		const int steps = count > 1 ? count - 1 : 1;
+		const int step = std::max(0, std::min(index, steps));
+		const double t = static_cast<double>(step) / static_cast<double>(steps);
+		char buffer[8] = { 0 };
+		std::snprintf(buffer, sizeof(buffer), "#%02X%02X%02X",
+			static_cast<int>(from[0] + (to[0] - from[0]) * t + 0.5),
+			static_cast<int>(from[1] + (to[1] - from[1]) * t + 0.5),
+			static_cast<int>(from[2] + (to[2] - from[2]) * t + 0.5));
+		return std::string(buffer);
+	}
+
 	std::string TagRepository::shadeOf(const std::string& baseHex, int index, int count)
 	{
 		if (baseHex.size() != 7 || baseHex[0] != '#')
@@ -437,8 +467,18 @@ namespace PartManager
 				{ "Active", nullptr }, { "NRND", nullptr }, { "Obsolete", "#E53935" },
 				{ "Do not use", "#8E24AA" }, { "Needs datasheet", "#6D4C41" } } },
 			{ "Voltage domain", "#EF6C00", {
-				{ "1V8", nullptr }, { "3V3", nullptr }, { "5V", nullptr },
-				{ "12V", nullptr }, { "24V", nullptr }, { "48V", nullptr } } },
+				{ "1.25V", nullptr }, 
+				{ "1.8V", nullptr }, 
+				{ "3.3V", nullptr }, 
+				{ "2.5V", nullptr },
+				{ "5V", nullptr },
+				{ "9V", nullptr }, 
+				{ "12V", nullptr }, 
+				{ "16V", nullptr }, 
+				{ "24V", nullptr }, 
+				{ "25V", nullptr }, 
+				{ "48V", nullptr } 
+				} },
 			{ "Handling", "#6A1B9A", {
 				{ "ESD sensitive", nullptr }, { "Moisture sensitive", nullptr },
 				{ "Fine pitch", nullptr }, { "Hand-solderable", nullptr },

@@ -44,6 +44,21 @@ namespace PartManager
 		// unchanged, so a hand-edited category colour can never turn a tag into an empty string.
 		static std::string shadeOf(const std::string& baseHex, int index, int count);
 
+		// One step of a ramp between two colours the *user* chose: `from` at index 0, `to` at
+		// index count-1, straight-line RGB in between.
+		//
+		// The difference from shadeOf() is who decides where the ramp ends. shadeOf() blends
+		// towards white and stops short of it, which is right for a family whose only stated
+		// colour is its base. This one is for a family whose first and last tag have been
+		// coloured by hand — "green through to red" for a lifecycle, which no blend towards white
+		// can express. Same tolerance for an unreadable input: a colour comes back, never "".
+		//
+		// ponytail: a straight line in RGB, so the midpoint of green -> red is the olive #808000
+		// rather than a bright amber. Ceiling: the middle of a long two-hue family reads a little
+		// muddy; interpolating in HSL/LAB is the upgrade path if that ever matters.
+		static std::string blendOf(const std::string& fromHex, const std::string& toHex,
+			int index, int count);
+
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		// Creates tag_category/tag/part_type_tag/part_tag if missing, and adds `tag.category_id`
 		// to a `tag` table written before categories existed. Idempotent.

@@ -96,6 +96,36 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="moveUpButton">
+       <property name="text">
+        <string>Up</string>
+       </property>
+       <property name="toolTip">
+        <string>Moves the tag up inside its category. The order decides where the gradient puts it.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="moveDownButton">
+       <property name="text">
+        <string>Down</string>
+       </property>
+       <property name="toolTip">
+        <string>Moves the tag down inside its category. The order decides where the gradient puts it.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="gradientButton">
+       <property name="text">
+        <string>Gradient</string>
+       </property>
+       <property name="toolTip">
+        <string>Spreads the colours of this category's tags evenly between the first tag's colour and the last one's. Colour those two by hand first, then reorder the rest into the ramp you want.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="deleteButton">
        <property name="text">
         <string>Delete</string>

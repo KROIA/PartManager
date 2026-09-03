@@ -29,6 +29,7 @@ public:
 		ADD_TEST(TST_TagRepository::seedAdoptsTagsWrittenBeforeCategories);
 #endif
 		ADD_TEST(TST_TagRepository::oneFamilyIsOneColourInSteps);
+		ADD_TEST(TST_TagRepository::aGradientRunsBetweenTheTwoEndsItIsGiven);
 	}
 
 private:
@@ -445,6 +446,46 @@ private:
 		TEST_COMPARE(PartManager::TagRepository::shadeOf("", 0, 3), std::string(""));
 		TEST_COMPARE(PartManager::TagRepository::shadeOf("red", 1, 3), std::string("red"));
 		TEST_COMPARE(PartManager::TagRepository::shadeOf("#GGHHII", 1, 3), std::string("#GGHHII"));
+	}
+
+	// The gradient the Manage Tags dialog recalculates: the two ends are the user's, the middle
+	// is derived. No database needed.
+	TEST_FUNCTION(aGradientRunsBetweenTheTwoEndsItIsGiven)
+	{
+		TEST_START;
+		using Repo = PartManager::TagRepository;
+
+		// The ends come back exactly, which is what lets the button be pressed twice without
+		// walking its own endpoints inwards.
+		TEST_COMPARE(Repo::blendOf("#00FF00", "#FF0000", 0, 5), std::string("#00FF00"));
+		TEST_COMPARE(Repo::blendOf("#00FF00", "#FF0000", 4, 5), std::string("#FF0000"));
+
+		// Halfway is halfway on every channel - green through olive to red, the ramp a single
+		// base colour cannot express and the reason this exists beside shadeOf(). Note it is a
+		// straight RGB line, so the midpoint of green->red is #808000 and not a bright amber;
+		// going through a colour space that keeps the chroma up is the upgrade path if the
+		// middle of a long family ever looks muddy.
+		TEST_COMPARE(Repo::blendOf("#00FF00", "#FF0000", 2, 5), std::string("#808000"));
+		TEST_COMPARE(Repo::blendOf("#000000", "#FFFFFF", 1, 3), std::string("#808080"));
+
+		// Every step differs from the one before, so no two chips in a family look identical.
+		std::string previous = Repo::blendOf("#1E88E5", "#C62828", 0, 6);
+		for (int i = 1; i < 6; ++i)
+		{
+			const std::string step = Repo::blendOf("#1E88E5", "#C62828", i, 6);
+			TEST_COMPARE(step.size(), static_cast<size_t>(7));
+			TEST_ASSERT_M(step != previous, "each step must be a different colour: " + step);
+			previous = step;
+		}
+
+		// Clamped past the end, and a single-member ramp is its own start.
+		TEST_COMPARE(Repo::blendOf("#00FF00", "#FF0000", 99, 5), std::string("#FF0000"));
+		TEST_COMPARE(Repo::blendOf("#00FF00", "#FF0000", 0, 1), std::string("#00FF00"));
+
+		// An unreadable end hands back a colour rather than blanking a chip.
+		TEST_COMPARE(Repo::blendOf("#00FF00", "red", 1, 3), std::string("#00FF00"));
+		TEST_COMPARE(Repo::blendOf("", "#FF0000", 1, 3), std::string(""));
+		TEST_COMPARE(Repo::blendOf("#GGHHII", "#FF0000", 1, 3), std::string("#GGHHII"));
 	}
 
 };
