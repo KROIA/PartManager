@@ -38,6 +38,7 @@ public:
 		ADD_TEST(TST_KicadLibrary::pinningKeepsWhatTheUserPinned);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_KicadLibrary::handEditedSymbolsSurviveRegeneration);
+		ADD_TEST(TST_KicadLibrary::footprintReferenceUsesTheLibraryNickname);
 #endif
 	}
 
@@ -341,6 +342,66 @@ private:
 		TEST_COMPARE(forced.symbolsFromAttachment, 0);
 		TEST_ASSERT_M(readFile(library).find("HandEdited") == std::string::npos,
 			"with the attachment gone, force-regenerate must discard the edit");
+	}
+
+	// A symbol's `Footprint` property is resolved by KiCad through the fp-lib-table, where the
+	// library is called `PartManager_Resistors` — the `Resistors.pretty` folder name never
+	// reaches KiCad at all. Writing the folder name produces a reference that looks correct in
+	// the symbol's properties and silently resolves to nothing, which is what shipped the first
+	// time the nickname was prefixed.
+	TEST_FUNCTION(footprintReferenceUsesTheLibraryNickname)
+	{
+		TEST_START;
+
+		std::filesystem::path folder =
+			std::filesystem::temp_directory_path() / "PartManager_TST_KicadFootprintRef";
+		std::filesystem::remove_all(folder);
+		std::filesystem::create_directories(folder);
+
+		SQLiteWrapper::SQLite db((folder / "test.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+		PartManager::KicadEditTracker::createSchema(db);
+
+		PartManager::PartType type;
+		type.name = "Resistor";
+		type.domain = "electronic";
+		type.kicadRelevant = true;
+		type.kicadCategory = "Resistors";
+		const int typeId = PartManager::PartTypeRepository::insertType(db, type);
+
+		PartManager::Part part;
+		part.partTypeId = typeId;
+		part.name = "R-4K7";
+		part.mpn = "R-4K7";
+		const int partId = PartManager::PartRepository::insertPart(db, part);
+
+		// A footprint attachment is what makes the generator write the property at all.
+		const std::filesystem::path source = folder / "R_0603.kicad_mod";
+		std::ofstream(source, std::ios::binary)
+			<< "(footprint \"R_0603\" (version 20240108) (layer \"F.Cu\"))\n";
+		const std::string filestore = (folder / "filestore").string();
+		PartManager::FileStore store(filestore);
+		std::string error;
+		TEST_ASSERT_M(store.attachFile(db, partId, PartManager::PartFileRole::KicadFootprint,
+			source.string(), &error) != 0, error);
+
+		const std::string libs = (folder / "kicad_libs").string();
+		const PartManager::KicadGenerationResult result =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_ASSERT_M(result.ok, result.errorMessage);
+		TEST_COMPARE(result.footprintsCopied, 1);
+
+		const std::string library = readFile(
+			std::filesystem::path(libs) / "symbols" / "Resistors.kicad_sym");
+		TEST_ASSERT_M(library.find("\"PartManager_Resistors:R-4K7\"") != std::string::npos,
+			"the Footprint property must name the library as KiCad knows it: " + library);
+		// The bare folder name is exactly the reference KiCad cannot resolve.
+		TEST_ASSERT_M(library.find("\"Resistors:R-4K7\"") == std::string::npos, library);
+
+		db.close();
+		std::filesystem::remove_all(folder);
 	}
 
 #endif

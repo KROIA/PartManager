@@ -341,7 +341,12 @@ namespace PartManager
 					FileStore::roleFile(db, part.id, PartFileRole::KicadFootprint, footprintRow);
 				if (hasFootprint)
 				{
-					spec.footprint = libraryName + ":" + symbolName;
+					// **The nickname, not the file name.** KiCad resolves a `Footprint` property
+					// through the fp-lib-table, where the library is called
+					// `PartManager_ICs` — the `ICs.pretty` folder name never appears to it. Using
+					// the file name produces a reference that looks right in the symbol's
+					// properties and cannot be resolved.
+					spec.footprint = KicadLibTable::nicknameFor(libraryName) + ":" + symbolName;
 				}
 
 				// §5c: the part's own `.kicad_sym` wins over the generic template.
