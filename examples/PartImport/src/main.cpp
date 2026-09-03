@@ -13,6 +13,7 @@
 #include "mouser/PartManager_MouserClient.h"
 #include "mouser/PartManager_MouserSearchService.h"
 #include "persistence/PartManager_PartRepository.h"
+#include "persistence/PartManager_SellerRepository.h"
 #include "persistence/PartManager_StockRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_TagRepository.h"
@@ -20,6 +21,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QThread>
 
 #include "SQLite.h"
 
@@ -113,6 +115,30 @@ namespace
 		}
 		return 0;
 	}
+
+	// The CSV's Mouser number is the whole reason a row can be looked up, and it is the only place
+	// the Cart API's article number ever comes from (§6: part.mpn is the *manufacturer's* number and
+	// the Cart API rejects it). Writing the link is therefore part of importing, not an extra: an
+	// imported part without one cannot be ordered and shows an empty Mouser-Nr. in the editor.
+	// Upsert semantics in linkPart() make this safe to run again over a part that already has it.
+	void linkMouser(SQLiteWrapper::SQLite& db, int partId, const PartManager::MouserPartPrefill& prefill)
+	{
+		if (partId == 0 || prefill.mouserPartNumber.empty())
+		{
+			return;
+		}
+		PartManager::PartSellerLink link;
+		link.partId = partId;
+		link.sellerId = PartManager::SellerRepository::ensureMouserSeller(db);
+		link.sellerPartNumber = prefill.mouserPartNumber;
+		link.url = prefill.productDetailUrl;
+		link.isPrimary = true;
+		const int linkId = PartManager::SellerRepository::linkPart(db, link);
+		if (linkId != PartManager::NoPartSellerLinkId && !prefill.priceBreaks.empty())
+		{
+			PartManager::SellerRepository::recordQuote(db, linkId, prefill.priceBreaks);
+		}
+	}
 }
 
 int main(int argc, char* argv[])
@@ -204,8 +230,17 @@ int main(int argc, char* argv[])
 	int imported = 0;
 	int skipped = 0;
 	int failed = 0;
+	bool firstRequest = true;
 	for (const CsvRow& row : rows)
 	{
+		// Mouser answers HTTP 403 once a key passes ~30 requests in a minute, which on a list this
+		// long lands mid-run and looks like a dead key. Measured 2026-09-03: 29 rows through, then
+		// 403 for the rest. One request every 2.1 s stays under it.
+		if (!firstRequest)
+		{
+			QThread::msleep(2100);
+		}
+		firstRequest = false;
 		PartManager::MouserSearchResult result = client.searchByPartNumber(row.mouserPartNumber);
 		if (!result.ok)
 		{
@@ -223,18 +258,24 @@ int main(int argc, char* argv[])
 		const PartManager::MouserPartPrefill prefill =
 			PartManager::MouserSearchService::toPrefill(result.parts.front());
 
-		bool alreadyPresent = false;
+		int existingId = 0;
 		for (const PartManager::Part& part : existing)
 		{
 			if (!prefill.part.mpn.empty() && part.mpn == prefill.part.mpn)
 			{
-				alreadyPresent = true;
+				existingId = part.id;
 				break;
 			}
 		}
-		if (alreadyPresent)
+		if (existingId != 0)
 		{
-			std::printf("SKIP %-22s already in database\n", row.mouserPartNumber.c_str());
+			// Still linked: a database imported before the link was written would otherwise keep an
+			// empty Mouser-Nr. forever, and re-running is the only way to backfill it.
+			if (!dryRun)
+			{
+				linkMouser(db, existingId, prefill);
+			}
+			std::printf("SKIP %-22s already in database (Mouser-Nr. linked)\n", row.mouserPartNumber.c_str());
 			++skipped;
 			continue;
 		}
@@ -260,12 +301,14 @@ int main(int argc, char* argv[])
 		{
 			continue;
 		}
-		if (PartManager::PartRepository::insertPart(db, part) == 0)
+		const int partId = PartManager::PartRepository::insertPart(db, part);
+		if (partId == 0)
 		{
 			std::printf("FAIL %-22s insert failed\n", row.mouserPartNumber.c_str());
 			++failed;
 			continue;
 		}
+		linkMouser(db, partId, prefill);
 		++imported;
 	}
 
