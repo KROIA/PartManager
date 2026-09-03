@@ -62,6 +62,25 @@ namespace PartManager
 		// Mouser's `Category` -> one of the seeded type template names, or "" when ambiguous.
 		static std::string suggestedTypeName(const std::string& category);
 
+		// The §2a attributes a part's free-text `Description` yields, plus the package code in it.
+		//
+		// **This, not attributesJson(), is what fills a form in practice.** Measured 2026-09-03
+		// over all 38 rows of the user's stock list: `ProductAttributes` holds `Packaging` and
+		// `Standard Pack Qty` and nothing else, on both search endpoints — so the AttributeName
+		// map has no parametrics to map. The values are in the description tail:
+		// `"... MLCC - SMD/SMT 100nF+/-10% 25V X7R 0402"`.
+		//
+		// `typeName` is suggestedTypeName()'s answer, because the slots a token may land in are a
+		// property of the template, not of Mouser's category string. A token is written only when
+		// exactly one of that type's slots can read it — so "60V" fills a MOSFET's Vds and is
+		// refused on a diode, which measures both forward and reverse voltage in volts. The one
+		// exception is a unit-less number carrying an SI prefix ("10K"), which goes to the type's
+		// primary quantity; a plain integer never does, since "1206" reads as a value too.
+		// Returns "{}" when nothing is placeable, which is the normal answer for an IC.
+		static std::string attributesFromDescription(const std::string& typeName,
+			const std::string& category, const std::string& description,
+			std::string* outPackage = nullptr);
+
 		// A pasted Mouser product page URL -> the part number in its path, "" for anything else.
 		// `.../ProductDetail/<Manufacturer>/<PartNumber>?qs=...` on any of Mouser's country
 		// domains; the query string and fragment are dropped. Feeding the result to

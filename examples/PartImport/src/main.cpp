@@ -294,16 +294,35 @@ int main(int argc, char* argv[])
 			PartManager::MouserSearchService::toPrefill(result.parts.front());
 
 		int existingId = 0;
+		PartManager::Part existingPart;
 		for (const PartManager::Part& part : existing)
 		{
 			if (!prefill.part.mpn.empty() && part.mpn == prefill.part.mpn)
 			{
 				existingId = part.id;
+				existingPart = part;
 				break;
 			}
 		}
 		if (existingId != 0)
 		{
+			// An empty field is filled, a non-empty one is never touched: the parametrics come out
+			// of Mouser's free-text description, and anything already there was either typed by the
+			// user or read from a better source than prose.
+			const bool noAttributes = existingPart.attributes.empty()
+				|| existingPart.attributes == "{}";
+			if (!dryRun && (noAttributes || existingPart.package.empty()))
+			{
+				if (noAttributes && prefill.part.attributes != "{}")
+				{
+					existingPart.attributes = prefill.part.attributes;
+				}
+				if (existingPart.package.empty())
+				{
+					existingPart.package = prefill.part.package;
+				}
+				PartManager::PartRepository::updatePart(db, existingPart);
+			}
 			// Still linked: a database imported before the link was written would otherwise keep an
 			// empty Mouser-Nr. forever, and re-running is the only way to backfill it.
 			if (!dryRun)
@@ -314,7 +333,9 @@ int main(int argc, char* argv[])
 				attachRemote(store, db, existingId, PartManager::PartFileRole::Datasheet,
 					prefill.datasheetUrl, "datasheet");
 			}
-			std::printf("SKIP %-22s already in database (Mouser-Nr. linked)\n", row.mouserPartNumber.c_str());
+			std::printf("SKIP %-22s already in database (Mouser-Nr. linked)%s\n",
+				row.mouserPartNumber.c_str(),
+				noAttributes && prefill.part.attributes != "{}" ? ", attributes filled" : "");
 			++skipped;
 			continue;
 		}

@@ -78,6 +78,141 @@ namespace PartManager
 			return mappings;
 		}
 
+		// --- Description parsing ------------------------------------------------------------
+		//
+		// **The attribute map above can never fire on a real part.** Measured 2026-09-03 across
+		// all 38 rows of the user's stock list: `ProductAttributes` carries `Packaging` three
+		// times and `Standard Pack Qty`, and no parametrics whatsoever — not on
+		// /search/partnumber and not on /search/keyword. Every value a template wants is in the
+		// free-text `Description`, whose tail is the manufacturer's own parametric string:
+		//
+		//   "Multilayer Ceramic Capacitors MLCC - SMD/SMT 100nF+/-10% 25V X7R 0402"
+		//   "Thin Film Resistors - SMD 1/10watts 10K .1%"
+		//   "MOSFETs 60V 200mW"
+		//
+		// So the map that actually fills a form is not AttributeName -> key; it is **type -> the
+		// units that type's slots are measured in**, and then one token at a time. A token is
+		// placed only when exactly one slot of the type can read it, which is the whole safety
+		// rule: "60V" lands on a MOSFET (only Vds is in volts) and is refused on a Diode (forward
+		// *and* reverse voltage are), where a guess would be a plausible wrong number.
+		//
+		// Keyed by suggestedTypeName()'s answer rather than the raw Mouser category, so the
+		// category -> template mapping stays in one place. Inherited slots are repeated rather
+		// than resolved: three duplicated lines beat an inheritance walk that would have to reach
+		// into persistence from here.
+		struct DimensionSlot
+		{
+			const char* typeName;
+			const char* key;
+			const char* unit;
+			bool primary;   // where a unit-less token like "10K" goes; at most one per type
+		};
+
+		const DimensionSlot* dimensionSlots(size_t& outCount)
+		{
+			static const char* const ohm = "\xCE\xA9";
+			static const DimensionSlot slots[] = {
+				{ "Resistor",           "resistance",       ohm,  true  },
+				{ "Resistor",           "tolerance",        "%",  false },
+				{ "Resistor",           "power",            "W",  false },
+				{ "Capacitor",          "capacitance",      "F",  true  },
+				{ "Capacitor",          "voltage",          "V",  false },
+				{ "Capacitor",          "tolerance",        "%",  false },
+				{ "Ceramic Capacitor",  "capacitance",      "F",  true  },
+				{ "Ceramic Capacitor",  "voltage",          "V",  false },
+				{ "Ceramic Capacitor",  "tolerance",        "%",  false },
+				{ "Inductor",           "inductance",       "H",  true  },
+				{ "Inductor",           "current_rating",   "A",  false },
+				{ "Power Regulator",    "output_voltage",   "V",  false },
+				{ "Power Regulator",    "max_current",      "A",  false },
+				{ "MOSFET",             "vds_max",          "V",  false },
+				{ "MOSFET",             "id_max",           "A",  false },
+				// Diode and LED each declare two voltage slots, so no bare voltage token is
+				// placeable on them at all — deliberately, see the rule above. The current slot
+				// is the only one that can ever match, and only when its unit is spelled out.
+				{ "Diode",              "forward_voltage",  "V",  false },
+				{ "Diode",              "reverse_voltage",  "V",  false },
+				{ "Diode",              "forward_current",  "A",  false },
+				{ "LED",                "forward_voltage",  "V",  false },
+				{ "LED",                "forward_current",  "A",  false },
+			};
+			outCount = sizeof(slots) / sizeof(slots[0]);
+			return slots;
+		}
+
+		// The word-shaped half of the same idea: a token that *is* the value. Matched on the whole
+		// lowercased token, never a substring — "red" inside "Waterclr"/"Shielded" is exactly the
+		// kind of match that would colour a part wrong. `value` is spelled as the template's enum
+		// option, because a value outside the option list shows up as an extra combo entry.
+		struct EnumSlot
+		{
+			const char* typeName;
+			const char* key;
+			const char* token;   // lowercase, matched whole
+			const char* value;
+		};
+
+		const EnumSlot* enumSlots(size_t& outCount)
+		{
+			static const EnumSlot slots[] = {
+				{ "Ceramic Capacitor", "dielectric",     "c0g",       "C0G"        },
+				{ "Ceramic Capacitor", "dielectric",     "np0",       "NP0"        },
+				{ "Ceramic Capacitor", "dielectric",     "x5r",       "X5R"        },
+				{ "Ceramic Capacitor", "dielectric",     "x6s",       "X6S"        },
+				{ "Ceramic Capacitor", "dielectric",     "x7r",       "X7R"        },
+				{ "Ceramic Capacitor", "dielectric",     "x7s",       "X7S"        },
+				{ "Ceramic Capacitor", "dielectric",     "y5v",       "Y5V"        },
+				{ "Ceramic Capacitor", "dielectric",     "z5u",       "Z5U"        },
+				{ "MOSFET",            "channel_type",   "n-channel", "N-Channel"  },
+				{ "MOSFET",            "channel_type",   "nch",       "N-Channel"  },
+				{ "MOSFET",            "channel_type",   "n-ch",      "N-Channel"  },
+				{ "MOSFET",            "channel_type",   "p-channel", "P-Channel"  },
+				{ "MOSFET",            "channel_type",   "pch",       "P-Channel"  },
+				{ "MOSFET",            "channel_type",   "p-ch",      "P-Channel"  },
+				{ "Diode",             "diode_type",     "schottky",  "Schottky"   },
+				{ "Diode",             "diode_type",     "switching", "Switching"  },
+				{ "Diode",             "diode_type",     "rectifier", "Rectifier"  },
+				{ "Diode",             "diode_type",     "zener",     "Zener"      },
+				{ "Diode",             "diode_type",     "tvs",       "TVS"        },
+				{ "LED",               "color",          "red",       "Red"        },
+				{ "LED",               "color",          "green",     "Green"      },
+				{ "LED",               "color",          "blue",      "Blue"       },
+				{ "LED",               "color",          "yellow",    "Yellow"     },
+				{ "LED",               "color",          "white",     "White"      },
+				{ "LED",               "color",          "orange",    "Orange"     },
+				{ "LED",               "color",          "infrared",  "Infrared"   },
+				{ "LED",               "color",          "uv",        "UV"         },
+				// "Buck"/"Boost"/"LDO" is what the description says; Linear/Switching is what the
+				// template offers, so this row is a translation and not just a lookup.
+				{ "Power Regulator",   "regulator_type", "buck",      "Switching"  },
+				{ "Power Regulator",   "regulator_type", "boost",     "Switching"  },
+				{ "Power Regulator",   "regulator_type", "switching", "Switching"  },
+				{ "Power Regulator",   "regulator_type", "ldo",       "Linear"     },
+				{ "Power Regulator",   "regulator_type", "linear",    "Linear"     },
+			};
+			outCount = sizeof(slots) / sizeof(slots[0]);
+			return slots;
+		}
+
+		// An allow-list, not a shape rule. "1038" in "Power Inductors - SMD 5uH 30% SMD 1038" is
+		// a Bourns case code and not a package at all, and it is four digits like every entry
+		// here — so anything outside the standard imperial chip sizes is left alone.
+		bool isPackageCode(const std::string& tokenUpper)
+		{
+			static const char* const codes[] = {
+				"01005", "0201", "0402", "0603", "0805", "1206", "1210", "1218", "1812",
+				"2010", "2512", "2917",
+			};
+			for (const char* code : codes)
+			{
+				if (tokenUpper == code)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
 		// Mouser spells units as words. Rewritten longest-first so "ohms" never leaves a stray "s"
 		// and "amperes" is not eaten by "amp".
 		struct WordUnit
@@ -164,6 +299,262 @@ namespace PartManager
 				}
 			}
 			return false;
+		}
+
+		// Defined below with the other JSON helpers; used by the description parser that follows.
+		std::string jsonEscape(const std::string& text);
+		std::string formatNumber(double value);
+
+		struct ParsedAttribute
+		{
+			std::string key;
+			std::string json;   // the serialized value: {"value":..,"unit":".."} or a quoted string
+		};
+
+		bool hasKey(const std::vector<ParsedAttribute>& parsed, const std::string& key)
+		{
+			for (const ParsedAttribute& entry : parsed)
+			{
+				if (entry.key == key)
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// "1/10W" -> "0.1W". Resistor power is spelled as a fraction more often than not
+		// ("1/10watts"), and there is no reason for ValueParser to know about fractions.
+		// Anything that is not <digits>/<digits><rest> comes back unchanged.
+		std::string expandFraction(const std::string& token)
+		{
+			const size_t slash = token.find('/');
+			if (slash == std::string::npos || slash == 0)
+			{
+				return token;
+			}
+			size_t end = slash + 1;
+			while (end < token.size() && token[end] >= '0' && token[end] <= '9')
+			{
+				++end;
+			}
+			if (end == slash + 1)
+			{
+				return token;
+			}
+			for (size_t i = 0; i < slash; ++i)
+			{
+				if (token[i] < '0' || token[i] > '9')
+				{
+					return token;
+				}
+			}
+			const double numerator = std::atof(token.substr(0, slash).c_str());
+			const double denominator = std::atof(token.substr(slash + 1, end - slash - 1).c_str());
+			if (denominator == 0.0)
+			{
+				return token;
+			}
+			return formatNumber(numerator / denominator) + token.substr(end);
+		}
+
+		// "10K" -> "10k", "4K7" -> "4k7". SI says kilo is lowercase and ValueParser is rightly
+		// case-sensitive about it ('M' and 'm' differ by a factor of a billion), but Mouser's prose
+		// writes resistances with a capital K and would otherwise read as no value at all. Only a
+		// token with no lowercase letter in it is folded, so "500kHz" and "mW" are left untouched.
+		std::string foldCapitalKilo(const std::string& token)
+		{
+			for (char c : token)
+			{
+				if (c >= 'a' && c <= 'z')
+				{
+					return token;
+				}
+			}
+			std::string out = token;
+			for (char& c : out)
+			{
+				if (c == 'K')
+				{
+					c = 'k';
+				}
+			}
+			return out;
+		}
+
+		// A number carrying an SI prefix but no unit — "10K", "4u7". This is the only shape allowed
+		// to land on a type's primary slot when several slots could read it, because it is the only
+		// one where the manufacturer left the unit out as understood ("10K" on a resistor is ohms).
+		// A plain integer is excluded on purpose: "3" and "1206" are both readable as a value and
+		// are both noise.
+		bool bareprefixedNumber(const std::string& token)
+		{
+			bool sawDigit = false;
+			bool sawPrefix = false;
+			for (char c : token)
+			{
+				if (c >= '0' && c <= '9')
+				{
+					sawDigit = true;
+				}
+				else if (c == '.')
+				{
+					continue;
+				}
+				else if (std::string("kKmMuUnpPgGtT").find(c) != std::string::npos)
+				{
+					sawPrefix = true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+			return sawDigit && sawPrefix;
+		}
+
+		// The description minus its category prefix, split into candidate values. Mouser repeats
+		// the category verbatim at the front of every description, so dropping it is what leaves
+		// the manufacturer's parametric tail — and stops "Capacitors" being read as a value.
+		std::vector<std::string> descriptionTokens(const std::string& category,
+			const std::string& description)
+		{
+			std::string tail = description;
+			if (!category.empty() && toLower(tail).rfind(toLower(category), 0) == 0)
+			{
+				tail = tail.substr(category.size());
+			}
+
+			std::string cleaned;
+			for (size_t i = 0; i < tail.size(); ++i)
+			{
+				// "100nF+/-10%" is two values written as one token, and the only place a '+' or a
+				// bare '-' appears between them. Split there; leave '/' alone, fractions need it.
+				if (tail.compare(i, 3, "+/-") == 0)
+				{
+					cleaned += ' ';
+					i += 2;
+					continue;
+				}
+				const char c = tail[i];
+				cleaned += (c == ',' || c == '(' || c == ')' || c == ';' || c == '+') ? ' ' : c;
+			}
+
+			std::vector<std::string> tokens;
+			for (std::string token : splitWhitespace(cleaned))
+			{
+				while (!token.empty() && (token.back() == '.' || token.back() == '-'))
+				{
+					token.pop_back();
+				}
+				if (!token.empty())
+				{
+					tokens.push_back(token);
+				}
+			}
+			return tokens;
+		}
+
+		// One token at a time into whatever slot of `typeName` can uniquely read it. Slots already
+		// filled — by a real ProductAttribute or by an earlier token — are never overwritten, so
+		// the first spelling of a quantity wins and the API's own data always beats the prose.
+		void fillFromDescription(const std::string& typeName, const std::string& category,
+			const std::string& description, std::vector<ParsedAttribute>& parsed,
+			std::string& outPackage)
+		{
+			size_t dimensionCount = 0;
+			const DimensionSlot* dimensions = dimensionSlots(dimensionCount);
+			size_t enumCount = 0;
+			const EnumSlot* enums = enumSlots(enumCount);
+
+			for (const std::string& raw : descriptionTokens(category, description))
+			{
+				std::string upper = raw;
+				for (char& c : upper)
+				{
+					if (c >= 'a' && c <= 'z')
+					{
+						c = static_cast<char>(c - 'a' + 'A');
+					}
+				}
+				if (outPackage.empty() && isPackageCode(upper))
+				{
+					outPackage = upper;
+					continue;
+				}
+				if (typeName.empty())
+				{
+					continue;
+				}
+
+				const std::string lower = toLower(raw);
+				bool matchedEnum = false;
+				for (size_t i = 0; i < enumCount; ++i)
+				{
+					if (typeName == enums[i].typeName && lower == enums[i].token)
+					{
+						if (!hasKey(parsed, enums[i].key))
+						{
+							parsed.push_back({ enums[i].key,
+								"\"" + jsonEscape(enums[i].value) + "\"" });
+						}
+						matchedEnum = true;
+						break;
+					}
+				}
+				if (matchedEnum)
+				{
+					continue;
+				}
+
+				const std::string token =
+					foldCapitalKilo(expandFraction(MouserSearchService::normalizeUnitWords(raw)));
+				const DimensionSlot* hit = nullptr;
+				const DimensionSlot* primary = nullptr;
+				double hitValue = 0.0;
+				double primaryValue = 0.0;
+				int matches = 0;
+				for (size_t i = 0; i < dimensionCount; ++i)
+				{
+					const DimensionSlot& slot = dimensions[i];
+					if (typeName != slot.typeName || hasKey(parsed, slot.key))
+					{
+						continue;
+					}
+					const ValueParseResult result = ValueParser::parse(token, slot.unit);
+					if (!result.ok)
+					{
+						continue;
+					}
+					++matches;
+					hit = &slot;
+					hitValue = result.value;
+					if (slot.primary)
+					{
+						primary = &slot;
+						primaryValue = result.value;
+					}
+				}
+
+				// Exactly one slot can read it, or it is a unit-less number and the type says
+				// where those belong. Two slots and no such rule is where a wrong value would
+				// come from, so nothing is written.
+				if (matches > 1)
+				{
+					if (primary == nullptr || !bareprefixedNumber(token))
+					{
+						continue;
+					}
+					hit = primary;
+					hitValue = primaryValue;
+				}
+				else if (matches == 0)
+				{
+					continue;
+				}
+				parsed.push_back({ hit->key, "{\"value\":" + formatNumber(hitValue)
+					+ ",\"unit\":\"" + jsonEscape(hit->unit) + "\"}" });
+			}
 		}
 
 		// Lower rank = closer match. `extra` breaks ties by how much the candidate carries
@@ -400,6 +791,25 @@ namespace PartManager
 		return json;
 	}
 
+	std::string MouserSearchService::attributesFromDescription(const std::string& typeName,
+		const std::string& category, const std::string& description, std::string* outPackage)
+	{
+		std::vector<ParsedAttribute> parsed;
+		std::string package;
+		fillFromDescription(typeName, category, description, parsed, package);
+		if (outPackage != nullptr)
+		{
+			*outPackage = package;
+		}
+
+		std::string json = "{";
+		for (size_t i = 0; i < parsed.size(); ++i)
+		{
+			json += (i == 0 ? "" : ",") + ("\"" + jsonEscape(parsed[i].key) + "\":") + parsed[i].json;
+		}
+		return json + "}";
+	}
+
 	std::string MouserSearchService::partNumberFromUrl(const std::string& url)
 	{
 		const std::string lowered = toLower(url);
@@ -531,6 +941,29 @@ namespace PartManager
 		}
 
 		prefill.part.attributes = attributesJson(dto.productAttributes, prefill.unmappedAttributes);
+
+		// Then the description fills whatever the (usually empty) ProductAttributes left open.
+		// Merged rather than replaced, and only for keys the API did not already answer: a real
+		// attribute is a stated fact, a parsed one is a reading of prose.
+		std::string describedPackage;
+		std::vector<ParsedAttribute> described;
+		fillFromDescription(prefill.suggestedTypeName, dto.category, dto.description, described,
+			describedPackage);
+		for (const ParsedAttribute& entry : described)
+		{
+			if (prefill.part.attributes.find("\"" + entry.key + "\":") != std::string::npos)
+			{
+				continue;
+			}
+			const std::string addition = "\"" + jsonEscape(entry.key) + "\":" + entry.json;
+			prefill.part.attributes.insert(prefill.part.attributes.size() - 1,
+				prefill.part.attributes.size() > 2 ? "," + addition : addition);
+		}
+		if (prefill.part.package.empty())
+		{
+			prefill.part.package = describedPackage;
+		}
+
 		prefill.priceBreaks = toPriceObservations(dto.priceBreaks);
 		return prefill;
 	}

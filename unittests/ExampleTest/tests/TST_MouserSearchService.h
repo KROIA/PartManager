@@ -24,6 +24,8 @@ public:
 		ADD_TEST(TST_MouserSearchService::productLinksYieldTheirPartNumber);
 		ADD_TEST(TST_MouserSearchService::imagePathIsUpgradedToTheLargeVariant);
 		ADD_TEST(TST_MouserSearchService::anEmptyDatasheetUrlFallsBackToTheManufacturer);
+		ADD_TEST(TST_MouserSearchService::descriptionsFillTheTemplatesSlots);
+		ADD_TEST(TST_MouserSearchService::anAmbiguousDescriptionTokenIsLeftAlone);
 	}
 
 private:
@@ -358,6 +360,90 @@ private:
 		TEST_COMPARE(parts[0].mouserPartNumber, firstBefore);
 		PartManager::MouserSearchService::rankByMatch(parts, "BC547");
 		TEST_COMPARE(parts[0].mouserPartNumber, firstBefore);
+	}
+
+	// Every description below is a **real** one, fetched from the live API on 2026-09-03 for a
+	// part in the user's own stock list. Invented ones would prove nothing here: the whole reason
+	// this parser exists is that Mouser's structured attributes are empty, so the only contract
+	// worth testing against is the prose they actually ship.
+	TEST_FUNCTION(descriptionsFillTheTemplatesSlots)
+	{
+		TEST_START;
+		using S = PartManager::MouserSearchService;
+
+		std::string package;
+		const std::string mlcc = S::attributesFromDescription("Ceramic Capacitor",
+			"Multilayer Ceramic Capacitors MLCC - SMD/SMT",
+			"Multilayer Ceramic Capacitors MLCC - SMD/SMT 100nF+/-10% 25V X7R 0402", &package);
+		TEST_ASSERT_M(mlcc.find("\"capacitance\":{\"value\":1e-07") != std::string::npos, mlcc);
+		TEST_ASSERT_M(mlcc.find("\"tolerance\":{\"value\":10") != std::string::npos, mlcc);
+		TEST_ASSERT_M(mlcc.find("\"voltage\":{\"value\":25") != std::string::npos, mlcc);
+		TEST_ASSERT_M(mlcc.find("\"dielectric\":\"X7R\"") != std::string::npos, mlcc);
+		TEST_COMPARE(package, std::string("0402"));
+
+		// "1/10watts" — a fraction and a word unit in one token, and "10K" with the ohm left out
+		// as understood, which is the SI-prefix case the primary slot exists for.
+		package.clear();
+		const std::string resistor = S::attributesFromDescription("Resistor",
+			"Thin Film Resistors - SMD", "Thin Film Resistors - SMD 1/10watts 10K .1%", &package);
+		TEST_ASSERT_M(resistor.find("\"power\":{\"value\":0.1") != std::string::npos, resistor);
+		TEST_ASSERT_M(resistor.find("\"resistance\":{\"value\":10000") != std::string::npos, resistor);
+		TEST_ASSERT_M(resistor.find("\"tolerance\":{\"value\":0.1") != std::string::npos, resistor);
+		TEST_ASSERT_M(package.empty(), package);
+
+		// Only Vds is measured in volts on a MOSFET, so the bare "60V" is placeable. There is no
+		// power slot on the template, so "200mW" has nowhere to go and is dropped, not forced.
+		const std::string mosfet = S::attributesFromDescription("MOSFET", "MOSFETs",
+			"MOSFETs 60V 200mW");
+		TEST_ASSERT_M(mosfet.find("\"vds_max\":{\"value\":60") != std::string::npos, mosfet);
+		TEST_ASSERT_M(mosfet.find("power") == std::string::npos, mosfet);
+
+		const std::string inductor = S::attributesFromDescription("Inductor",
+			"Power Inductors - SMD", "Power Inductors - SMD 5uH 30% SMD 1038");
+		TEST_ASSERT_M(inductor.find("\"inductance\":{\"value\":5e-06") != std::string::npos, inductor);
+
+		const std::string regulator = S::attributesFromDescription("Power Regulator",
+			"Switching Voltage Regulators",
+			"Switching Voltage Regulators 4.5A, 500kHz Buck Sw Reg");
+		TEST_ASSERT_M(regulator.find("\"max_current\":{\"value\":4.5") != std::string::npos, regulator);
+		TEST_ASSERT_M(regulator.find("\"regulator_type\":\"Switching\"") != std::string::npos, regulator);
+
+		package.clear();
+		const std::string led = S::attributesFromDescription("LED", "Single Colour LEDs",
+			"Single Colour LEDs WL-SMCW SMDMono TpVw Waterclr 1206 Yellow", &package);
+		TEST_ASSERT_M(led.find("\"color\":\"Yellow\"") != std::string::npos, led);
+		TEST_COMPARE(package, std::string("1206"));
+	}
+
+	TEST_FUNCTION(anAmbiguousDescriptionTokenIsLeftAlone)
+	{
+		TEST_START;
+		using S = PartManager::MouserSearchService;
+
+		// A diode measures forward *and* reverse voltage in volts, so no bare voltage token can
+		// be placed on one. Filling either would be a plausible wrong number, which is worse than
+		// the empty field the user then types into.
+		const std::string diode = S::attributesFromDescription("Diode",
+			"Small Signal Switching Diodes", "Small Signal Switching Diodes 75V 300mA");
+		TEST_ASSERT_M(diode.find("voltage") == std::string::npos, diode);
+		// The current slot is unambiguous, so that one is placed.
+		TEST_ASSERT_M(diode.find("\"forward_current\":{\"value\":0.3") != std::string::npos, diode);
+
+		// Prose with no numbers in it at all — the normal case for a semiconductor.
+		TEST_COMPARE(S::attributesFromDescription("Diode", "Small Signal Switching Diodes",
+			"Small Signal Switching Diodes Hi Conductance Fast"), std::string("{}"));
+
+		// A type with no slot table (an IC) reads nothing, but the package is still worth having.
+		std::string package;
+		TEST_COMPARE(S::attributesFromDescription("", "LED Drivers",
+			"LED Drivers 16ch 0805 Const Current Sink", &package), std::string("{}"));
+		TEST_COMPARE(package, std::string("0805"));
+
+		// "1038" is a Bourns case code, four digits like every chip size and not one of them.
+		package.clear();
+		S::attributesFromDescription("Inductor", "Power Inductors - SMD",
+			"Power Inductors - SMD 5uH 30% SMD 1038", &package);
+		TEST_ASSERT_M(package.empty(), package);
 	}
 };
 
