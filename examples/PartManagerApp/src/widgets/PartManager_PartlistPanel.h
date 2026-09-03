@@ -102,6 +102,10 @@ namespace PartManager
 		void addLine();
 		// A designator cell was typed into.
 		void onCellChanged(QTableWidgetItem* item);
+		// The row's right-click menu: open the part in the editor, on Mouser, or its datasheet.
+		// The three things anyone checking a BOM line wants, without hunting the part down in the
+		// browser first — the panel may well be the only thing on screen.
+		void showRowMenu(const QPoint& position);
 		// Enables what needs a selected row.
 		void updateButtons();
 		// Opens the project link in the system browser.

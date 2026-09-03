@@ -42,6 +42,8 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_NewPartDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_PartlistPanel.cpp")
 ## ...whose "+ Add Part" and Part-column repair both open the picker.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartPickerDialog.cpp")
+## ...and a row's context menu opens the part editor.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartEditorDialog.cpp")
 ## The partlist panel's CSV import and its "Order Missing Parts" both open dialogs, so the
 ## whole §4/§5 tail comes along -- the panel alone would compile but not link.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartlistImportDialog.cpp")

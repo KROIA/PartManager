@@ -1,7 +1,9 @@
 #include "widgets/PartManager_PartlistPanel.h"
 #include "ui_PartManager_PartlistPanel.h"
 
+#include "controllers/PartManager_PartEditorController.h"
 #include "ui/PartManager_OrderManagerDialog.h"
+#include "ui/PartManager_PartEditorDialog.h"
 #include "ui/PartManager_PartPickerDialog.h"
 #include "ui/PartManager_PartlistImportDialog.h"
 
@@ -12,6 +14,7 @@
 #include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QHeaderView>
+#include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPixmap>
@@ -106,6 +109,10 @@ namespace PartManager
 			this, &PartlistPanel::autosaveHeader);
 		connect(m_ui->openProjectLinkButton, &QPushButton::clicked,
 			this, &PartlistPanel::openProjectLink);
+
+		m_ui->itemTable->setContextMenuPolicy(Qt::CustomContextMenu);
+		connect(m_ui->itemTable, &QTableWidget::customContextMenuRequested,
+			this, &PartlistPanel::showRowMenu);
 
 		connect(m_ui->itemTable, &QTableWidget::itemChanged, this, &PartlistPanel::onCellChanged);
 		connect(m_ui->itemTable, &QTableWidget::itemSelectionChanged,
@@ -745,6 +752,69 @@ namespace PartManager
 		{
 			addPart(picker.selectedPartId());
 		}
+	}
+
+	void PartlistPanel::showRowMenu(const QPoint& position)
+	{
+		const QModelIndex index = m_ui->itemTable->indexAt(position);
+		if (!index.isValid() || index.row() >= static_cast<int>(m_items.size()))
+		{
+			return;
+		}
+		const int row = index.row();
+		const int partId = m_items[static_cast<size_t>(row)].partId;
+
+		QMenu menu(this);
+		if (partId == NoPartId)
+		{
+			// Nothing to open yet, so the one thing this row needs is the only thing offered.
+			QAction* choose = menu.addAction(tr("Choose Part…"));
+			connect(choose, &QAction::triggered, this, [this, row]()
+				{
+					PartPickerDialog picker(m_controller, this);
+					if (picker.exec() == QDialog::Accepted)
+					{
+						assignPart(row, picker.selectedPartId());
+					}
+				});
+			menu.exec(m_ui->itemTable->viewport()->mapToGlobal(position));
+			return;
+		}
+
+		PartEditorController editor(m_controller.handle());
+		const QString datasheet =
+			QString::fromStdString(editor.roleFilePath(partId, PartFileRole::Datasheet));
+		const std::string mouserUrl = PartEditorController::mouserPageUrl(
+			editor.mouserPartNumber(partId), editor.mouserUrl(partId));
+
+		QAction* open = menu.addAction(tr("Open Component Editor…"));
+		connect(open, &QAction::triggered, this, [this, partId]()
+			{
+				PartEditorDialog dialog(m_controller.handle(), partId, this);
+				dialog.exec();
+				// The editor autosaves as it goes (§10), so stock, name and attachments can all
+				// have moved by the time it closes — and the browser above is just as stale.
+				reload();
+				emit stockChanged();
+			});
+
+		QAction* mouser = menu.addAction(tr("Open on Mouser"));
+		mouser->setEnabled(!mouserUrl.empty());
+		// Disabled entries say why, the same way the preview panel's buttons do.
+		mouser->setToolTip(mouserUrl.empty()
+			? tr("This part has no Mouser part number.") : QString::fromStdString(mouserUrl));
+		connect(mouser, &QAction::triggered, this, [mouserUrl]()
+			{ QDesktopServices::openUrl(QUrl(QString::fromStdString(mouserUrl))); });
+
+		QAction* sheet = menu.addAction(tr("Open Datasheet"));
+		sheet->setEnabled(!datasheet.isEmpty());
+		sheet->setToolTip(datasheet.isEmpty()
+			? tr("No datasheet is attached to this part.") : datasheet);
+		connect(sheet, &QAction::triggered, this, [datasheet]()
+			{ QDesktopServices::openUrl(QUrl::fromLocalFile(datasheet)); });
+
+		menu.setToolTipsVisible(true);
+		menu.exec(m_ui->itemTable->viewport()->mapToGlobal(position));
 	}
 
 	void PartlistPanel::updateButtons()

@@ -3141,6 +3141,30 @@ Dafür einen Bestellentwurf anlegen?</translation>
         <source>This line points at no part yet. Drag one out of the component browser, or double-click the Part column — until then it cannot be ordered and is left out of “Order Missing Parts”.</source>
         <translation>Diese Zeile zeigt noch auf kein Bauteil. Ziehen Sie eines aus dem Bauteil-Browser hierher oder doppelklicken Sie die Spalte „Bauteil“ — bis dahin kann sie nicht bestellt werden und bleibt bei „Fehlende Bauteile bestellen“ außen vor.</translation>
     </message>
+    <message>
+        <source>Choose Part…</source>
+        <translation>Bauteil auswählen…</translation>
+    </message>
+    <message>
+        <source>Open Component Editor…</source>
+        <translation>Bauteil-Editor öffnen…</translation>
+    </message>
+    <message>
+        <source>Open on Mouser</source>
+        <translation>Auf Mouser öffnen</translation>
+    </message>
+    <message>
+        <source>This part has no Mouser part number.</source>
+        <translation>Dieses Bauteil hat keine Mouser-Bestellnummer.</translation>
+    </message>
+    <message>
+        <source>Open Datasheet</source>
+        <translation>Datenblatt öffnen</translation>
+    </message>
+    <message>
+        <source>No datasheet is attached to this part.</source>
+        <translation>An diesem Bauteil hängt kein Datenblatt.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::ReceiveArrivalDialog</name>
