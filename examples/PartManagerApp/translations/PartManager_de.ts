@@ -2844,6 +2844,37 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
     </message>
 </context>
 <context>
+    <name>PartManager::PartPickerDialog</name>
+    <message>
+        <source>Add a part</source>
+        <translation>Bauteil hinzufügen</translation>
+    </message>
+    <message>
+        <source>Search name, part number, manufacturer…</source>
+        <translation>Name, Bestellnummer, Hersteller durchsuchen…</translation>
+    </message>
+    <message>
+        <source>Part</source>
+        <translation>Bauteil</translation>
+    </message>
+    <message>
+        <source>MPN</source>
+        <translation>MPN</translation>
+    </message>
+    <message>
+        <source>Manufacturer</source>
+        <translation>Hersteller</translation>
+    </message>
+    <message>
+        <source>In stock</source>
+        <translation>Auf Lager</translation>
+    </message>
+    <message>
+        <source>Add to List</source>
+        <translation>Zur Liste hinzufügen</translation>
+    </message>
+</context>
+<context>
     <name>PartManager::PartlistImportDialog</name>
     <message>
         <source>Designators</source>
@@ -3027,7 +3058,7 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
     </message>
     <message>
         <source>Or drag the part straight out of the table above.</source>
-        <translation>Oder ziehen Sie das Bauteil direkt aus der Tabelle oben herunter.</translation>
+        <translation type="vanished">Oder ziehen Sie das Bauteil direkt aus der Tabelle oben herunter.</translation>
     </message>
     <message>
         <source>—</source>
@@ -3035,7 +3066,7 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
     </message>
     <message>
         <source>This line points at no part yet. Drag one out of the table above, or pick it in the Part column — until then it cannot be ordered and is left out of “Order Missing Parts”.</source>
-        <translation>Diese Zeile zeigt noch auf kein Bauteil. Ziehen Sie eines aus der Tabelle oben herunter oder wählen Sie es in der Spalte „Bauteil“ — bis dahin kann sie nicht bestellt werden und bleibt bei „Fehlende Teile bestellen“ außen vor.</translation>
+        <translation type="vanished">Diese Zeile zeigt noch auf kein Bauteil. Ziehen Sie eines aus der Tabelle oben herunter oder wählen Sie es in der Spalte „Bauteil“ — bis dahin kann sie nicht bestellt werden und bleibt bei „Fehlende Teile bestellen“ außen vor.</translation>
     </message>
     <message numerus="yes">
         <source>Short by %n unit(s): the list needs %1 and stock holds %2.</source>
@@ -3097,6 +3128,18 @@ Dafür einen Bestellentwurf anlegen?</translation>
     <message>
         <source>The database rejected the new order.</source>
         <translation>Die Datenbank hat die neue Bestellung abgelehnt.</translation>
+    </message>
+    <message>
+        <source>Double-click to point this line at a different part.</source>
+        <translation>Doppelklick, um diese Zeile auf ein anderes Bauteil zu setzen.</translation>
+    </message>
+    <message>
+        <source>Removes this line from the list. The part itself is untouched.</source>
+        <translation>Entfernt diese Zeile aus der Liste. Das Bauteil selbst bleibt unberührt.</translation>
+    </message>
+    <message>
+        <source>This line points at no part yet. Drag one out of the component browser, or double-click the Part column — until then it cannot be ordered and is left out of “Order Missing Parts”.</source>
+        <translation>Diese Zeile zeigt noch auf kein Bauteil. Ziehen Sie eines aus dem Bauteil-Browser hierher oder doppelklicken Sie die Spalte „Bauteil“ — bis dahin kann sie nicht bestellt werden und bleibt bei „Fehlende Bauteile bestellen“ außen vor.</translation>
     </message>
 </context>
 <context>
@@ -3520,11 +3563,11 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
     </message>
     <message>
         <source>Add Line</source>
-        <translation>Zeile hinzufügen</translation>
+        <translation type="vanished">Zeile hinzufügen</translation>
     </message>
     <message>
         <source>Remove Line</source>
-        <translation>Zeile entfernen</translation>
+        <translation type="vanished">Zeile entfernen</translation>
     </message>
     <message>
         <source>Order Missing Parts…</source>
@@ -3537,6 +3580,18 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
     <message>
         <source>No partlists yet. Press New to start one, or Import CSV / BOM to read an existing bill of materials.</source>
         <translation>Noch keine Stücklisten. Mit „Neu“ eine anlegen oder mit „CSV / BOM importieren“ eine vorhandene Stückliste einlesen.</translation>
+    </message>
+    <message>
+        <source>Where this list came from: “Manual” means it was started here with New and filled by hand; an imported list names the CSV/BOM it was read from.</source>
+        <translation>Woher diese Liste stammt: „Manuell“ heißt, sie wurde hier mit „Neu“ angelegt und von Hand gefüllt; eine importierte Liste nennt die CSV/BOM, aus der sie gelesen wurde.</translation>
+    </message>
+    <message>
+        <source>+ Add Part…</source>
+        <translation>+ Bauteil hinzufügen…</translation>
+    </message>
+    <message>
+        <source>Search the parts in this database and add the one you pick as a line. The same thing dragging a row out of the component browser does.</source>
+        <translation>Durchsucht die Bauteile dieser Datenbank und fügt das gewählte als Zeile ein. Dasselbe, was das Ziehen einer Zeile aus dem Bauteil-Browser tut.</translation>
     </message>
 </context>
 <context>

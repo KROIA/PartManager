@@ -41,7 +41,8 @@ public:
 private:
 
 	// Columns of the panel's grid, in the order it builds them.
-	enum Column { Designators = 0, PartColumn, QtyPerUnit, QtyTotal, InStock, Shortfall };
+	enum Column { Designators = 0, Image, PartColumn, QtyPerUnit, QtyTotal, InStock, Shortfall,
+		Remove };
 
 	static std::unique_ptr<PartManager::DatabaseHandle> makeDatabase(const std::string& name,
 		std::string& outError)
@@ -170,23 +171,15 @@ private:
 
 		QTableWidget* table = UnitTest::Gui::find<QTableWidget>("itemTable", &panel);
 		QLineEdit* name = UnitTest::Gui::find<QLineEdit>("nameEdit", &panel);
-		QPushButton* addLine = UnitTest::Gui::find<QPushButton>("addLineButton", &panel);
-		QPushButton* removeLine = UnitTest::Gui::find<QPushButton>("removeLineButton", &panel);
-		TEST_ASSERT_M(table && name && addLine && removeLine, "the panel's widgets are gone");
+		TEST_ASSERT_M(table && name, "the panel's widgets are gone");
 
-		TEST_ASSERT(UnitTest::Gui::click(addLine));
-		TEST_COMPARE(table->rowCount(), 2);
-		// The new line points at nothing yet, which is §4's unresolved state — it has to be
-		// stored that way, not silently attached to the first part in the picker.
-		std::vector<PartManager::PartlistLine> lines = controller.lines(listId);
-		TEST_COMPARE(lines.size(), static_cast<size_t>(2));
-		TEST_ASSERT_M(!lines[1].resolved, "a freshly added line must start unresolved");
-
-		// Removing needs a selection; Add Line already selected the row it appended.
-		TEST_ASSERT_M(removeLine->isEnabled(), "the appended row should be selected and removable");
-		TEST_ASSERT(UnitTest::Gui::click(removeLine));
-		TEST_COMPARE(table->rowCount(), 1);
-		TEST_COMPARE(controller.lines(listId).size(), static_cast<size_t>(1));
+		// Deleting a line is the row's own ✕ now, not a footer button plus a selection: the button
+		// knows which row it sits on, so there is no "which line did that just remove?" moment.
+		QPushButton* remove = qobject_cast<QPushButton*>(table->cellWidget(0, Remove));
+		TEST_ASSERT_M(remove != nullptr, "every row carries its own remove button");
+		TEST_ASSERT(UnitTest::Gui::click(remove));
+		TEST_COMPARE(table->rowCount(), 0);
+		TEST_COMPARE(controller.lines(listId).size(), static_cast<size_t>(0));
 
 		// §10: no Save button anywhere, so closing the panel is what has to flush the header.
 		// clearAndType, not type: the field already holds the list's name and type() appends.

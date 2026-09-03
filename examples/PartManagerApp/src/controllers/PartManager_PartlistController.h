@@ -20,6 +20,7 @@
 #include "domain/PartManager_Seller.h"
 #include "persistence/PartManager_PartlistRepository.h"
 #include <QString>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,23 @@ namespace PartManager
 	// The label a part gets in the editor's picker and its Part column: "name (MPN)", or just the
 	// name when there is no MPN. Never tr()'d, both halves are the user's own data.
 	QString partPickerLabel(const Part& part);
+
+	// The designator list of two lines that turned out to be the same part, merged into one.
+	//
+	// A part may sit on a partlist exactly once — a second row would measure its own shortfall
+	// against the same untouched stock and under-order the build. So adding a part the list
+	// already carries merges the two rows, and the designators are the half that must survive
+	// that: they are the BMKs on the board (`R1,R4`), and losing one loses a placement.
+	//
+	// Split on comma or semicolon, whitespace trimmed, duplicates dropped, order kept, joined
+	// with ", ". Never tr()'d — designators are the user's own data.
+	std::string mergeDesignators(const std::string& first, const std::string& second);
+
+	// Collapses rows that point at the same part into the first of them, in place. Quantities are
+	// summed and designators mergeDesignators()'d; unresolved rows (partId == NoPartId) are left
+	// alone, since "not matched yet" is not a part they have in common. Returns true when anything
+	// was merged, which is the caller's cue to write the list back.
+	bool mergeDuplicateItems(std::vector<PartlistItem>& items);
 
 	// PartlistRepository wrapper shared by PartlistManagerDialog and PartlistEditorDialog.
 	// Holds the caller's DatabaseHandle without owning it — MainWindow's controller does.
@@ -67,6 +85,11 @@ namespace PartManager
 		// Every part in the database, for the editor's part picker. Sorted by name so the
 		// combo is navigable by typing.
 		std::vector<Part> allParts() const;
+
+		// Absolute path of every part's `part_file(role='image')`, by part id. One query for the
+		// whole grid rather than one per row — the same trade MainWindowController::partsFor()
+		// makes for the table's thumbnails, and for the same reason.
+		std::map<int, QString> imagePaths() const;
 
 		// Every part_seller_link row, so a BOM's distributor-number column ('Mouser Part
 		// Number') can be matched too — those numbers live nowhere in `part.mpn`.

@@ -23,6 +23,7 @@ int main(int argc, char* argv[])
 	PartManager::repairDefaultUiFont(app);
 	// Before the selector too — it has combo boxes of its own.
 	PartManager::installScrollGuard(app);
+	PartManager::installToolTipWrapper(app);
 
 	// AppSettings (and therefore the known-databases registry, §1b) keys off these.
 	QCoreApplication::setOrganizationName("KROIA");

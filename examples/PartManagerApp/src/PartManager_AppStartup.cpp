@@ -9,6 +9,7 @@
 #include <QPalette>
 #include <QTranslator>
 #include <QWheelEvent>
+#include <QWidget>
 
 namespace PartManager
 {
@@ -67,6 +68,72 @@ namespace PartManager
 	void installScrollGuard(QApplication& app)
 	{
 		app.installEventFilter(new ScrollGuard(&app));
+	}
+
+	std::string wrapToolTip(const std::string& text, int columns)
+	{
+		const QString source = QString::fromStdString(text);
+		if (source.contains(QLatin1Char('\n')) || source.trimmed().startsWith(QLatin1Char('<'))
+			|| source.length() <= columns)
+		{
+			return text;
+		}
+
+		QString wrapped;
+		int sinceBreak = 0;
+		for (const QString& word : source.split(QLatin1Char(' ')))
+		{
+			// Break *before* the word that would overrun, so a long word pushes the line over
+			// rather than being cut in half — a part number split across two lines is worse than
+			// a line that is a few characters too wide.
+			if (sinceBreak > 0 && sinceBreak + 1 + word.length() > columns)
+			{
+				wrapped += QLatin1Char('\n');
+				sinceBreak = 0;
+			}
+			else if (sinceBreak > 0)
+			{
+				wrapped += QLatin1Char(' ');
+				sinceBreak += 1;
+			}
+			wrapped += word;
+			sinceBreak += word.length();
+		}
+		return wrapped.toStdString();
+	}
+
+	namespace
+	{
+		// See installToolTipWrapper().
+		class ToolTipWrapper : public QObject
+		{
+		public:
+			explicit ToolTipWrapper(QObject* parent) : QObject(parent) {}
+
+		protected:
+			bool eventFilter(QObject* watched, QEvent* event) override
+			{
+				QWidget* widget = qobject_cast<QWidget*>(watched);
+				if (event->type() != QEvent::ToolTipChange || widget == nullptr)
+				{
+					return false;
+				}
+				const std::string current = widget->toolTip().toStdString();
+				const std::string wrapped = wrapToolTip(current);
+				if (wrapped != current)
+				{
+					// setToolTip() posts another ToolTipChange; the second pass finds the newlines
+					// it just inserted and returns the text unchanged, so this settles at once.
+					widget->setToolTip(QString::fromStdString(wrapped));
+				}
+				return false;
+			}
+		};
+	}
+
+	void installToolTipWrapper(QApplication& app)
+	{
+		app.installEventFilter(new ToolTipWrapper(&app));
 	}
 
 	namespace

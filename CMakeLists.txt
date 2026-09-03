@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 ## USER_SECTION_START 1
 
+## Every source file here is UTF-8, but MSVC reads narrow literals in the system code page unless
+## told otherwise -- so a "✕" or an em dash in a string literal reached the screen as mojibake.
+## It only showed in English: the German build reads its text from the .qm, which is encoded
+## properly, so tr()'d strings looked fine and untranslated ones did not.
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
+
 ## USER_SECTION_END
 
 

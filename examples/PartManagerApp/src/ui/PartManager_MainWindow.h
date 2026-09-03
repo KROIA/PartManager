@@ -93,6 +93,10 @@ namespace PartManager
 		// §9a: the "always on clean shutdown" snapshot. Also the only one a user who never leaves
 		// the app running for six hours would ever get.
 		void closeEvent(QCloseEvent* event) override;
+		// Turns the browser dock's ✕ into "put it back": the dock has a close button so a floating
+		// window can be dismissed the way every floating window can, but closing the browser
+		// outright would leave the main window empty with no way to bring it back.
+		bool eventFilter(QObject* watched, QEvent* event) override;
 
 	private:
 		// Repaints the §5a symbol and footprint previews for the selected part. Shows what the

@@ -2,6 +2,7 @@
 #include "ui_PartManager_PartlistPanel.h"
 
 #include "ui/PartManager_OrderManagerDialog.h"
+#include "ui/PartManager_PartPickerDialog.h"
 #include "ui/PartManager_PartlistImportDialog.h"
 
 #include <QComboBox>
@@ -13,6 +14,8 @@
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPixmap>
+#include <QPushButton>
 #include <QSpinBox>
 #include <QTableWidgetItem>
 #include <QTimer>
@@ -31,16 +34,27 @@ namespace PartManager
 		const QColor UnresolvedRowColor(0xFB, 0xE1, 0x8F);
 		const QColor ShortfallRowColor(0xF7, 0xD3, 0xC4);
 
+		// How tall a grid row is once it carries a thumbnail, and how big that thumbnail is drawn.
+		constexpr int ThumbnailSize = 28;
+
 		enum Column
 		{
 			ColumnDesignators = 0,
+			ColumnImage,
 			ColumnPart,
 			ColumnQtyPerUnit,
 			ColumnQtyTotal,
 			ColumnInStock,
 			ColumnShortfall,
+			ColumnRemove,
 			ColumnCount
 		};
+
+		// The per-row delete button: red enough to read as "this destroys something", flat so a
+		// column of them does not look like a column of dialogs.
+		const char* const RemoveButtonStyle =
+			"QPushButton { color: #c0392b; font-weight: bold; border: none; background: transparent; }"
+			"QPushButton:hover { color: #ffffff; background: #c0392b; border-radius: 3px; }";
 	}
 
 	const char* const PartlistPanel::PartMimeType = "application/x-qabstractitemmodeldatalist";
@@ -54,15 +68,34 @@ namespace PartManager
 		m_ui->setupUi(this);
 		setAcceptDrops(true);
 
+		// All the extra height goes to the grid. Without this the header fields and the two labels
+		// grow with the dock and the rows — the only part worth more space — stay put.
+		m_ui->mainLayout->setStretch(1, 1);
+		m_ui->bodyLayout->setStretch(1, 1);
+
 		m_saveTimer->setSingleShot(true);
 		m_saveTimer->setInterval(HeaderSaveDebounceMs);
 		connect(m_saveTimer, &QTimer::timeout, this, &PartlistPanel::autosaveHeader);
 
 		m_ui->itemTable->setColumnCount(ColumnCount);
 		m_ui->itemTable->setHorizontalHeaderLabels(QStringList()
-			<< tr("Designators") << tr("Part") << tr("Qty/unit") << tr("Qty total")
-			<< tr("In stock") << tr("Still needed"));
+			<< tr("Designators") << QString() << tr("Part") << tr("Qty/unit") << tr("Qty total")
+			<< tr("In stock") << tr("Still needed") << QString());
 		m_ui->itemTable->horizontalHeader()->setSectionResizeMode(ColumnPart, QHeaderView::Stretch);
+		m_ui->itemTable->horizontalHeader()->setSectionResizeMode(ColumnImage, QHeaderView::Fixed);
+		m_ui->itemTable->horizontalHeader()->setSectionResizeMode(ColumnRemove, QHeaderView::Fixed);
+		m_ui->itemTable->setColumnWidth(ColumnImage, ThumbnailSize + 6);
+		m_ui->itemTable->setColumnWidth(ColumnRemove, 28);
+		m_ui->itemTable->setIconSize(QSize(ThumbnailSize, ThumbnailSize));
+
+		// Rows are dragged to reorder them, and a part dragged out of the browser may well be
+		// aimed at the grid rather than at the panel around it. Both land in eventFilter().
+		m_ui->itemTable->setDragEnabled(true);
+		m_ui->itemTable->setAcceptDrops(true);
+		m_ui->itemTable->viewport()->setAcceptDrops(true);
+		m_ui->itemTable->setDragDropMode(QAbstractItemView::DragDrop);
+		m_ui->itemTable->setDropIndicatorShown(true);
+		m_ui->itemTable->viewport()->installEventFilter(this);
 
 		connect(m_ui->nameEdit, &QLineEdit::textChanged, this, &PartlistPanel::scheduleHeaderSave);
 		connect(m_ui->projectLinkEdit, &QLineEdit::textChanged, this, &PartlistPanel::scheduleHeaderSave);
@@ -78,7 +111,20 @@ namespace PartManager
 		connect(m_ui->itemTable, &QTableWidget::itemSelectionChanged,
 			this, &PartlistPanel::updateButtons);
 		connect(m_ui->addLineButton, &QPushButton::clicked, this, &PartlistPanel::addLine);
-		connect(m_ui->removeLineButton, &QPushButton::clicked, this, &PartlistPanel::removeLine);
+		// Double-clicking the Part cell is how an unresolved import row gets repaired, now that
+		// the column is text rather than a combo box over every part in the database.
+		connect(m_ui->itemTable, &QTableWidget::cellDoubleClicked, this,
+			[this](int row, int column)
+			{
+				if (column == ColumnPart)
+				{
+					PartPickerDialog picker(m_controller, this);
+					if (picker.exec() == QDialog::Accepted)
+					{
+						assignPart(row, picker.selectedPartId());
+					}
+				}
+			});
 		connect(m_ui->orderShortfallButton, &QPushButton::clicked,
 			this, &PartlistPanel::orderShortfall);
 
@@ -271,32 +317,140 @@ namespace PartManager
 		addPart(partId);
 	}
 
-	void PartlistPanel::addPart(int partId)
+	bool PartlistPanel::eventFilter(QObject* watched, QEvent* event)
 	{
-		// A part the list already carries gets one more of itself rather than a second row.
-		// Two rows for the same part are legal (a BOM really does list one resistor on several
-		// lines) but they are never what a drag means, and each row would then measure its own
-		// shortfall against the same untouched stock.
-		for (size_t i = 0; i < m_items.size(); ++i)
+		if (m_ui->itemTable == nullptr || watched != m_ui->itemTable->viewport())
 		{
-			if (m_items[i].partId == partId)
-			{
-				m_items[i].quantityPerUnit += 1;
-				m_controller.saveItems(m_partlist.id, m_items);
-				reload();
-				m_ui->itemTable->selectRow(static_cast<int>(i));
-				return;
-			}
+			return QWidget::eventFilter(watched, event);
 		}
 
+		switch (event->type())
+		{
+		case QEvent::DragEnter:
+		case QEvent::DragMove:
+		{
+			// QDragEnterEvent and QDragMoveEvent are both QDropEvents, and everything this needs
+			// (the source widget and the payload) lives on that base.
+			QDropEvent* drag = static_cast<QDropEvent*>(event);
+			const bool ours = drag->source() == m_ui->itemTable;
+			if (m_partlist.id != NoPartlistId && (ours || droppedPartId(drag->mimeData()) != 0))
+			{
+				// **Always a copy, even for a reorder.** A drag the view started and that ends in
+				// Qt::MoveAction makes QAbstractItemView::startDrag() delete the dragged row's
+				// items on the way out — after this handler has already rebuilt the grid, so it
+				// wiped whichever row had landed on that index. Reordering is done on m_items
+				// here; the view must not also try to do it.
+				drag->setDropAction(Qt::CopyAction);
+				drag->accept();
+				return true;
+			}
+			return true;   // handled: refusing here keeps the panel below from re-offering it
+		}
+		case QEvent::Drop:
+		{
+			QDropEvent* drop = static_cast<QDropEvent*>(event);
+			if (m_partlist.id == NoPartlistId)
+			{
+				return true;
+			}
+			if (drop->source() == m_ui->itemTable)
+			{
+				// Dropped past the last row (or on empty space below it) means "put it last".
+				const QModelIndex target = m_ui->itemTable->indexAt(drop->pos());
+				const int to = target.isValid()
+					? target.row() : static_cast<int>(m_items.size()) - 1;
+				drop->setDropAction(Qt::CopyAction);   // see the DragMove branch
+				drop->accept();
+				moveRow(m_ui->itemTable->currentRow(), to);
+				return true;
+			}
+			const int partId = droppedPartId(drop->mimeData());
+			if (partId != 0)
+			{
+				drop->setDropAction(Qt::CopyAction);
+				drop->accept();
+				addPart(partId);
+			}
+			return true;
+		}
+		default:
+			break;
+		}
+		return QWidget::eventFilter(watched, event);
+	}
+
+	void PartlistPanel::addPart(int partId)
+	{
+		if (partId == NoPartId || m_partlist.id == NoPartlistId)
+		{
+			return;
+		}
+		// A part the list already carries gets one more of itself rather than a second row: each
+		// row would otherwise measure its own shortfall against the same untouched stock, and the
+		// build would be under-ordered. mergeDuplicateItems() is what actually collapses it, so
+		// adding, repairing an import row and reading a BOM back all obey the same rule.
 		PartlistItem item;
 		item.partlistId = m_partlist.id;
 		item.partId = partId;
 		item.quantityPerUnit = 1;
 		m_items.push_back(item);
+		saveMergedItems();
+
+		for (size_t i = 0; i < m_items.size(); ++i)
+		{
+			if (m_items[i].partId == partId)
+			{
+				m_ui->itemTable->selectRow(static_cast<int>(i));
+				break;
+			}
+		}
+	}
+
+	void PartlistPanel::assignPart(int row, int partId)
+	{
+		if (row < 0 || row >= static_cast<int>(m_items.size()) || partId == NoPartId)
+		{
+			return;
+		}
+		m_items[static_cast<size_t>(row)].partId = partId;
+		// If another row already holds that part, this one is folded into it — designators and all.
+		saveMergedItems();
+	}
+
+	void PartlistPanel::removeRow(int row)
+	{
+		if (row < 0 || row >= static_cast<int>(m_items.size()))
+		{
+			return;
+		}
+		// No confirmation: one line is cheap to re-add, and the part itself is untouched.
+		m_items.erase(m_items.begin() + row);
 		m_controller.saveItems(m_partlist.id, m_items);
 		reload();
-		m_ui->itemTable->selectRow(m_ui->itemTable->rowCount() - 1);
+	}
+
+	void PartlistPanel::moveRow(int from, int to)
+	{
+		const int count = static_cast<int>(m_items.size());
+		if (from < 0 || from >= count || to < 0 || to >= count || from == to)
+		{
+			return;
+		}
+		const PartlistItem moved = m_items[static_cast<size_t>(from)];
+		m_items.erase(m_items.begin() + from);
+		m_items.insert(m_items.begin() + to, moved);
+		// Row order is the list's own order — saveItems() rewrites the rows in the order given,
+		// so nothing else has to know that a drag happened.
+		m_controller.saveItems(m_partlist.id, m_items);
+		reload();
+		m_ui->itemTable->selectRow(to);
+	}
+
+	void PartlistPanel::saveMergedItems()
+	{
+		mergeDuplicateItems(m_items);
+		m_controller.saveItems(m_partlist.id, m_items);
+		reload();
 	}
 
 	void PartlistPanel::reload()
@@ -320,13 +474,29 @@ namespace PartManager
 		m_ui->descriptionEdit->setPlainText(QString::fromStdString(m_partlist.description));
 		m_ui->multiplierSpin->setValue(m_partlist.multiplier);
 		m_ui->sourceLabel->setText(partlistSourceLabel(m_partlist.source));
+		// "Manual" on its own says nothing; the caption's explanation follows the value, because
+		// the value is what anyone puzzled by it will hover.
+		m_ui->sourceLabel->setToolTip(m_ui->sourceCaptionLabel->toolTip());
 		m_ui->openProjectLinkButton->setEnabled(!m_partlist.projectLinkUrl.empty());
 
-		const std::vector<PartlistLine> lines = m_controller.lines(m_partlist.id);
+		std::vector<PartlistLine> lines = m_controller.lines(m_partlist.id);
 		m_items.clear();
 		for (const PartlistLine& line : lines)
 		{
 			m_items.push_back(line.item);
+		}
+		// One row per part, enforced on the way in as well as on the way out: a BOM import can
+		// perfectly well list the same part on three lines, and those three are one position with
+		// three designators, not three positions each measured against the same stock.
+		if (mergeDuplicateItems(m_items))
+		{
+			m_controller.saveItems(m_partlist.id, m_items);
+			lines = m_controller.lines(m_partlist.id);
+			m_items.clear();
+			for (const PartlistLine& line : lines)
+			{
+				m_items.push_back(line.item);
+			}
 		}
 		showLines(lines);
 		m_loading = false;
@@ -340,7 +510,8 @@ namespace PartManager
 		m_ui->itemTable->clearContents();
 		m_ui->itemTable->setRowCount(static_cast<int>(lines.size()));
 
-		const std::vector<Part> parts = m_controller.allParts();
+		// One query for the whole grid; a row with no picture simply gets no icon.
+		const std::map<int, QString> images = m_controller.imagePaths();
 		for (size_t i = 0; i < lines.size(); ++i)
 		{
 			const int row = static_cast<int>(i);
@@ -349,30 +520,34 @@ namespace PartManager
 			m_ui->itemTable->setItem(row, ColumnDesignators,
 				new QTableWidgetItem(QString::fromStdString(item.designators)));
 
-			QComboBox* picker = new QComboBox(m_ui->itemTable);
-			// §4's unresolved state is a real choice, not an absence — it has to be selectable so
-			// a mis-matched import row can be put back.
-			picker->addItem(tr("— not matched —"), NoPartId);
-			for (const Part& part : parts)
+			// The photo, same file the browser's table paints — a BOM is read by recognising
+			// parts, and "0603 4k7" and "0603 47k" are one character apart in text.
+			QTableWidgetItem* image = new QTableWidgetItem();
+			image->setFlags(image->flags() & ~Qt::ItemIsEditable);
+			const std::map<int, QString>::const_iterator found = images.find(item.partId);
+			if (found != images.end() && !found->second.isEmpty())
 			{
-				picker->addItem(partPickerLabel(part), part.id);
-			}
-			// The combo is still here for keyboard use and for repairing an import, but it is no
-			// longer the only way in — dragging a row out of the part table above is.
-			picker->setToolTip(tr("Or drag the part straight out of the table above."));
-			const int index = picker->findData(item.partId);
-			picker->setCurrentIndex(index >= 0 ? index : 0);
-			connect(picker, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-				[this, row, picker](int)
+				const QPixmap picture(found->second);
+				if (!picture.isNull())
 				{
-					if (m_loading || row >= static_cast<int>(m_items.size()))
-					{
-						return;
-					}
-					m_items[static_cast<size_t>(row)].partId = picker->currentData().toInt();
-					saveLines();
-				});
-			m_ui->itemTable->setCellWidget(row, ColumnPart, picker);
+					image->setData(Qt::DecorationRole, picture.scaled(ThumbnailSize, ThumbnailSize,
+						Qt::KeepAspectRatio, Qt::SmoothTransformation));
+				}
+			}
+			m_ui->itemTable->setItem(row, ColumnImage, image);
+			m_ui->itemTable->setRowHeight(row, ThumbnailSize + 4);
+
+			// Plain text, not a picker. A row's part is settled the moment it is dropped in, and
+			// a combo box over every part in the database was one stray scroll wheel away from
+			// silently turning a resistor into a connector.
+			Part named;
+			named.name = lines[i].partName;
+			named.mpn = lines[i].partMpn;
+			QTableWidgetItem* part = new QTableWidgetItem(lines[i].resolved
+				? partPickerLabel(named) : tr("— not matched —"));
+			part->setFlags(part->flags() & ~Qt::ItemIsEditable);
+			part->setToolTip(tr("Double-click to point this line at a different part."));
+			m_ui->itemTable->setItem(row, ColumnPart, part);
 
 			QSpinBox* quantity = new QSpinBox(m_ui->itemTable);
 			quantity->setRange(1, 1000000);
@@ -389,7 +564,14 @@ namespace PartManager
 				});
 			m_ui->itemTable->setCellWidget(row, ColumnQtyPerUnit, quantity);
 
-			for (int column = ColumnQtyTotal; column < ColumnCount; ++column)
+			QPushButton* remove = new QPushButton(QStringLiteral("✕"), m_ui->itemTable);
+			remove->setStyleSheet(QString::fromLatin1(RemoveButtonStyle));
+			remove->setToolTip(tr("Removes this line from the list. The part itself is untouched."));
+			remove->setCursor(Qt::ArrowCursor);
+			connect(remove, &QPushButton::clicked, this, [this, row]() { removeRow(row); });
+			m_ui->itemTable->setCellWidget(row, ColumnRemove, remove);
+
+			for (int column = ColumnQtyTotal; column < ColumnRemove; ++column)
 			{
 				QTableWidgetItem* cell = new QTableWidgetItem();
 				cell->setFlags(cell->flags() & ~Qt::ItemIsEditable);
@@ -401,6 +583,8 @@ namespace PartManager
 		refreshComputedColumns(lines);
 		m_ui->itemTable->resizeColumnsToContents();
 		m_ui->itemTable->horizontalHeader()->setSectionResizeMode(ColumnPart, QHeaderView::Stretch);
+		m_ui->itemTable->setColumnWidth(ColumnImage, ThumbnailSize + 6);
+		m_ui->itemTable->setColumnWidth(ColumnRemove, 28);
 		updateButtons();
 	}
 
@@ -441,9 +625,9 @@ namespace PartManager
 				if (paintUnresolved)
 				{
 					cell->setBackground(UnresolvedRowColor);
-					cell->setToolTip(tr("This line points at no part yet. Drag one out of the table "
-						"above, or pick it in the Part column — until then it cannot be ordered and "
-						"is left out of “Order Missing Parts”."));
+					cell->setToolTip(tr("This line points at no part yet. Drag one out of the "
+						"component browser, or double-click the Part column — until then it cannot "
+						"be ordered and is left out of “Order Missing Parts”."));
 				}
 				else if (paintShortfall)
 				{
@@ -454,7 +638,10 @@ namespace PartManager
 				else
 				{
 					cell->setBackground(QBrush());
-					cell->setToolTip(QString());
+					// The Part cell keeps its hint: this pass runs on every quantity change, and
+					// clearing it here would make double-click undiscoverable after the first edit.
+					cell->setToolTip(column == ColumnPart
+						? tr("Double-click to point this line at a different part.") : QString());
 				}
 			}
 		}
@@ -551,32 +738,18 @@ namespace PartManager
 		{
 			return;
 		}
-		PartlistItem item;
-		item.partlistId = m_partlist.id;
-		item.quantityPerUnit = 1;
-		m_items.push_back(item);
-		m_controller.saveItems(m_partlist.id, m_items);
-		reload();
-		m_ui->itemTable->selectRow(m_ui->itemTable->rowCount() - 1);
-	}
-
-	void PartlistPanel::removeLine()
-	{
-		const int row = m_ui->itemTable->currentRow();
-		if (row < 0 || row >= static_cast<int>(m_items.size()))
+		// An empty line has nothing to fill it with now that the Part column is not a picker, so
+		// this asks which part first and adds the row second.
+		PartPickerDialog picker(m_controller, this);
+		if (picker.exec() == QDialog::Accepted)
 		{
-			return;
+			addPart(picker.selectedPartId());
 		}
-		// No confirmation: one line is cheap to re-add, and Add Line is right next to the button.
-		m_items.erase(m_items.begin() + row);
-		m_controller.saveItems(m_partlist.id, m_items);
-		reload();
 	}
 
 	void PartlistPanel::updateButtons()
 	{
-		m_ui->removeLineButton->setEnabled(m_ui->itemTable->currentRow() >= 0
-			&& !m_items.empty());
+		m_ui->addLineButton->setEnabled(m_partlist.id != NoPartlistId);
 	}
 
 	void PartlistPanel::openProjectLink()

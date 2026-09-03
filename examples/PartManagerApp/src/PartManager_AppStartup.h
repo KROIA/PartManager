@@ -50,6 +50,21 @@ namespace PartManager
 	// hands the scroll to the scroll area instead of eating it.
 	void installScrollGuard(QApplication& app);
 
+	// `text` with a line break every `columns` characters or so, broken between words.
+	// Rich text (anything that already starts with '<') and text that already carries newlines
+	// are returned untouched — someone laid those out on purpose.
+	std::string wrapToolTip(const std::string& text, int columns = 60);
+
+	// Keeps tooltips readable by breaking the long ones over several lines. Qt renders a plain
+	// tooltip as one line however wide it gets, and the explanatory ones here run to a sentence
+	// or three — on a wide screen that is a ribbon of text across the whole display.
+	//
+	// Installed on the application, filtering QEvent::ToolTipChange, rather than wrapping each
+	// string at the call site: the strings are translated, so a hard-wrapped source string would
+	// have to be re-wrapped by hand in every language, and half of them come out of .ui files
+	// where there is no call site to wrap at.
+	void installToolTipWrapper(QApplication& app);
+
 	// §9 theme. A QPalette swap rather than a stylesheet: RibbonWidget, the item views and every
 	// dialog are ordinary Qt widgets, so they all follow a palette without any of them knowing a
 	// theme exists — a stylesheet would have to name each one. Safe to call at any time; the

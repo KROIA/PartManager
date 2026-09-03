@@ -8,6 +8,12 @@
 // browser is already on screen, so a line is added by **dragging a row into this
 // panel**. The list selector at the top is what the manager dialog used to be.
 //
+// **One row per part.** Adding a part the list already carries merges the rows —
+// quantities summed, designators (the BMKs on the board) merged — rather than
+// appending a second one, which would measure its own shortfall against the same
+// untouched stock and under-order the build. mergeDuplicateItems() enforces it on
+// load too, so an imported BOM obeys the same rule.
+//
 // §10 autosave, unchanged from the dialog it replaces: header fields write on a
 // debounce flushed when the panel is hidden or the window closes, line edits
 // write immediately (they are discrete events, not typing). No Save button.
@@ -77,6 +83,12 @@ namespace PartManager
 		void dropEvent(QDropEvent* event) override;
 		void hideEvent(QHideEvent* event) override;
 		void closeEvent(QCloseEvent* event) override;
+		// The grid's own drag and drop, taken off the table's viewport rather than by subclassing
+		// QTableWidget. Two drops land there: a row dragged within the grid (reorder) and a part
+		// dragged in from the browser (add). Qt's own QTableWidget::InternalMove cannot do the
+		// first one here — it moves *items*, and half of every row is a cell widget it leaves
+		// behind — so the move is done on m_items and the grid is rebuilt from it.
+		bool eventFilter(QObject* watched, QEvent* event) override;
 
 	private slots:
 		// §10: writes the header fields back to the existing record.
@@ -85,13 +97,12 @@ namespace PartManager
 		void scheduleHeaderSave();
 		// Writes the current lines and re-reads them, so the computed columns follow.
 		void saveLines();
-		// Appends an empty, unresolved line.
+		// Opens the part picker and adds whatever comes back — the way in when the component
+		// browser is hidden, floated or covered and there is nothing to drag out of.
 		void addLine();
-		// Drops the selected line.
-		void removeLine();
 		// A designator cell was typed into.
 		void onCellChanged(QTableWidgetItem* item);
-		// Remove Line needs a selected row.
+		// Enables what needs a selected row.
 		void updateButtons();
 		// Opens the project link in the system browser.
 		void openProjectLink();
@@ -114,6 +125,16 @@ namespace PartManager
 		// carries that part — dragging the same resistor twice means "two of them", not two rows
 		// that each measure themselves against the same untouched stock.
 		void addPart(int partId);
+		// Points an existing row at `partId`, merging it into the row that already holds that part
+		// if there is one. How an unresolved import row is repaired now that the Part column is
+		// text rather than a combo box.
+		void assignPart(int row, int partId);
+		// Drops one row. The per-row ✕ button, so it takes the row rather than reading a selection.
+		void removeRow(int row);
+		// Moves row `from` to position `to` and writes the new order — the grid's drag reorder.
+		void moveRow(int from, int to);
+		// Writes m_items back after collapsing rows that ended up on the same part.
+		void saveMergedItems();
 
 		Ui::PartlistPanel* m_ui;
 		PartlistController m_controller;

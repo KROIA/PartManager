@@ -16,6 +16,7 @@ public:
 		ADD_TEST(TST_PartlistController::sourceLabelsFallBackToTheRawValue);
 		ADD_TEST(TST_PartlistController::summarySpeaksOnlyWhenSomethingIsWrong);
 		ADD_TEST(TST_PartlistController::pickerLabelDropsAnEmptyMpn);
+		ADD_TEST(TST_PartlistController::onePartIsOneLineWithEveryDesignatorKept);
 	}
 
 private:
@@ -96,6 +97,34 @@ private:
 		part.mpn = "RC0603FR-074K7L";
 		TEST_COMPARE(PartManager::partPickerLabel(part),
 			QString("RC0603FR-074K7L (RC0603FR-074K7L)"));
+	}
+
+	TEST_FUNCTION(onePartIsOneLineWithEveryDesignatorKept)
+	{
+		TEST_START;
+
+		// Both separators, stray spaces, and a designator that is on both lines: R4 must survive
+		// exactly once, and nothing may be dropped — a lost BMK is a missing placement on a board.
+		TEST_COMPARE(PartManager::mergeDesignators("R1, R4", "R4;R7 ; R9"),
+			std::string("R1, R4, R7, R9"));
+		TEST_COMPARE(PartManager::mergeDesignators("", "C1"), std::string("C1"));
+		TEST_COMPARE(PartManager::mergeDesignators("C1", ""), std::string("C1"));
+
+		std::vector<PartManager::PartlistItem> items(4);
+		items[0].partId = 7;   items[0].quantityPerUnit = 2;  items[0].designators = "R1,R2";
+		items[1].partId = 0;   items[1].quantityPerUnit = 1;  items[1].designators = "?";
+		items[2].partId = 7;   items[2].quantityPerUnit = 3;  items[2].designators = "R5";
+		items[3].partId = 0;   items[3].quantityPerUnit = 1;  items[3].designators = "??";
+
+		TEST_ASSERT_M(PartManager::mergeDuplicateItems(items), "the two part-7 rows are one row");
+		TEST_COMPARE(items.size(), static_cast<size_t>(3));
+		TEST_COMPARE(items[0].quantityPerUnit, 5);
+		TEST_COMPARE(items[0].designators, std::string("R1, R2, R5"));
+		// Unresolved rows have no part in common, so they are left as the separate to-dos they are.
+		TEST_COMPARE(items[1].partId, 0);
+		TEST_COMPARE(items[2].partId, 0);
+
+		TEST_ASSERT_M(!PartManager::mergeDuplicateItems(items), "a merged list is left alone");
 	}
 };
 

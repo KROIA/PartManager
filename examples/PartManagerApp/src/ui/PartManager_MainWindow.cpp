@@ -193,15 +193,28 @@ namespace PartManager
 
 		// §7's browser is a dock rather than the central widget, so it can be moved, floated or
 		// stacked against the partlist panel — which is the whole reason that panel became a dock
-		// too. Not closable: with both docks gone the window would be empty and unrecoverable.
+		// too. It has a close button, because a floating window without one is a window you cannot
+		// put away; what the button does is dock it again rather than hide it (see eventFilter()).
 		m_browserDock = new QDockWidget(tr("Component Browser"), this);
 		m_browserDock->setObjectName(QStringLiteral("browserDock"));
-		m_browserDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
 		m_browserDock->setWidget(m_ui->bodySplitter);
+		m_browserDock->installEventFilter(this);
 		addDockWidget(Qt::LeftDockWidgetArea, m_browserDock);
 		// Nothing is left in the middle. A visible-but-empty central widget keeps a stripe of grey
 		// between the docks and refuses to shrink past its minimum size.
 		m_ui->centralWidget->hide();
+
+		// The default dock separator and splitter handle are ~4px of window background: you have to
+		// find them by feel. Widened and given a colour of their own, plus a blue hover, so a drag
+		// target is visible before the cursor is on top of it. Selectors are element-specific, so
+		// this only reaches separators and handles, not every child widget it cascades to.
+		setStyleSheet(QStringLiteral(
+			"QMainWindow::separator { background: #c3c9d2; width: 7px; height: 7px; }"
+			"QMainWindow::separator:hover { background: #4a90d9; }"
+			"QSplitter::handle { background: #c3c9d2; }"
+			"QSplitter::handle:horizontal { width: 7px; }"
+			"QSplitter::handle:vertical { height: 7px; }"
+			"QSplitter::handle:hover { background: #4a90d9; }"));
 
 		// §5a: the symbol and footprint sit directly under the photo, so one glance at the
 		// preview answers "is this the right package" without opening the editor or KiCad.
@@ -435,6 +448,25 @@ namespace PartManager
 				preferences.backupFolder, preferences.backupRetentionCount);
 		}
 		QMainWindow::closeEvent(event);
+	}
+
+	bool MainWindow::eventFilter(QObject* watched, QEvent* event)
+	{
+		if (watched == m_browserDock && event->type() == QEvent::Close)
+		{
+			// Never hidden, always re-docked. The ✕ on a floating browser reads as "I am done with
+			// this window", not as "delete the only view of my inventory".
+			event->ignore();
+			m_browserDock->setFloating(false);
+			if (dockWidgetArea(m_browserDock) == Qt::NoDockWidgetArea)
+			{
+				addDockWidget(Qt::LeftDockWidgetArea, m_browserDock);
+			}
+			m_browserDock->show();
+			m_browserDock->raise();
+			return true;
+		}
+		return QMainWindow::eventFilter(watched, event);
 	}
 
 	void MainWindow::setupFilters()

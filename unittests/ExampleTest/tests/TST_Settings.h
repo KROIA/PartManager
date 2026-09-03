@@ -22,11 +22,51 @@ public:
 		ADD_TEST(TST_Settings::preferencesRoundTripAndClamp);
 		ADD_TEST(TST_Settings::importMappingsAreRememberedByHeaderShape);
 		ADD_TEST(TST_Settings::germanTranslationIsActuallyInstalled);
+		ADD_TEST(TST_Settings::longToolTipsAreBrokenOverLines);
 	}
 
 private:
 
 	// Tests
+	TEST_FUNCTION(longToolTipsAreBrokenOverLines)
+	{
+		TEST_START;
+
+		// Short enough to leave alone.
+		TEST_COMPARE(PartManager::wrapToolTip("Opens the datasheet."),
+			std::string("Opens the datasheet."));
+
+		// A sentence and a half, wrapped at word boundaries and nowhere else.
+		const std::string wrapped = PartManager::wrapToolTip(
+			"Compares what this list needs against what is in stock, and raises a draft "
+			"Mouser order for the difference.", 40);
+		TEST_ASSERT_M(wrapped.find('\n') != std::string::npos, "a long tooltip must be broken up");
+		std::string longest;
+		size_t start = 0;
+		while (start <= wrapped.size())
+		{
+			const size_t end = wrapped.find('\n', start);
+			const std::string line = wrapped.substr(start, end == std::string::npos
+				? std::string::npos : end - start);
+			// No word may be cut in half, so the text still reads as the same sentence.
+			TEST_ASSERT_M(line.find("  ") == std::string::npos, "double space in: " + line);
+			if (line.size() > longest.size()) { longest = line; }
+			if (end == std::string::npos) { break; }
+			start = end + 1;
+		}
+		TEST_ASSERT_M(longest.size() <= 48, "line far past the limit: " + longest);
+
+		// Hand-laid-out text is left exactly as it is, in both its forms.
+		TEST_COMPARE(PartManager::wrapToolTip("Already\nbroken by hand, and quite long indeed "
+			"so that it would otherwise be wrapped.", 20),
+			std::string("Already\nbroken by hand, and quite long indeed so that it would "
+				"otherwise be wrapped."));
+		TEST_COMPARE(PartManager::wrapToolTip("<b>Rich text</b> is left alone even when it runs "
+			"well past the wrapping width.", 20),
+			std::string("<b>Rich text</b> is left alone even when it runs well past the "
+				"wrapping width."));
+	}
+
 	TEST_FUNCTION(settingsFileIsOutsideWorkingDirectory)
 	{
 		TEST_START;
