@@ -10,6 +10,7 @@
 // migration step, not part of the GUI.
 #include "database/PartManager_DatabaseHandle.h"
 #include "database/PartManager_DatabaseRegistry.h"
+#include "filestore/PartManager_FileStore.h"
 #include "mouser/PartManager_MouserClient.h"
 #include "mouser/PartManager_MouserSearchService.h"
 #include "persistence/PartManager_PartRepository.h"
@@ -139,6 +140,39 @@ namespace
 			PartManager::SellerRepository::recordQuote(db, linkId, prefill.priceBreaks);
 		}
 	}
+
+	// The product photo and the datasheet are URLs on the prefill, not part columns, so importing
+	// without this leaves every part picture-less while the GUI's New Part flow — which downloads
+	// exactly these two — fills them in. Same reason the seller link needed writing: the console
+	// importer was keeping only the part row out of everything the lookup returned.
+	//
+	// An occupied slot is left alone, so a re-run backfills what is missing without re-downloading
+	// what is there, and a failure is reported rather than retried (Mouser's CDN answers a request
+	// it dislikes with a 200 and an HTML page; FileStore::looksLikeBlockPage catches that one).
+	void attachRemote(PartManager::FileStore& store, SQLiteWrapper::SQLite& db, int partId,
+		PartManager::PartFileRole role, const std::string& url, const char* label)
+	{
+		if (partId == 0 || url.empty())
+		{
+			return;
+		}
+		PartManager::PartFile occupied;
+		if (PartManager::FileStore::roleFile(db, partId, role, occupied))
+		{
+			return;
+		}
+		const PartManager::FileStoreResult stored = store.downloadFile(url);
+		if (!stored.ok)
+		{
+			std::printf("       %s not downloaded: %s\n", label, stored.errorMessage.c_str());
+			return;
+		}
+		std::string error;
+		if (store.adoptStoredFile(db, partId, role, stored, &error) == 0)
+		{
+			std::printf("       %s not attached: %s\n", label, error.c_str());
+		}
+	}
 }
 
 int main(int argc, char* argv[])
@@ -219,6 +253,7 @@ int main(int argc, char* argv[])
 	PartManager::DatabaseRegistry::add(handle->pmdbPath());
 
 	SQLiteWrapper::SQLite& db = handle->connection();
+	PartManager::FileStore store(handle->filestorePath());
 
 	// Both seeds only add what is missing, so this backfills built-in categories and tags that were
 	// added after an older database was created. Nothing existing is overwritten.
@@ -274,6 +309,10 @@ int main(int argc, char* argv[])
 			if (!dryRun)
 			{
 				linkMouser(db, existingId, prefill);
+				attachRemote(store, db, existingId, PartManager::PartFileRole::Image,
+					prefill.imageUrl, "image");
+				attachRemote(store, db, existingId, PartManager::PartFileRole::Datasheet,
+					prefill.datasheetUrl, "datasheet");
 			}
 			std::printf("SKIP %-22s already in database (Mouser-Nr. linked)\n", row.mouserPartNumber.c_str());
 			++skipped;
@@ -309,6 +348,9 @@ int main(int argc, char* argv[])
 			continue;
 		}
 		linkMouser(db, partId, prefill);
+		attachRemote(store, db, partId, PartManager::PartFileRole::Image, prefill.imageUrl, "image");
+		attachRemote(store, db, partId, PartManager::PartFileRole::Datasheet, prefill.datasheetUrl,
+			"datasheet");
 		++imported;
 	}
 
