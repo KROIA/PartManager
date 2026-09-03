@@ -113,15 +113,34 @@ private:
 	{
 		TEST_START;
 
-		// KiCad resolves (extends "X") within the same file, so a base that is mapped to but not
-		// embedded produces a library it reports as broken - and the mapping table and the
-		// embedded list are in two different functions, which is exactly how they drift apart.
-		const std::string library = PartManager::KicadSymbolWriter::library({});
+		// A library of freshly generated symbols embeds NO base symbols. KiCad lists every symbol
+		// in a library in its chooser and has no way to hide one, so an embedded PM_R showed up
+		// beside the real parts in every category - reported from KiCad on 2026-09-03.
+		const std::string empty = PartManager::KicadSymbolWriter::library({});
+		TEST_ASSERT_M(empty.find("(symbol \"PM_") == std::string::npos,
+			"base symbols must not be embedded when nothing extends them: " + empty);
+
+		// A symbol that still extends one - preserved from an older run, or hand-edited in KiCad -
+		// keeps its parent, or the library is unreadable. Only the parent it names.
+		const std::string legacy = PartManager::KicadSymbolWriter::library(
+			{ "\t(symbol \"OLD\"\n\t\t(extends \"PM_R\")\n\t)\n" });
+		TEST_ASSERT_M(legacy.find("(symbol \"PM_R\"") != std::string::npos,
+			"a preserved (extends \"PM_R\") must keep its parent: " + legacy);
+		TEST_ASSERT_M(legacy.find("(symbol \"PM_C\"") == std::string::npos,
+			"and only the parent it names: " + legacy);
+
+		// Every base is still generated, because that is what a legacy symbol resolves against
+		// and what bodyForBase() stamps out. The mapping table and the embedded list are in two
+		// different functions, which is exactly how they drift apart.
+		const std::string allBases = PartManager::KicadSymbolWriter::library(
+			{ "\t(symbol \"X\"\n\t\t(extends \"PM_R\")\n\t\t(extends \"PM_C\")\n"
+			  "\t\t(extends \"PM_L\")\n\t\t(extends \"PM_D\")\n\t\t(extends \"PM_LED\")\n"
+			  "\t\t(extends \"PM_Q\")\n\t\t(extends \"PM_Generic\")\n\t)\n" });
 		for (const char* typeName : { "Resistor", "Ceramic Capacitor", "Inductor", "Diode", "LED",
 			"MOSFET", "Transistor", "Some Type Nobody Mapped" })
 		{
 			const std::string base = PartManager::KicadSymbolWriter::baseSymbolForType(typeName);
-			TEST_ASSERT_M(library.find("(symbol \"" + base + "\"") != std::string::npos,
+			TEST_ASSERT_M(allBases.find("(symbol \"" + base + "\"") != std::string::npos,
 				std::string(typeName) + " maps to base '" + base + "' which is not embedded");
 		}
 
@@ -139,7 +158,13 @@ private:
 		spec.partId = 42;
 		spec.mouserPartNumber = "603-RC0603FR-074K7L";
 		const std::string block = PartManager::KicadSymbolWriter::symbolBlock(spec);
-		TEST_ASSERT(block.find("(extends \"PM_R\")") != std::string::npos);
+		// The body is stamped in rather than inherited, so the symbol stands alone and its
+		// parent does not have to exist beside it in the chooser.
+		TEST_ASSERT_M(block.find("(extends") == std::string::npos, block);
+		TEST_ASSERT_M(block.find("(symbol \"RC0603-4K7_0_1\"") != std::string::npos,
+			"the unit body must be named after the part, or the symbol draws nothing: " + block);
+		TEST_ASSERT_M(block.find("(pin passive") != std::string::npos
+			|| block.find("(pin ") != std::string::npos, "a symbol with no pins is unusable: " + block);
 		TEST_ASSERT(block.find("\"PM_PartID\" \"42\"") != std::string::npos);
 		TEST_ASSERT(block.find("\"Mouser P/N\" \"603-RC0603FR-074K7L\"") != std::string::npos);
 		// An empty property is noise in KiCad's field editor and is left out entirely.

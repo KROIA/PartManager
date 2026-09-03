@@ -112,10 +112,19 @@ namespace PartManager
 		// Removes the current datasheet. False when the part carried none, or the row was already gone.
 		bool detachDatasheet(Part& part) const;
 		// The part's datasheet `part_file` row. False when it carries none.
+		//
+		// **`part.datasheet_file_id` is a cache of the row, not a second answer.** It used to be
+		// the only thing read here while the part table's Files column counted `part_file` rows,
+		// so an imported part showed the datasheet glyph in the list and an empty slot in the
+		// editor. Resolving through the same single-slot rule as every other role makes the two
+		// agree; the column is still written, so anything that reads it keeps working.
 		bool datasheetFile(const Part& part, PartFile& outFile) const;
 		// Absolute path of the stored datasheet — empty when there is none, or the file
 		// is no longer on disk, which is what tells the editor to say so instead of opening nothing.
 		std::string datasheetPath(const Part& part) const;
+		// The `part_file` id the part's datasheet slot currently holds, 0 when empty. Read before
+		// writing a replacement — asking afterwards returns the row just inserted.
+		int currentDatasheetFileId(const Part& part) const;
 
 		// Single-slot `part_file` roles — the §13 3D model ('kicad_3dmodel') and the product
 		// photo ('image'). A part carries at most one of each, and unlike the datasheet there is

@@ -3,6 +3,7 @@
 #include "UnitTest.h"
 #include "controllers/PartManager_PartEditorController.h"
 #include "persistence/PartManager_PartRepository.h"
+#include "filestore/PartManager_FileStore.h"
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -28,6 +29,7 @@ public:
 		ADD_TEST(TST_PartEditorController::availableTagsExcludeCarriedOnes);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_PartEditorController::datasheetAttachReplaceAndDetach);
+		ADD_TEST(TST_PartEditorController::anImportedDatasheetIsFoundWithoutTheCachedId);
 		ADD_TEST(TST_PartEditorController::imageSlotReplacesInPlaceAndDeleteTakesEverythingWithIt);
 #endif
 	}
@@ -302,6 +304,64 @@ private:
 		// Nothing attached: detaching again is a no-op, and there is no path to open.
 		TEST_ASSERT(!controller.detachDatasheet(reloaded));
 		TEST_ASSERT(controller.datasheetPath(reloaded).empty());
+	}
+
+	// A datasheet attached the way PartImport attaches one: a `part_file` row and no
+	// `part.datasheet_file_id`. The part table's Files column counts rows and showed the glyph
+	// while the editor read only the column and said there was none — reported from the running
+	// app on 2026-09-03, on every one of the 38 imported parts.
+	TEST_FUNCTION(anImportedDatasheetIsFoundWithoutTheCachedId)
+	{
+		TEST_START;
+
+		std::filesystem::path parent =
+			std::filesystem::temp_directory_path() / "PartManager_TST_PartEditorController_import";
+		std::error_code ec;
+		std::filesystem::remove_all(parent, ec);
+		std::filesystem::create_directories(parent, ec);
+
+		std::string error;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			PartManager::DatabaseHandle::createNew(parent.string(), "Imported", error);
+		TEST_ASSERT_M(handle != nullptr, "createNew failed: " + error);
+
+		PartManager::PartEditorController controller(handle.get());
+		PartManager::Part part;
+		part.partTypeId = controller.types().front().id;
+		part.name = "DMG1013T-7";
+		part.id = controller.createPart(part);
+		TEST_ASSERT(part.id != 0);
+
+		// Straight through FileStore, exactly as the importer does — no column written.
+		const std::filesystem::path source = parent / "DMG1013T.pdf";
+		std::ofstream(source, std::ios::binary) << "%PDF-1.4 imported datasheet";
+		PartManager::FileStore store(handle->filestorePath());
+		const int rowId = store.attachFile(handle->connection(), part.id,
+			PartManager::PartFileRole::Datasheet, source.string(), &error);
+		TEST_ASSERT_M(rowId != 0, error);
+		TEST_COMPARE(part.datasheetFileId, 0);
+
+		PartManager::PartFile row;
+		TEST_ASSERT_M(controller.datasheetFile(part, row),
+			"the editor must see the datasheet the list is already showing a glyph for");
+		TEST_COMPARE(row.id, rowId);
+		TEST_ASSERT_M(!controller.datasheetPath(part).empty(), "and be able to open it");
+
+		// Replacing over it must not leave the invisible row behind — that is how the same part
+		// ended up with two datasheet rows in a single-slot role.
+		const std::filesystem::path replacement = parent / "DMG1013T-revB.pdf";
+		std::ofstream(replacement, std::ios::binary) << "%PDF-1.4 replacement";
+		const int replacedId = controller.attachDatasheet(part, replacement.string(), &error);
+		TEST_ASSERT_M(replacedId != 0, error);
+		TEST_ASSERT_M(replacedId != rowId, "a replacement must be its own row");
+		TEST_COMPARE(PartManager::PartRepository::listFiles(handle->connection(), part.id).size(),
+			static_cast<size_t>(1));
+		// And the new one must still be readable, rather than the row that was just deleted.
+		TEST_ASSERT_M(!controller.datasheetPath(part).empty(),
+			"the replacement must be the row the part now points at");
+
+		handle.reset();
+		std::filesystem::remove_all(parent, ec);
 	}
 
 	// The two single-slot roles that have no column on `part` pointing at them, plus the delete

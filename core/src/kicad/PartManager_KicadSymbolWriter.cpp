@@ -213,6 +213,32 @@ namespace PartManager
 			out += "\t\t)\n";
 			return out;
 		}
+
+		// The body each base stands for, drawn under `name` instead of the base's own name.
+		// KiCad ties a symbol's unit bodies to their parent by the `<Parent>_<unit>_<style>`
+		// naming convention, which is why the body has to be generated with the final name
+		// rather than generated once and renamed.
+		std::string bodyForBase(const std::string& base, const std::string& name)
+		{
+			if (base == "PM_R" || base == "PM_C" || base == "PM_L" || base == "PM_D"
+				|| base == "PM_LED")
+			{
+				return twoPinBody(name);
+			}
+			// Three terminals for a transistor/MOSFET, four for anything unmapped — the same
+			// choice baseSymbolBlocks() makes, and the reason both live in this one file.
+			return boxBody(name, base == "PM_Q" ? 3 : 4);
+		}
+
+		std::string footprintFilterForBase(const std::string& base)
+		{
+			if (base == "PM_R")   { return "R_*"; }
+			if (base == "PM_C")   { return "C_*"; }
+			if (base == "PM_L")   { return "L_*"; }
+			if (base == "PM_D")   { return "D_*"; }
+			if (base == "PM_LED") { return "LED_*"; }
+			return std::string();
+		}
 	}
 
 	std::vector<std::string> KicadSymbolWriter::baseSymbolBlocks()
@@ -238,7 +264,18 @@ namespace PartManager
 
 		std::string out;
 		out += "\t(symbol \"" + escape(name) + "\"\n";
-		out += "\t\t(extends \"" + escape(base) + "\")\n";
+		// **The body is copied in, not inherited.** `(extends "PM_R")` is the tidier file and was
+		// what this wrote first, but KiCad requires the parent in the same library and then lists
+		// it in the symbol chooser like any other symbol — so every generated library showed
+		// PM_C, PM_D, PM_Generic, PM_L, PM_LED, PM_Q and PM_R beside the real parts, in every
+		// category. KiCad has no way to hide a symbol from the chooser, so the parents have to
+		// stop existing. The bases are still the single definition of what each body looks like;
+		// they are stamped out under the part's name instead of being referenced.
+		out += "\t\t(pin_numbers\n\t\t\t(hide yes)\n\t\t)\n";
+		out += "\t\t(pin_names\n\t\t\t(offset 0)\n\t\t)\n";
+		out += "\t\t(exclude_from_sim no)\n";
+		out += "\t\t(in_bom yes)\n";
+		out += "\t\t(on_board yes)\n";
 		// Reference and Value are the two the user sees on the canvas, so they are placed rather
 		// than hidden. Everything else is metadata.
 		out += "\t\t(property \"Reference\" \"" + escape(spec.reference) + "\"\n";
@@ -258,6 +295,8 @@ namespace PartManager
 		out += hiddenProperty("PM_PartID", spec.partId > 0 ? std::to_string(spec.partId) : std::string());
 		out += hiddenProperty("Mouser P/N", spec.mouserPartNumber);
 		out += hiddenProperty("PM_3DModel", spec.model3DPath);
+		out += hiddenProperty("ki_fp_filters", footprintFilterForBase(base));
+		out += bodyForBase(base, name);
 		out += "\t)\n";
 		return out;
 	}
@@ -269,9 +308,24 @@ namespace PartManager
 		out += "\t(version " + std::string(LibraryVersion) + ")\n";
 		out += "\t(generator \"PartManager\")\n";
 		out += "\t(generator_version \"9.0\")\n";
-		for (const std::string& block : baseSymbolBlocks())
+		// Only the bases something still extends. Freshly generated symbols carry their own body
+		// (see symbolBlock), so the normal library embeds none and the symbol chooser shows real
+		// parts only. A symbol preserved from an older run — or a hand-edited one KiCad wrote —
+		// may still say `(extends "PM_R")`, and dropping its parent would make the library
+		// unreadable, so those parents are still written.
+		for (const std::string& base : baseSymbolBlocks())
 		{
-			out += block;
+			const std::string name = symbolNameOf(base);
+			const std::string needle = "(extends \"" + name + "\")";
+			bool needed = false;
+			for (const std::string& block : symbolBlocks)
+			{
+				needed = needed || block.find(needle) != std::string::npos;
+			}
+			if (needed)
+			{
+				out += base;
+			}
 		}
 		for (const std::string& block : symbolBlocks)
 		{

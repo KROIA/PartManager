@@ -168,9 +168,25 @@ namespace
 			return;
 		}
 		std::string error;
-		if (store.adoptStoredFile(db, partId, role, stored, &error) == 0)
+		const int fileId = store.adoptStoredFile(db, partId, role, stored, &error);
+		if (fileId == 0)
 		{
 			std::printf("       %s not attached: %s\n", label, error.c_str());
+			return;
+		}
+		// `part.datasheet_file_id` is a second pointer at the same row, and the editor used to
+		// read only that one — so a part imported without it showed the list's datasheet glyph
+		// and an empty datasheet slot. The reader now falls back to the row, but the column is
+		// kept correct rather than left as a lie.
+		if (role == PartManager::PartFileRole::Datasheet)
+		{
+			PartManager::Part owner;
+			if (PartManager::PartRepository::findPart(db, partId, owner)
+				&& owner.datasheetFileId != fileId)
+			{
+				owner.datasheetFileId = fileId;
+				PartManager::PartRepository::updatePart(db, owner);
+			}
 		}
 	}
 }

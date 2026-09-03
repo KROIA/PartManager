@@ -547,15 +547,39 @@ namespace PartManager
 		}
 
 		FileStore store = storeOf(m_handle);
-		// Import first, detach second: a failed import then leaves the old datasheet in place.
+		// **Which row is the old one has to be decided before the new one exists.** Resolving it
+		// afterwards asks "the part's datasheet row" of a part that now has two, and the answer
+		// is the row just written — which then gets deleted. Import first, detach second is still
+		// right (a failed import leaves the old datasheet in place); only the *lookup* moves up.
+		const int previous = currentDatasheetFileId(part);
 		const int fileId = store.attachFile(*db, part.id, PartFileRole::Datasheet, sourcePath, outError);
 		if (fileId == 0)
 		{
 			return 0;
 		}
-		detachDatasheet(part);
+		if (previous != 0 && previous != fileId)
+		{
+			store.detachFile(*db, previous);
+		}
 		part.datasheetFileId = fileId;
 		return fileId;
+	}
+
+	int PartEditorController::currentDatasheetFileId(const Part& part) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		if (db == nullptr || part.id == 0)
+		{
+			return 0;
+		}
+		PartFile existing;
+		if (part.datasheetFileId != 0
+			&& PartRepository::findFile(*db, part.datasheetFileId, existing))
+		{
+			return part.datasheetFileId;
+		}
+		return FileStore::roleFile(*db, part.id, PartFileRole::Datasheet, existing)
+			? existing.id : 0;
 	}
 
 	int PartEditorController::downloadDatasheet(Part& part, const std::string& url, std::string* outError) const
@@ -571,6 +595,8 @@ namespace PartManager
 		}
 
 		FileStore store = storeOf(m_handle);
+		// Read before writing, for the reason spelled out in attachDatasheet().
+		const int previous = currentDatasheetFileId(part);
 		const FileStoreResult downloaded = store.downloadFile(url);
 		if (!downloaded.ok)
 		{
@@ -601,7 +627,10 @@ namespace PartManager
 			}
 			return 0;
 		}
-		detachDatasheet(part);
+		if (previous != 0 && previous != fileId)
+		{
+			store.detachFile(*db, previous);
+		}
 		part.datasheetFileId = fileId;
 		return fileId;
 	}
@@ -609,12 +638,20 @@ namespace PartManager
 	bool PartEditorController::detachDatasheet(Part& part) const
 	{
 		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
-		if (!db || part.datasheetFileId == 0)
+		if (!db)
+		{
+			return false;
+		}
+		// Resolved the same way datasheetFile() does, so a row the column does not know about is
+		// still detached — otherwise attaching over it leaves two rows in a single-slot role and
+		// which one the part "has" becomes a coin flip.
+		const int fileId = currentDatasheetFileId(part);
+		if (fileId == 0)
 		{
 			return false;
 		}
 		FileStore store = storeOf(m_handle);
-		const bool removed = store.detachFile(*db, part.datasheetFileId);
+		const bool removed = store.detachFile(*db, fileId);
 		// The pointer is cleared either way: a row that is already gone must not stay referenced.
 		part.datasheetFileId = 0;
 		return removed;
@@ -623,7 +660,26 @@ namespace PartManager
 	bool PartEditorController::datasheetFile(const Part& part, PartFile& outFile) const
 	{
 		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
-		return db && part.datasheetFileId != 0 && PartRepository::findFile(*db, part.datasheetFileId, outFile);
+		if (db == nullptr)
+		{
+			return false;
+		}
+		if (part.datasheetFileId != 0
+			&& PartRepository::findFile(*db, part.datasheetFileId, outFile))
+		{
+			return true;
+		}
+		// **The `part_file` row is the truth; `part.datasheet_file_id` is a cache of it.** Two
+		// answers to "does this part have a datasheet" is one too many, and they disagreed: the
+		// part table's list column counts `part_file` rows and showed the glyph, while the editor
+		// read the column and said there was none. `PartImport` attaches the row without writing
+		// the column, so every imported part landed in exactly that state. Worse, `detachDatasheet()`
+		// keyed off the column too, so downloading over an invisible datasheet left the old row
+		// behind and the part ended up with two.
+		//
+		// Resolving through the same single-slot rule every other role uses makes the two agree
+		// without a migration. The column is still written, so nothing that reads it breaks.
+		return FileStore::roleFile(*db, part.id, PartFileRole::Datasheet, outFile);
 	}
 
 	std::string PartEditorController::datasheetPath(const Part& part) const
