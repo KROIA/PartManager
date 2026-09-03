@@ -486,6 +486,7 @@ namespace PartManager
 		// longer exists makes KiCad complain on every launch.
 		writeFile(root / "partmanager-sym-lib-table", symLibTable(libraryNames, PathVariable));
 		writeFile(root / "partmanager-fp-lib-table", fpLibTable(libraryNames, PathVariable));
+		result.libraryNames = libraryNames;
 
 		result.ok = true;
 		return result;

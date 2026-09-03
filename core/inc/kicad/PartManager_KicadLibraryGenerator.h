@@ -64,6 +64,11 @@ namespace PartManager
 		bool ok = false;
 		std::string errorMessage;
 
+		// The library nicknames written this run — "Resistors", "ICs", … These are what KiCad
+		// asks for when a library table is filled in by hand, so the screen has to be able to
+		// show them; counting them is not enough to act on.
+		std::vector<std::string> libraryNames;
+
 		int librariesWritten = 0;
 		int symbolsGenerated = 0;
 		int symbolsPreserved = 0;        // hand-edited, carried across untouched

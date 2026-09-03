@@ -39,14 +39,22 @@ namespace PartManager
 		// Accepts the selected artifact's on-disk version as the new baseline, unchanged.
 		void keepSelected();
 		void openFolder();
+		// Writes the generated libraries into KiCad's own library tables — globally, or into a
+		// single project's tables. See KicadLibTable for what "writes into" means.
+		void install();
 		void updateButtons();
 
 	private:
 		void showResult(const KicadGenerationResult& result);
+		// Where the tables go: a KiCad config folder, or a project folder. Empty when the user
+		// backed out or nothing suitable was found.
+		QString chooseInstallTarget(bool& outIsGlobal);
 
 		KicadController m_controller;
 		QLabel* m_pathLabel;
+		QLabel* m_librariesLabel;
 		QPlainTextEdit* m_summary;
+		QPushButton* m_installButton;
 		QListWidget* m_preservedList;
 		QPushButton* m_generateButton;
 		QPushButton* m_regenerateButton;

@@ -1244,6 +1244,96 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
         <source>“%1” could not be read back from disk.</source>
         <translation>„%1“ konnte nicht von der Festplatte zurückgelesen werden.</translation>
     </message>
+    <message>
+        <source>Install in KiCad...</source>
+        <translation>In KiCad installieren ...</translation>
+    </message>
+    <message>
+        <source>Adds the libraries to KiCad&apos;s own library tables, so they appear in the symbol and footprint choosers without typing anything in.</source>
+        <translation>Trägt die Bibliotheken in KiCads eigene Bibliothekstabellen ein, damit sie in der Symbol- und Footprint-Auswahl erscheinen, ohne dass etwas eingetippt werden muss.</translation>
+    </message>
+    <message>
+        <source>No libraries generated yet.</source>
+        <translation>Noch keine Bibliotheken erzeugt.</translation>
+    </message>
+    <message>
+        <source>Libraries: %1</source>
+        <translation>Bibliotheken: %1</translation>
+    </message>
+    <message>
+        <source>Install in KiCad</source>
+        <translation>In KiCad installieren</translation>
+    </message>
+    <message>
+        <source>Where should the libraries be available?</source>
+        <translation>Wo sollen die Bibliotheken verfügbar sein?</translation>
+    </message>
+    <message>
+        <source>Globally — in every KiCad project on this machine.
+One project — only in the project you pick; nothing outside it changes.
+
+Close KiCad first: it rewrites its library tables when it exits and would overwrite this.</source>
+        <translation>Global — in jedem KiCad-Projekt auf diesem Rechner.
+Ein Projekt — nur in dem ausgewählten Projekt; außerhalb ändert sich nichts.
+
+KiCad vorher schließen: es schreibt seine Bibliothekstabellen beim Beenden neu und würde das hier überschreiben.</translation>
+    </message>
+    <message>
+        <source>Globally</source>
+        <translation>Global</translation>
+    </message>
+    <message>
+        <source>One Project...</source>
+        <translation>Nur ein Projekt ...</translation>
+    </message>
+    <message>
+        <source>Pick a KiCad project</source>
+        <translation>KiCad-Projekt auswählen</translation>
+    </message>
+    <message>
+        <source>KiCad project (*.kicad_pro *.pro)</source>
+        <translation>KiCad-Projekt (*.kicad_pro *.pro)</translation>
+    </message>
+    <message>
+        <source>KiCad settings folder</source>
+        <translation>KiCad-Einstellungsordner</translation>
+    </message>
+    <message>
+        <source>Which KiCad?</source>
+        <translation>Welches KiCad?</translation>
+    </message>
+    <message>
+        <source>Settings folder:</source>
+        <translation>Einstellungsordner:</translation>
+    </message>
+    <message>
+        <source>sym-lib-table and fp-lib-table in
+%1
+will get one entry per PartManager library. Everything else in them is kept, and a .bak copy is made first.
+
+Continue?</source>
+        <translation>sym-lib-table und fp-lib-table in
+%1
+bekommen je einen Eintrag pro PartManager-Bibliothek. Alles andere darin bleibt erhalten, und vorher wird eine .bak-Kopie angelegt.
+
+Fortfahren?</translation>
+    </message>
+    <message>
+        <source>Could not install</source>
+        <translation>Installation nicht möglich</translation>
+    </message>
+    <message>
+        <source>Installed</source>
+        <translation>Installiert</translation>
+    </message>
+    <message>
+        <source>The libraries are in KiCad&apos;s global tables. Open KiCad and they are in the symbol and footprint choosers — no restart of PartManager needed.</source>
+        <translation>Die Bibliotheken stehen in KiCads globalen Tabellen. KiCad öffnen und sie sind in der Symbol- und Footprint-Auswahl — PartManager muss nicht neu gestartet werden.</translation>
+    </message>
+    <message>
+        <source>The libraries are in that project&apos;s tables. They appear when the project is open, and nowhere else.</source>
+        <translation>Die Bibliotheken stehen in den Tabellen dieses Projekts. Sie erscheinen, wenn das Projekt geöffnet ist, und sonst nirgends.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::MainWindow</name>
@@ -3339,7 +3429,7 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
      ${%1}/footprints/&lt;Category&gt;.pretty
 
 The generated partmanager-sym-lib-table and partmanager-fp-lib-table in the folder above list every entry, so they can be pasted in rather than typed.</source>
-        <translation>Einmalige KiCad-Einrichtung — danach ist jedes Neuerzeugen für KiCad unsichtbar:
+        <translation type="vanished">Einmalige KiCad-Einrichtung — danach ist jedes Neuerzeugen für KiCad unsichtbar:
 
 1. KiCad → Einstellungen → Pfade konfigurieren: Variable hinzufügen
      %1  =  %2
@@ -3550,6 +3640,56 @@ Das Bauteil selbst ist davon nicht betroffen.</translation>
     <message>
         <source>Files</source>
         <translation>Dateien</translation>
+    </message>
+    <message>
+        <source>Could not back up %1, so it was left alone.</source>
+        <translation>%1 konnte nicht gesichert werden und wurde deshalb nicht verändert.</translation>
+    </message>
+    <message>
+        <source>Could not write %1: %2</source>
+        <translation>%1 konnte nicht geschrieben werden: %2</translation>
+    </message>
+    <message>
+        <source>No database is open, so there are no libraries to install.</source>
+        <translation>Es ist keine Datenbank geöffnet, also gibt es nichts zu installieren.</translation>
+    </message>
+    <message>
+        <source>No generated libraries were found in %1. Press Generate first.</source>
+        <translation>In %1 wurden keine erzeugten Bibliotheken gefunden. Zuerst auf Erzeugen drücken.</translation>
+    </message>
+    <message>
+        <source>%1 does not exist.</source>
+        <translation>%1 existiert nicht.</translation>
+    </message>
+    <message>
+        <source>The libraries were installed, but KiCad&apos;s settings folder was not found, so %1 has to be added by hand under Preferences → Configure Paths.</source>
+        <translation>Die Bibliotheken wurden installiert, aber KiCads Einstellungsordner wurde nicht gefunden — %1 muss von Hand unter Einstellungen → Pfade konfigurieren ergänzt werden.</translation>
+    </message>
+    <message>
+        <source>Install in KiCad does this for you. By hand it is:
+
+1. KiCad → Preferences → Configure Paths: add the variable
+     %1  =  %2
+
+2. Preferences → Manage Symbol Libraries → Global: add
+     ${%1}/symbols/&lt;Category&gt;.kicad_sym  for each library below
+
+3. Preferences → Manage Footprint Libraries → Global: add
+     ${%1}/footprints/&lt;Category&gt;.pretty
+
+The generated partmanager-sym-lib-table and partmanager-fp-lib-table in the folder above list every entry, so they can be pasted in rather than typed.</source>
+        <translation>„In KiCad installieren" erledigt das. Von Hand geht es so:
+
+1. KiCad → Einstellungen → Pfade konfigurieren: Variable anlegen
+     %1  =  %2
+
+2. Einstellungen → Symbolbibliotheken verwalten → Global: hinzufügen
+     ${%1}/symbols/&lt;Kategorie&gt;.kicad_sym  für jede Bibliothek oben
+
+3. Einstellungen → Footprint-Bibliotheken verwalten → Global: hinzufügen
+     ${%1}/footprints/&lt;Kategorie&gt;.pretty
+
+Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im Ordner oben listen jeden Eintrag auf, sodass er eingefügt statt getippt werden kann.</translation>
     </message>
 </context>
 <context>

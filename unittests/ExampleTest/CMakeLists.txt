@@ -17,6 +17,7 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_StockContr
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_PartlistController.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_DatabaseSelectorController.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_OrderController.cpp")
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_KicadController.cpp")
 
 ## The app's display setup, so the GUI tests render at the same scale and font size the user's
 ## app does. A suite that runs unscaled cannot see a layout that only breaks on the real screen.

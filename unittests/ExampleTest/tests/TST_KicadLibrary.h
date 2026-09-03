@@ -3,10 +3,14 @@
 #include "UnitTest.h"
 #include "kicad/PartManager_KicadEditTracker.h"
 #include "kicad/PartManager_KicadLibraryGenerator.h"
+#include "kicad/PartManager_KicadLibTable.h"
 #include "kicad/PartManager_KicadSymbolWriter.h"
 #include "filestore/PartManager_FileStore.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "persistence/PartManager_PartTypeRepository.h"
+#include "controllers/PartManager_KicadController.h"
+#include <QDir>
+#include <QFile>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -29,6 +33,8 @@ public:
 		ADD_TEST(TST_KicadLibrary::everyExtendedBaseIsEmbedded);
 		ADD_TEST(TST_KicadLibrary::libraryNamesAndTablesAreKicadSafe);
 		ADD_TEST(TST_KicadLibrary::editStateComparesAgainstTheBaselineNotACandidate);
+		ADD_TEST(TST_KicadLibrary::mergingIntoKicadsTableKeepsWhatIsAlreadyThere);
+		ADD_TEST(TST_KicadLibrary::kicadsOwnSettingsFolderIsFound);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_KicadLibrary::handEditedSymbolsSurviveRegeneration);
 #endif
@@ -337,6 +343,102 @@ private:
 	}
 
 #endif
+
+	// Installing into KiCad's own sym-lib-table. The file belongs to the user's whole KiCad
+	// install, so the property that matters is not "our rows are there" but "nothing else moved".
+	TEST_FUNCTION(mergingIntoKicadsTableKeepsWhatIsAlreadyThere)
+	{
+		TEST_START;
+		using Table = PartManager::KicadLibTable;
+
+		// A table as KiCad writes one, with a library of the user's own in it.
+		const std::string existing =
+			"(sym_lib_table\n"
+			"  (version 7)\n"
+			"  (lib (name \"MyParts\")(type \"KiCad\")(uri \"${KIPRJMOD}/MyParts.kicad_sym\")"
+			"(options \"\")(descr \"my own\"))\n"
+			")\n";
+
+		const std::vector<PartManager::KicadLibEntry> entries =
+			Table::symbolEntries({ "Resistors", "ICs" }, "PARTMANAGER_KICAD_LIBS");
+		const std::string merged = Table::merge(existing, "sym_lib_table", entries);
+
+		TEST_ASSERT_M(merged.find("(name \"MyParts\")") != std::string::npos,
+			"the user's own library must survive: " + merged);
+		TEST_ASSERT_M(merged.find("(descr \"my own\")") != std::string::npos,
+			"and survive with its own description: " + merged);
+		TEST_ASSERT_M(merged.find("${PARTMANAGER_KICAD_LIBS}/symbols/Resistors.kicad_sym")
+			!= std::string::npos, merged);
+		TEST_ASSERT_M(merged.find("${PARTMANAGER_KICAD_LIBS}/symbols/ICs.kicad_sym")
+			!= std::string::npos, merged);
+
+		// Idempotent: installing twice must not accumulate rows, or KiCad reports duplicate
+		// nicknames and refuses the table.
+		TEST_COMPARE(Table::merge(merged, "sym_lib_table", entries), merged);
+
+		// A library that no longer exists goes. A table pointing at a deleted library makes
+		// KiCad complain on every launch, which reads as PartManager having broken something.
+		const std::string fewer = Table::merge(merged, "sym_lib_table",
+			Table::symbolEntries({ "Resistors" }, "PARTMANAGER_KICAD_LIBS"));
+		TEST_ASSERT_M(fewer.find("ICs") == std::string::npos, fewer);
+		TEST_ASSERT_M(fewer.find("MyParts") != std::string::npos, fewer);
+
+		// A user library that happens to share a nickname is NOT ours and is not taken over —
+		// the marker decides, not the name.
+		const std::string clash =
+			"(sym_lib_table\n  (version 7)\n"
+			"  (lib (name \"Resistors\")(type \"KiCad\")(uri \"/somewhere/mine.kicad_sym\")"
+			"(options \"\")(descr \"mine\"))\n)\n";
+		TEST_ASSERT_M(Table::merge(clash, "sym_lib_table", entries).find("/somewhere/mine.kicad_sym")
+			!= std::string::npos, "a same-named library of the user's must not be replaced");
+
+		// No table yet, and a file that is not one at all, both come back as a valid table
+		// holding exactly our rows — a missing install and a wrong path are not failures the
+		// user has to diagnose from inside KiCad.
+		const std::string fresh = Table::merge("", "fp_lib_table",
+			Table::footprintEntries({ "Resistors" }, "PARTMANAGER_KICAD_LIBS"));
+		TEST_ASSERT_M(fresh.find("(fp_lib_table") == 0, fresh);
+		TEST_ASSERT_M(fresh.find("/footprints/Resistors.pretty") != std::string::npos, fresh);
+		TEST_ASSERT_M(Table::merge("hello", "fp_lib_table", {}).find("(fp_lib_table") == 0,
+			"an unreadable file is rebuilt, not appended to");
+	}
+
+	// Where KiCad keeps its settings. Environment-dependent by nature, so it asserts what it can
+	// prove anywhere and only checks the contents when a KiCad is actually installed.
+	//
+	// The trap this pins: QStandardPaths::GenericConfigLocation is AppData/**Local** on Windows
+	// and KiCad writes to AppData/**Roaming**, so the obvious implementation finds nothing on the
+	// one platform this ships on.
+	TEST_FUNCTION(kicadsOwnSettingsFolderIsFound)
+	{
+		TEST_START;
+
+		const QStringList dirs = PartManager::KicadController::kicadConfigDirs();
+		for (const QString& dir : dirs)
+		{
+			TEST_ASSERT_M(QDir(dir).exists(), ("reported a folder that is not there: " + dir)
+				.toStdString());
+			const bool looksLikeKicad =
+				QFile::exists(QDir(dir).absoluteFilePath("kicad_common.json"))
+				|| QFile::exists(QDir(dir).absoluteFilePath("sym-lib-table"))
+				|| QFile::exists(QDir(dir).absoluteFilePath("kicad_common"));
+			TEST_ASSERT_M(looksLikeKicad, ("not a KiCad settings folder: " + dir).toStdString());
+		}
+
+		// On a machine with KiCad installed the answer must not be empty — an empty list there
+		// means the install button silently falls back to "pick a folder yourself" forever.
+		const QString appData = qEnvironmentVariable("APPDATA");
+		if (!appData.isEmpty() && QDir(QDir(appData).absoluteFilePath("kicad")).exists())
+		{
+			TEST_ASSERT_M(!dirs.isEmpty(),
+				"KiCad is installed here, so its settings folder must be found");
+		}
+		else
+		{
+			TEST_MESSAGE("no KiCad on this machine - only the shape of the answer was checked");
+		}
+	}
+
 };
 
 TEST_INSTANTIATE(TST_KicadLibrary);

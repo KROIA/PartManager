@@ -37,12 +37,38 @@ namespace PartManager
 		// stops being reported as edited while the edit itself is kept (§5a).
 		bool rebaseline(const std::string& targetPath) const;
 
-		// The one-time KiCad setup instructions, with the real path filled in — the user has to
-		// add the generated tables to KiCad's global library tables once, and nothing in the app
-		// can do it for them.
+		// The one-time KiCad setup instructions, with the real path filled in — for anyone who
+		// would rather wire the libraries up by hand than let install() do it.
 		QString setupInstructions() const;
 
+		// KiCad's per-version configuration folders, newest first — `%APPDATA%/kicad/9.0` and
+		// friends. Empty when KiCad has never run on this machine, which is a normal state and
+		// the reason install() takes a folder rather than finding one itself.
+		static QStringList kicadConfigDirs();
+
+		// Writes `sym-lib-table` / `fp-lib-table` in `tableFolder`, merging our libraries in
+		// beside whatever is already there (see KicadLibTable). `tableFolder` is a KiCad config
+		// folder for a global install, or a project folder for a project-only one.
+		//
+		// **Both need the path variable**, even the project install: the copied footprints point
+		// their `(model ...)` at `${PARTMANAGER_KICAD_LIBS}/3dmodels/...`, so without it the
+		// symbols and footprints resolve and the 3D models do not. `setPathVariable` writes it
+		// into `kicad_common.json`, which is global by nature — KiCad has no project-scoped
+		// path variables.
+		//
+		// Every file touched is copied to `<name>.bak` first. Returns false with a reason in
+		// `outError`; a partial install is reported rather than half-claimed.
+		bool install(const QString& tableFolder, bool setPathVariable, QString* outError) const;
+
+		// The libraries as they were last generated, for a table written without regenerating.
+		QStringList lastLibraryNames() const;
+
 	private:
+		// The nicknames of the libraries currently on disk under libraryPath()/symbols.
+		QStringList libraryNamesOnDisk() const;
+		// Every KiCad version folder under one candidate root, newest major first.
+		static void appendConfigDirsUnder(const QString& root, QStringList& found);
+
 		DatabaseHandle* m_handle;
 	};
 

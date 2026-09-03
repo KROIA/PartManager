@@ -1,7 +1,10 @@
 #include "ui/PartManager_KicadLibraryDialog.h"
 
 #include <QDesktopServices>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
 #include <QListWidget>
 #include <QMessageBox>
@@ -35,6 +38,13 @@ namespace PartManager
 		m_pathLabel->setText(m_controller.setupInstructions());
 		layout->addWidget(m_pathLabel);
 
+		// The generated nicknames, spelled out. They are what KiCad asks for in every "add a
+		// library" dialog, and before this the screen only ever said how many there were.
+		m_librariesLabel = new QLabel(this);
+		m_librariesLabel->setWordWrap(true);
+		m_librariesLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+		layout->addWidget(m_librariesLabel);
+
 		m_summary = new QPlainTextEdit(this);
 		m_summary->setReadOnly(true);
 		m_summary->setMaximumHeight(90);
@@ -50,9 +60,13 @@ namespace PartManager
 		m_generateButton->setDefault(true);
 		m_regenerateButton = new QPushButton(tr("Regenerate It (discard my edit)"), this);
 		m_keepButton = new QPushButton(tr("Keep My Version"), this);
+		m_installButton = new QPushButton(tr("Install in KiCad..."), this);
+		m_installButton->setToolTip(tr("Adds the libraries to KiCad's own library tables, so they "
+			"appear in the symbol and footprint choosers without typing anything in."));
 		QPushButton* folderButton = new QPushButton(tr("Open Folder"), this);
 		QPushButton* closeButton = new QPushButton(tr("Close"), this);
 		buttons->addWidget(m_generateButton);
+		buttons->addWidget(m_installButton);
 		buttons->addWidget(m_regenerateButton);
 		buttons->addWidget(m_keepButton);
 		buttons->addWidget(folderButton);
@@ -63,6 +77,7 @@ namespace PartManager
 		connect(m_generateButton, &QPushButton::clicked, this, &KicadLibraryDialog::generate);
 		connect(m_regenerateButton, &QPushButton::clicked, this, &KicadLibraryDialog::regenerateSelected);
 		connect(m_keepButton, &QPushButton::clicked, this, &KicadLibraryDialog::keepSelected);
+		connect(m_installButton, &QPushButton::clicked, this, &KicadLibraryDialog::install);
 		connect(folderButton, &QPushButton::clicked, this, &KicadLibraryDialog::openFolder);
 		connect(closeButton, &QPushButton::clicked, this, &KicadLibraryDialog::accept);
 		connect(m_preservedList, &QListWidget::itemSelectionChanged,
@@ -118,6 +133,93 @@ namespace PartManager
 		const bool real = item != nullptr && !item->data(TargetPathRole).toString().isEmpty();
 		m_regenerateButton->setEnabled(real);
 		m_keepButton->setEnabled(real);
+
+		// Installing reads the libraries off disk, so it works on a database generated in an
+		// earlier session — the button does not wait for a Generate in this one.
+		const QStringList names = m_controller.lastLibraryNames();
+		m_installButton->setEnabled(!names.isEmpty());
+		m_librariesLabel->setText(names.isEmpty()
+			? tr("No libraries generated yet.")
+			: tr("Libraries: %1").arg(names.join(QStringLiteral(", "))));
+	}
+
+	QString KicadLibraryDialog::chooseInstallTarget(bool& outIsGlobal)
+	{
+		outIsGlobal = true;
+		QMessageBox choice(this);
+		choice.setWindowTitle(tr("Install in KiCad"));
+		choice.setText(tr("Where should the libraries be available?"));
+		choice.setInformativeText(tr(
+			"Globally — in every KiCad project on this machine.\n"
+			"One project — only in the project you pick; nothing outside it changes.\n\n"
+			"Close KiCad first: it rewrites its library tables when it exits and would "
+			"overwrite this."));
+		QPushButton* globalButton = choice.addButton(tr("Globally"), QMessageBox::AcceptRole);
+		QPushButton* projectButton = choice.addButton(tr("One Project..."), QMessageBox::AcceptRole);
+		choice.addButton(QMessageBox::Cancel);
+		choice.exec();
+
+		if (choice.clickedButton() == projectButton)
+		{
+			outIsGlobal = false;
+			// The project *file* is what the user recognises; KiCad wants the folder it sits in.
+			const QString project = QFileDialog::getOpenFileName(this, tr("Pick a KiCad project"),
+				QString(), tr("KiCad project (*.kicad_pro *.pro)"));
+			return project.isEmpty() ? QString() : QFileInfo(project).absolutePath();
+		}
+		if (choice.clickedButton() != globalButton)
+		{
+			return QString();
+		}
+
+		const QStringList configDirs = KicadController::kicadConfigDirs();
+		if (configDirs.isEmpty())
+		{
+			// Not an error worth blocking on: a portable KiCad, or one whose settings live
+			// somewhere unusual, is a folder the user can point at.
+			return QFileDialog::getExistingDirectory(this, tr("KiCad settings folder"));
+		}
+		if (configDirs.size() == 1)
+		{
+			return configDirs.first();
+		}
+		bool confirmed = false;
+		const QString picked = QInputDialog::getItem(this, tr("Which KiCad?"),
+			tr("Settings folder:"), configDirs, 0, false, &confirmed);
+		return confirmed ? picked : QString();
+	}
+
+	void KicadLibraryDialog::install()
+	{
+		bool isGlobal = true;
+		const QString target = chooseInstallTarget(isGlobal);
+		if (target.isEmpty())
+		{
+			return;
+		}
+
+		// Naming the files before touching them: these are KiCad's, not ours, and the user's
+		// other libraries live in the same two files.
+		if (QMessageBox::question(this, tr("Install in KiCad"),
+			tr("sym-lib-table and fp-lib-table in\n%1\nwill get one entry per PartManager library. "
+			   "Everything else in them is kept, and a .bak copy is made first.\n\nContinue?")
+			.arg(target), QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes) != QMessageBox::Yes)
+		{
+			return;
+		}
+
+		QString error;
+		if (!m_controller.install(target, true, &error))
+		{
+			QMessageBox::warning(this, tr("Could not install"), error);
+			return;
+		}
+		QMessageBox::information(this, tr("Installed"),
+			isGlobal
+			? tr("The libraries are in KiCad's global tables. Open KiCad and they are in the "
+				 "symbol and footprint choosers — no restart of PartManager needed.")
+			: tr("The libraries are in that project's tables. They appear when the project is "
+				 "open, and nowhere else."));
 	}
 
 	void KicadLibraryDialog::regenerateSelected()
