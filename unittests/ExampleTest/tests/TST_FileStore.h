@@ -26,6 +26,7 @@ public:
 		ADD_TEST(TST_FileStore::aBlockPageIsNotAFile);
 		ADD_TEST(TST_FileStore::theBytesDecideTheExtension);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		ADD_TEST(TST_FileStore::anAttachedFileIsNamedAfterItsPart);
 		ADD_TEST(TST_FileStore::attachingCopiesAndKeepsNoPathToTheOriginal);
 		ADD_TEST(TST_FileStore::attachAndDetachKeepsRowsAndFilesInSync);
 		ADD_TEST(TST_FileStore::theSweepFindsOnlyWhatNothingPointsAt);
@@ -216,6 +217,55 @@ private:
 	// that linked would break the moment a datasheet was attached from a USB stick, a Downloads
 	// folder that gets cleared, or a path that changes when the database is moved to another
 	// machine — and it would break silently, months later.
+	TEST_FUNCTION(anAttachedFileIsNamedAfterItsPart)
+	{
+		TEST_START;
+
+		// The pure half first: the name is what a PDF viewer's title bar shows, so it has to be
+		// the part, and it still has to be a legal filename after a name full of Ω and slashes.
+		TEST_COMPARE(PartManager::FileStore::readableFileName("DMG1013T-7",
+			PartManager::PartFileRole::Datasheet, "ac4e1b041f3eaa15", ".pdf"),
+			std::string("DMG1013T-7_datasheet_ac4e1b04.pdf"));
+		TEST_COMPARE(PartManager::FileStore::readableFileName("4.7 k\xCE\xA9 / 0603",
+			PartManager::PartFileRole::Image, "0123456789abcdef", ".jpg"),
+			std::string("4.7_k_0603_image_01234567.jpg"));
+		// A name this filter strips to nothing still has to produce a file.
+		TEST_ASSERT_M(PartManager::FileStore::readableFileName("///",
+			PartManager::PartFileRole::Other, "0123456789abcdef", ".bin")
+			== std::string("part_other_01234567.bin"), "an unnameable part must still get a name");
+
+		std::filesystem::path work = freshFolder("PartManager_TST_FileStore_names");
+		const std::filesystem::path source = writeTempFile(work, "0900766b81864d6b.pdf",
+			"%PDF-1.4 as mouser serves it");
+
+		SQLiteWrapper::SQLite db((work / "test.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+
+		PartManager::Part part;
+		part.name = "DMG1013T-7";
+		part.id = PartManager::PartRepository::insertPart(db, part);
+		TEST_ASSERT(part.id != 0);
+
+		PartManager::FileStore store((work / "filestore").string());
+		std::string error;
+		TEST_ASSERT_M(store.replaceRoleFile(db, part.id, PartManager::PartFileRole::Datasheet,
+			source.string(), &error) != 0, "attach failed: " + error);
+
+		PartManager::PartFile row;
+		TEST_ASSERT(PartManager::FileStore::roleFile(db, part.id,
+			PartManager::PartFileRole::Datasheet, row));
+		TEST_ASSERT_M(row.relativePath.find("DMG1013T-7_datasheet_") != std::string::npos,
+			"the stored file is still named after its hash: " + row.relativePath);
+		// The rename has to move the file, not just the row — a path nothing is at is worse than
+		// a cryptic one.
+		TEST_ASSERT_M(!store.absolutePath(row.relativePath).empty(),
+			"the row points at a file that is not there: " + row.relativePath);
+		TEST_COMPARE(readFile(store.absolutePath(row.relativePath)),
+			std::string("%PDF-1.4 as mouser serves it"));
+	}
+
 	TEST_FUNCTION(attachingCopiesAndKeepsNoPathToTheOriginal)
 	{
 		TEST_START;
@@ -321,20 +371,35 @@ private:
 		TEST_COMPARE(rowsA.front().role, std::string("datasheet"));
 		std::vector<PartManager::PartFile> rowsB = PartManager::PartRepository::listFiles(db, partBId);
 		TEST_COMPARE(rowsB.size(), static_cast<size_t>(1));
-		TEST_COMPARE(rowsB.front().relativePath, rowsA.front().relativePath);
+		// Readable names cost the cross-part dedup that content addressing used to give: each
+		// part's copy is named after that part, so the same PDF on two parts is two files. A few
+		// hundred kB against a filename a PDF viewer can show — deliberate, not a regression.
+		TEST_ASSERT_M(rowsB.front().relativePath != rowsA.front().relativePath,
+			"both parts got the same file, so one of them is named after the other");
 
-		const std::string sharedPath = rowsA.front().relativePath;
-		TEST_ASSERT_M(!store.absolutePath(sharedPath).empty(), "the shared file must exist");
+		const std::string pathA = rowsA.front().relativePath;
+		TEST_ASSERT_M(!store.absolutePath(pathA).empty(), "the stored file must exist");
 
-		// First detach: row gone, file stays because the other part still references it.
+		// Ref-counting is still what decides whether the bytes go, so it is still pinned — with
+		// a second row pointed at the same path by hand, which is the shape a shared file has.
+		PartManager::PartFile shared = rowsA.front();
+		shared.id = 0;
+		shared.partId = partBId;
+		shared.role = PartManager::toString(PartManager::PartFileRole::Other);
+		const int sharedId = PartManager::PartRepository::insertFile(db, shared);
+		TEST_ASSERT(sharedId != 0);
+
+		// First detach: row gone, file stays because the other row still references it.
 		TEST_ASSERT_M(store.detachFile(db, fileA), "detachFile failed");
 		TEST_COMPARE(PartManager::PartRepository::listFiles(db, partAId).size(), static_cast<size_t>(0));
-		TEST_ASSERT_M(!store.absolutePath(sharedPath).empty(), "the file is still referenced and must survive");
+		TEST_ASSERT_M(!store.absolutePath(pathA).empty(), "the file is still referenced and must survive");
 
 		// Last detach: row and file both gone, nothing orphaned.
+		TEST_ASSERT_M(store.detachFile(db, sharedId), "detachFile failed");
+		TEST_ASSERT_M(store.absolutePath(pathA).empty(), "the last reference must remove the file");
+
 		TEST_ASSERT_M(store.detachFile(db, fileB), "detachFile failed");
 		TEST_COMPARE(PartManager::PartRepository::listFiles(db, partBId).size(), static_cast<size_t>(0));
-		TEST_ASSERT_M(store.absolutePath(sharedPath).empty(), "the last reference must remove the file");
 
 		TEST_ASSERT_M(!store.detachFile(db, fileB), "detaching an unknown id must fail");
 	}

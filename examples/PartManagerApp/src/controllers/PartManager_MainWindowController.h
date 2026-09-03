@@ -114,6 +114,9 @@ namespace PartManager
 		// not to draw — the viewer decides that, because the answer depends on a cache the
 		// controller has no business knowing about.
 		QString model3DPath;
+		// The stored datasheet, empty when the part has none or the file is gone — which is what
+		// the preview panel's Datasheet button greys itself out on.
+		QString datasheetPath;
 		QString typeName;
 	};
 

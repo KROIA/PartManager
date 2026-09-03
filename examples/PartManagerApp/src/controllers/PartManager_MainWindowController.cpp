@@ -638,6 +638,7 @@ namespace PartManager
 				PartPreview preview = buildPreview(part, columnsFor(part.partTypeId),
 					TagRepository::listPartTags(m_handle->connection(), partId),
 					datasheetState(fileName, !editor.datasheetPath(part).empty()));
+				preview.datasheetPath = toQt(editor.datasheetPath(part));
 				preview.imagePath = toQt(editor.roleFilePath(partId, PartFileRole::Image));
 				preview.kicadSymbolPath =
 					toQt(editor.roleFilePath(partId, PartFileRole::KicadSymbol));

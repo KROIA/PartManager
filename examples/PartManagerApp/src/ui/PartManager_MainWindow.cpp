@@ -27,6 +27,7 @@
 
 #include <QApplication>
 #include <QDesktopServices>
+#include <QDockWidget>
 #include <QBrush>
 #include <QColor>
 #include <QFormLayout>
@@ -190,6 +191,18 @@ namespace PartManager
 		m_ui->bodySplitter->setStretchFactor(2, 0);
 		m_ui->bodySplitter->setSizes({ 220, 540, 240 });
 
+		// §7's browser is a dock rather than the central widget, so it can be moved, floated or
+		// stacked against the partlist panel — which is the whole reason that panel became a dock
+		// too. Not closable: with both docks gone the window would be empty and unrecoverable.
+		m_browserDock = new QDockWidget(tr("Component Browser"), this);
+		m_browserDock->setObjectName(QStringLiteral("browserDock"));
+		m_browserDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable);
+		m_browserDock->setWidget(m_ui->bodySplitter);
+		addDockWidget(Qt::LeftDockWidgetArea, m_browserDock);
+		// Nothing is left in the middle. A visible-but-empty central widget keeps a stripe of grey
+		// between the docks and refuses to shrink past its minimum size.
+		m_ui->centralWidget->hide();
+
 		// §5a: the symbol and footprint sit directly under the photo, so one glance at the
 		// preview answers "is this the right package" without opening the editor or KiCad.
 		m_symbolPreview = new KicadPreviewWidget(m_ui->previewPanel);
@@ -245,12 +258,15 @@ namespace PartManager
 		// §4 lives here rather than in a pair of dialogs: the part table is the component browser
 		// the old editor's part picker was missing, so a line is added by dragging a row down into
 		// the panel. Hidden until the ribbon asks for it, so the Home tab is unchanged by default.
-		m_partlistPanel = new PartlistPanel(m_controller.handle(), m_ui->mainSplitter);
-		m_ui->mainSplitter->addWidget(m_partlistPanel);
-		m_ui->mainSplitter->setStretchFactor(0, 1);
-		m_ui->mainSplitter->setStretchFactor(1, 0);
-		m_partlistPanel->hide();
-		connect(m_partlistPanel, &PartlistPanel::hideRequested, m_partlistPanel, &QWidget::hide);
+		m_partlistPanel = new PartlistPanel(m_controller.handle(), this);
+		m_partlistDock = new QDockWidget(tr("Partlists"), this);
+		m_partlistDock->setObjectName(QStringLiteral("partlistDock"));
+		m_partlistDock->setWidget(m_partlistPanel);
+		// Right by default, which is where the BOM wants to be while parts are dragged into it
+		// from the table on the left. Hidden until the ribbon asks for it, as before.
+		addDockWidget(Qt::RightDockWidgetArea, m_partlistDock);
+		m_partlistDock->hide();
+		connect(m_partlistPanel, &PartlistPanel::hideRequested, m_partlistDock, &QWidget::hide);
 		connect(m_partlistPanel, &PartlistPanel::stockChanged, this, &MainWindow::reloadCategories);
 
 		// The drag half of the same feature. DragOnly: the table itself accepts nothing, so a row
@@ -270,6 +286,8 @@ namespace PartManager
 			this, [this]() { onPartActivated(m_ui->partTable->currentRow()); });
 		connect(m_ui->previewTakeOutButton, &QPushButton::clicked, this, &MainWindow::onTakeOut);
 		connect(m_ui->previewMouserButton, &QPushButton::clicked, this, &MainWindow::onOpenOnMouser);
+		connect(m_ui->previewDatasheetButton, &QPushButton::clicked,
+			this, &MainWindow::onOpenDatasheet);
 		// §7b: dragging a header divider saves that column's width for the shown category.
 		connect(m_ui->partTable->horizontalHeader(), &QHeaderView::sectionResized,
 			this, &MainWindow::onColumnResized);
@@ -322,6 +340,19 @@ namespace PartManager
 			return;
 		}
 		QDesktopServices::openUrl(QUrl(QString::fromStdString(url)));
+	}
+
+	void MainWindow::onOpenDatasheet()
+	{
+		// Read again rather than caching the path from updatePreview(): the file can be detached
+		// in the editor while the same row stays selected, and an opened-from-stale-path viewer
+		// would then show a datasheet the part no longer has.
+		const QString path = m_controller.previewFor(selectedPartId()).datasheetPath;
+		if (path.isEmpty())
+		{
+			return;
+		}
+		QDesktopServices::openUrl(QUrl::fromLocalFile(path));
 	}
 
 	void MainWindow::onView3DModel()
@@ -693,19 +724,20 @@ namespace PartManager
 
 	void MainWindow::showPartlistPanel()
 	{
-		if (m_partlistPanel == nullptr)
+		if (m_partlistDock == nullptr)
 		{
 			return;
 		}
-		const bool wasHidden = m_partlistPanel->isHidden();
-		m_partlistPanel->show();
+		const bool wasHidden = m_partlistDock->isHidden();
+		m_partlistDock->show();
+		// Tabbed behind the browser after a user drag, showing it is not enough to see it.
+		m_partlistDock->raise();
 		if (wasHidden)
 		{
-			// A splitter gives a freshly shown child whatever its size hint asks for, which for a
-			// grid is nearly nothing. Two fifths of the window is enough rows to work in while
-			// leaving the browser above it usable; after that the user's own drag wins.
-			const int total = m_ui->mainSplitter->height();
-			m_ui->mainSplitter->setSizes({ total * 3 / 5, total * 2 / 5 });
+			// A freshly shown dock gets whatever its size hint asks for, which for a grid is
+			// nearly nothing. Two fifths of the window is enough rows to work in while leaving
+			// the browser usable; after that the user's own drag wins.
+			resizeDocks({ m_partlistDock }, { width() * 2 / 5 }, Qt::Horizontal);
 		}
 	}
 
@@ -1063,6 +1095,13 @@ namespace PartManager
 				: tr("Opens %1 on mouser.com.").arg(QString::fromStdString(mouserNumber)));
 		}
 		m_ui->previewTakeOutButton->setEnabled(hasPart);
+		// Greyed out means "there is no file", not "the button is broken" — so the tooltip says
+		// which of the two it is rather than describing a button that cannot be pressed.
+		m_ui->previewDatasheetButton->setEnabled(!preview.datasheetPath.isEmpty());
+		m_ui->previewDatasheetButton->setToolTip(preview.datasheetPath.isEmpty()
+			? tr("No datasheet is attached to this part. Open it in the part editor to attach or "
+				 "download one.")
+			: tr("Opens this part's datasheet in your PDF viewer."));
 
 		// The part's photo at panel size — the same attachment the table shows a thumbnail of.
 		// (KiCad previews follow below, once the empty state has been dealt with.)

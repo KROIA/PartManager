@@ -428,6 +428,49 @@ namespace PartManager
 		return result;
 	}
 
+	std::string FileStore::readableFileName(const std::string& partName, PartFileRole role,
+		const std::string& contentHash, const std::string& extension)
+	{
+		std::string stem;
+		bool lastWasFiller = true;   // true at the start, so a leading run of junk is dropped
+		for (char c : partName)
+		{
+			const unsigned char raw = static_cast<unsigned char>(c);
+			if (std::isalnum(raw) || c == '.' || c == '-')
+			{
+				stem += c;
+				lastWasFiller = false;
+				continue;
+			}
+			// One underscore per run of anything else, so "4.7 kΩ / 0603" does not become a
+			// filename that is mostly underscores.
+			if (!lastWasFiller)
+			{
+				stem += '_';
+				lastWasFiller = true;
+			}
+		}
+		while (!stem.empty() && (stem.back() == '_' || stem.back() == '.'))
+		{
+			// A trailing dot would swallow the extension separator on Windows.
+			stem.pop_back();
+		}
+		if (stem.size() > 60)
+		{
+			stem.resize(60);
+		}
+		if (stem.empty())
+		{
+			// A part named entirely in a script this filter strips still needs a filename.
+			stem = "part";
+		}
+
+		// 8 hex of the 16 the hash carries: enough that two files of the same part and slot do
+		// not collide, short enough that the readable half is still the part someone reads.
+		const std::string tail = contentHash.substr(0, std::min<std::size_t>(8, contentHash.size()));
+		return stem + "_" + toString(role) + "_" + tail + extension;
+	}
+
 	FileStoreResult FileStore::importFile(const std::string& sourcePath)
 	{
 		std::string bytes;
@@ -661,9 +704,64 @@ namespace PartManager
 		return found;
 	}
 
-	int FileStore::adoptStoredFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
-		const FileStoreResult& stored, std::string* outError)
+	void FileStore::useReadableName(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+		FileStoreResult& stored) const
 	{
+		Part owner;
+		if (!stored.ok || partId == 0 || !PartRepository::findPart(db, partId, owner)
+			|| owner.name.empty())
+		{
+			return;
+		}
+		// Somebody else's row already points at these exact bytes — the store deduplicated. Moving
+		// the file would leave that row pointing at nothing, and the two parts want different
+		// names anyway, so this one keeps the hash name.
+		if (PartRepository::countFilesWithPath(db, stored.relativePath) > 0)
+		{
+			return;
+		}
+
+		const std::filesystem::path from = std::filesystem::path(m_rootPath) / stored.relativePath;
+		const std::string name = readableFileName(owner.name, role, stored.contentHash,
+			extensionOf(from.filename().string()));
+		const std::string subFolder = stored.contentHash.substr(0, 2);
+		const std::filesystem::path to = std::filesystem::path(m_rootPath) / subFolder / name;
+		if (from == to)
+		{
+			return;
+		}
+
+		std::error_code error;
+		if (std::filesystem::exists(to))
+		{
+			// The same part re-attaching the same file. Reuse what is there and drop the copy the
+			// import just made; different content under that name is an 8-hex collision, and the
+			// hash name it already has is a perfectly good answer to that.
+			std::string existing;
+			std::string incoming;
+			if (!readWholeFile(to, existing) || !readWholeFile(from, incoming) || existing != incoming)
+			{
+				return;
+			}
+			std::filesystem::remove(from, error);
+		}
+		else
+		{
+			std::filesystem::rename(from, to, error);
+			if (error)
+			{
+				// A locked or read-only file is not worth failing an attach over — the file is
+				// stored and reachable, it just keeps the name it was written under.
+				return;
+			}
+		}
+		stored.relativePath = subFolder + "/" + name;
+	}
+
+	int FileStore::adoptStoredFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+		const FileStoreResult& storedIn, std::string* outError)
+	{
+		FileStoreResult stored = storedIn;
 		if (!stored.ok)
 		{
 			if (outError)
@@ -672,6 +770,9 @@ namespace PartManager
 			}
 			return 0;
 		}
+		// Named after the part, not after its hash — done here rather than in importBytes(),
+		// which knows nothing about parts and is also used for files no part owns.
+		useReadableName(db, partId, role, stored);
 
 		// Read *before* the insert. roleFile() resolves a slot by highest id, so asking
 		// afterwards returns the row just written and the old one would never be detached —
@@ -721,7 +822,7 @@ namespace PartManager
 	int FileStore::attachFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
 		const std::string& sourcePath, std::string* outError)
 	{
-		const FileStoreResult stored = importFile(sourcePath);
+		FileStoreResult stored = importFile(sourcePath);
 		if (!stored.ok)
 		{
 			if (outError)
@@ -730,6 +831,7 @@ namespace PartManager
 			}
 			return 0;
 		}
+		useReadableName(db, partId, role, stored);
 
 		PartFile file;
 		file.partId = partId;

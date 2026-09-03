@@ -109,6 +109,9 @@
        <property name="text">
         <string>Open Cart on Mouser</string>
        </property>
+       <property name="toolTip">
+        <string>Opens this order's cart on mouser.com in your browser. Needs the order to have been staged at least once.</string>
+       </property>
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -117,7 +120,10 @@
      <item>
       <widget class="QPushButton" name="submittedButton">
        <property name="text">
-        <string>Mark as Submitted</string>
+        <string>Mark as Ordered</string>
+       </property>
+       <property name="toolTip">
+        <string>Records that you placed this order on mouser.com — PartManager never checks out for you. Asks for the Mouser order number, which is optional.</string>
        </property>
        <property name="enabled">
         <bool>false</bool>
@@ -129,6 +135,9 @@
        <property name="text">
         <string>Confirm Arrival…</string>
        </property>
+       <property name="toolTip">
+        <string>Books the selected line's package into stock. Type what arrived in this package — partial deliveries add up on their own.</string>
+       </property>
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -139,6 +148,9 @@
        <property name="text">
         <string>Close Order</string>
        </property>
+       <property name="toolTip">
+        <string>Finishes this order. Anything that never fully arrived is marked backordered; stock is not touched.</string>
+       </property>
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -148,6 +160,9 @@
       <widget class="QPushButton" name="deleteButton">
        <property name="text">
         <string>Delete</string>
+       </property>
+       <property name="toolTip">
+        <string>Deletes this order and its lines. Parts that already arrived stay in stock — their stock entries are not undone.</string>
        </property>
        <property name="enabled">
         <bool>false</bool>
@@ -171,6 +186,9 @@
       <widget class="QPushButton" name="closeButton">
        <property name="text">
         <string>Close</string>
+       </property>
+       <property name="toolTip">
+        <string>Closes this window. Nothing is discarded — every action here was written as you made it.</string>
        </property>
        <property name="default">
         <bool>true</bool>

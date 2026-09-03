@@ -845,10 +845,13 @@ namespace PartManager
 
 		m_ui->historyTable->clearContents();
 		m_ui->historyTable->setRowCount(static_cast<int>(history.size()));
-		for (int row = 0; row < static_cast<int>(history.size()); ++row)
+		// Newest first. The running quantities are computed forwards (each row needs the one
+		// before it), so only the row the entry lands on is flipped.
+		for (int entry = 0; entry < static_cast<int>(history.size()); ++entry)
 		{
-			const StockTransaction& transaction = history[static_cast<size_t>(row)];
-			const int resulting = quantities[static_cast<size_t>(row)];
+			const int row = static_cast<int>(history.size()) - 1 - entry;
+			const StockTransaction& transaction = history[static_cast<size_t>(entry)];
+			const int resulting = quantities[static_cast<size_t>(entry)];
 
 			// A delta is signed both ways so a column of numbers reads as a ledger.
 			const QString delta = transaction.deltaQty > 0
@@ -874,7 +877,7 @@ namespace PartManager
 
 		m_ui->historyTable->resizeColumnsToContents();
 		m_ui->historyTable->horizontalHeader()->setStretchLastSection(true);
-		m_ui->historyTable->scrollToBottom();
+		m_ui->historyTable->scrollToTop();
 	}
 
 	void PartEditorDialog::done(int result)

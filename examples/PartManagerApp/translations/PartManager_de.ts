@@ -149,6 +149,22 @@ A comma ORs tags within one term: tag:I2C,SPI matches either; tag:I2C,SPI tag:SM
 Begriffe werden UND-verknüpft: Freitext (&quot;Anführungszeichen&quot; für Leerzeichen), tag:Name oder ein Attributvergleich wie resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).
 Ein Komma ODER-verknüpft Tags innerhalb eines Begriffs: tag:I2C,SPI trifft auf beide zu; tag:I2C,SPI tag:SMD trifft auf beide Busse und SMD zu.</translation>
     </message>
+    <message>
+        <source>Opens this part in the component editor.</source>
+        <translation>Öffnet dieses Bauteil im Bauteil-Editor.</translation>
+    </message>
+    <message>
+        <source>Books pieces of this part out of stock.</source>
+        <translation>Bucht Stück dieses Bauteils aus dem Bestand aus.</translation>
+    </message>
+    <message>
+        <source>Datasheet</source>
+        <translation>Datenblatt</translation>
+    </message>
+    <message>
+        <source>Opens this part&apos;s stored datasheet in your PDF viewer.</source>
+        <translation>Öffnet das gespeicherte Datenblatt dieses Bauteils im PDF-Betrachter.</translation>
+    </message>
 </context>
 <context>
     <name>ManageDatabasesDialog</name>
@@ -512,7 +528,7 @@ Mouser füllt das aus seiner Spalte &quot;Package / Case&quot; aus.</translation
     </message>
     <message>
         <source>Mark as Submitted</source>
-        <translation>Als abgeschickt markieren</translation>
+        <translation type="vanished">Als abgeschickt markieren</translation>
     </message>
     <message>
         <source>Confirm Arrival…</source>
@@ -529,6 +545,34 @@ Mouser füllt das aus seiner Spalte &quot;Package / Case&quot; aus.</translation
     <message>
         <source>Close</source>
         <translation>Schließen</translation>
+    </message>
+    <message>
+        <source>Opens this order&apos;s cart on mouser.com in your browser. Needs the order to have been staged at least once.</source>
+        <translation>Öffnet den Warenkorb dieser Bestellung auf mouser.com im Browser. Die Bestellung muss dafür mindestens einmal übertragen worden sein.</translation>
+    </message>
+    <message>
+        <source>Mark as Ordered</source>
+        <translation>Als bestellt markieren</translation>
+    </message>
+    <message>
+        <source>Records that you placed this order on mouser.com — PartManager never checks out for you. Asks for the Mouser order number, which is optional.</source>
+        <translation>Hält fest, dass Sie diese Bestellung auf mouser.com aufgegeben haben — PartManager schließt niemals für Sie ab. Fragt nach der Mouser-Bestellnummer, die optional ist.</translation>
+    </message>
+    <message>
+        <source>Books the selected line&apos;s package into stock. Type what arrived in this package — partial deliveries add up on their own.</source>
+        <translation>Bucht das Paket der ausgewählten Position in den Bestand. Geben Sie ein, was in diesem Paket angekommen ist — Teillieferungen addieren sich von selbst.</translation>
+    </message>
+    <message>
+        <source>Finishes this order. Anything that never fully arrived is marked backordered; stock is not touched.</source>
+        <translation>Schließt diese Bestellung ab. Was nie vollständig eingetroffen ist, wird als Rückstand markiert; der Bestand bleibt unberührt.</translation>
+    </message>
+    <message>
+        <source>Deletes this order and its lines. Parts that already arrived stay in stock — their stock entries are not undone.</source>
+        <translation>Löscht diese Bestellung und ihre Positionen. Bereits eingetroffene Bauteile bleiben im Bestand — ihre Bestandsbuchungen werden nicht rückgängig gemacht.</translation>
+    </message>
+    <message>
+        <source>Closes this window. Nothing is discarded — every action here was written as you made it.</source>
+        <translation>Schließt dieses Fenster. Es geht nichts verloren — jede Aktion hier wurde sofort geschrieben.</translation>
     </message>
 </context>
 <context>
@@ -1570,6 +1614,18 @@ Fortfahren?</translation>
         <source>Preparing 3D models — %1 of %2…</source>
         <translation>3D-Modelle werden vorbereitet — %1 von %2…</translation>
     </message>
+    <message>
+        <source>Component Browser</source>
+        <translation>Bauteil-Browser</translation>
+    </message>
+    <message>
+        <source>No datasheet is attached to this part. Open it in the part editor to attach or download one.</source>
+        <translation>An diesem Bauteil hängt kein Datenblatt. Öffnen Sie es im Bauteil-Editor, um eines anzuhängen oder herunterzuladen.</translation>
+    </message>
+    <message>
+        <source>Opens this part&apos;s datasheet in your PDF viewer.</source>
+        <translation>Öffnet das Datenblatt dieses Bauteils im PDF-Betrachter.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::ManageDatabasesDialog</name>
@@ -2359,7 +2415,7 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
     </message>
     <message>
         <source>Mark as submitted</source>
-        <translation>Als abgeschickt markieren</translation>
+        <translation type="vanished">Als abgeschickt markieren</translation>
     </message>
     <message>
         <source>Mouser order number (optional):</source>
@@ -2367,17 +2423,17 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
     </message>
     <message>
         <source>Confirm arrival</source>
-        <translation>Eingang bestätigen</translation>
+        <translation type="vanished">Eingang bestätigen</translation>
     </message>
     <message>
         <source>How many of “%1” have arrived in total?
 (%2 ordered, %3 already booked in)</source>
-        <translation>Wie viele von „%1“ sind insgesamt eingetroffen?
+        <translation type="vanished">Wie viele von „%1“ sind insgesamt eingetroffen?
 (%2 bestellt, %3 bereits verbucht)</translation>
     </message>
     <message>
         <source>Unit price actually paid (0 to skip):</source>
-        <translation>Tatsächlich bezahlter Stückpreis (0 zum Überspringen):</translation>
+        <translation type="vanished">Tatsächlich bezahlter Stückpreis (0 zum Überspringen):</translation>
     </message>
     <message>
         <source>Could not record the arrival</source>
@@ -2405,6 +2461,10 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
     <message>
         <source>Order #%1 and its lines will be deleted. Parts that already arrived stay in stock — their stock entries are not undone.</source>
         <translation>Bestellung Nr. %1 und ihre Positionen werden gelöscht. Bereits eingetroffene Bauteile bleiben im Bestand — ihre Bestandsbuchungen werden nicht rückgängig gemacht.</translation>
+    </message>
+    <message>
+        <source>Mark as ordered</source>
+        <translation>Als bestellt markieren</translation>
     </message>
 </context>
 <context>
@@ -3037,6 +3097,59 @@ Dafür einen Bestellentwurf anlegen?</translation>
     <message>
         <source>The database rejected the new order.</source>
         <translation>Die Datenbank hat die neue Bestellung abgelehnt.</translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::ReceiveArrivalDialog</name>
+    <message>
+        <source>Confirm arrival</source>
+        <translation>Eingang bestätigen</translation>
+    </message>
+    <message>
+        <source>How many came in this package — not the running total. PartManager adds it to what was already booked in.</source>
+        <translation>Wie viele in diesem Paket angekommen sind — nicht die Gesamtzahl. PartManager addiert sie zu dem, was bereits verbucht ist.</translation>
+    </message>
+    <message>
+        <source>What was actually paid per piece. 0 leaves it unrecorded — Mouser&apos;s list price and the price on the invoice are not the same number.</source>
+        <translation>Was tatsächlich pro Stück bezahlt wurde. 0 lässt ihn unerfasst — der Listenpreis von Mouser und der Preis auf der Rechnung sind nicht dieselbe Zahl.</translation>
+    </message>
+    <message>
+        <source>Everything Arrived</source>
+        <translation>Alles eingetroffen</translation>
+    </message>
+    <message>
+        <source>Fills in whatever is still outstanding on this line.</source>
+        <translation>Trägt ein, was bei dieser Position noch aussteht.</translation>
+    </message>
+    <message>
+        <source>Arrived in this package:</source>
+        <translation>In diesem Paket eingetroffen:</translation>
+    </message>
+    <message>
+        <source>Unit price actually paid:</source>
+        <translation>Tatsächlich gezahlter Stückpreis:</translation>
+    </message>
+    <message>
+        <source>%1 already booked in + %2 now = %3 of %4 ordered.</source>
+        <translation>%1 bereits verbucht + %2 jetzt = %3 von %4 bestellt.</translation>
+    </message>
+    <message numerus="yes">
+        <source>✔ Position complete — %n more than ordered.</source>
+        <translation>
+            <numerusform>✔ Position vollständig — %n Stück mehr als bestellt.</numerusform>
+            <numerusform>✔ Position vollständig — %n Stück mehr als bestellt.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>✔ Position complete.</source>
+        <translation>✔ Position vollständig.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n still outstanding after this.</source>
+        <translation>
+            <numerusform>Danach steht noch %n Stück aus.</numerusform>
+            <numerusform>Danach stehen noch %n Stück aus.</numerusform>
+        </translation>
     </message>
 </context>
 <context>

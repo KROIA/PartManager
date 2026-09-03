@@ -7,6 +7,13 @@
 // hashes to the same name, so two parts attaching the same PDF share one file
 // on disk and each still get their own `part_file` row.
 //
+// A file attached to a *part* is then renamed to readableFileName() —
+// `<hash[0:2]>/<part name>_<role>_<hash8>.<ext>` — because the hash name is the
+// one the user's PDF viewer shows them. The bucket, the ref-counting and the
+// orphan sweep all key off the stored path, so none of them notice; what does
+// change is that two parts sharing one PDF now keep a copy each, which is a few
+// hundred kB against a filename anyone can read.
+//
 // Deletion is therefore reference-counted, not a plain unlink: detachFile()
 // removes the row and only removes the file once no other row points at it.
 //
@@ -129,6 +136,19 @@ namespace PartManager
 		// The file extension (with dot, lowercase) `bytes` look like, empty when unrecognised.
 		static std::string sniffExtension(const std::string& bytes);
 
+		// The readable name a part's file is stored under: `<part name>_<role>_<hash8><ext>`,
+		// e.g. `DMG1013T-7_datasheet_ac4e1b04.pdf`.
+		//
+		// A pure content hash is unique and completely unhelpful the moment the file leaves
+		// PartManager — a PDF viewer's title bar, a tab, a "recent files" list all show the name
+		// and none of them show which part it belongs to. The part name carries that; the hash
+		// tail keeps two parts with the same name (and the same slot) from colliding.
+		//
+		// Anything outside `[A-Za-z0-9._-]` becomes `_`, runs collapse, and the part half is cut
+		// at 60 characters — a name is not the place to preserve a description.
+		static std::string readableFileName(const std::string& partName, PartFileRole role,
+			const std::string& contentHash, const std::string& extension);
+
 		// GETs `url` into memory. The transport half of downloadFile() on its own — same WinHTTP
 		// -then-Qt cascade and the same browser-shaped headers, which is the only reason Mouser
 		// answers at all (see the comment in the .cpp). No block-page check and no extension
@@ -204,6 +224,15 @@ namespace PartManager
 		int countStaleMeshCache() const;
 
 	private:
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		// Moves a just-imported file to its readableFileName() and repoints `stored` at it.
+		// A no-op when the part cannot be read, when another `part_file` row already references
+		// the same bytes (renaming would break that row), or when the target name is taken by
+		// different content. Failing to rename is never an error — the hash name still works.
+		void useReadableName(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+			FileStoreResult& stored) const;
+#endif
+
 		std::string m_rootPath;
 		int m_timeoutMs = 15000;
 	};

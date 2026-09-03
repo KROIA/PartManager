@@ -16,11 +16,7 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QHBoxLayout" name="centralLayout">
     <item>
-     <widget class="QSplitter" name="mainSplitter">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-      <widget class="QSplitter" name="bodySplitter">
+     <widget class="QSplitter" name="bodySplitter">
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
@@ -303,22 +299,41 @@ A comma ORs tags within one term: tag:I2C,SPI matches either; tag:I2C,SPI tag:SM
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="previewButtonLayout">
-          <item>
+         <layout class="QGridLayout" name="previewButtonLayout">
+          <item row="0" column="0">
            <widget class="QPushButton" name="previewOpenButton">
             <property name="text">
              <string>Open Part</string>
             </property>
+            <property name="toolTip">
+             <string>Opens this part in the component editor.</string>
+            </property>
            </widget>
           </item>
-          <item>
+          <item row="0" column="1">
            <widget class="QPushButton" name="previewTakeOutButton">
             <property name="text">
              <string>Take Out</string>
             </property>
+            <property name="toolTip">
+             <string>Books pieces of this part out of stock.</string>
+            </property>
            </widget>
           </item>
-          <item>
+          <item row="1" column="0">
+           <widget class="QPushButton" name="previewDatasheetButton">
+            <property name="text">
+             <string>Datasheet</string>
+            </property>
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="toolTip">
+             <string>Opens this part's stored datasheet in your PDF viewer.</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
            <widget class="QPushButton" name="previewMouserButton">
             <property name="text">
              <string>Open on Mouser</string>
@@ -334,7 +349,6 @@ A comma ORs tags within one term: tag:I2C,SPI matches either; tag:I2C,SPI tag:SM
          </layout>
         </item>
        </layout>
-      </widget>
       </widget>
      </widget>
     </item>

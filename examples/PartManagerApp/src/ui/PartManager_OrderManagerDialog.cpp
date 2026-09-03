@@ -2,6 +2,7 @@
 #include "ui_PartManager_OrderManagerDialog.h"
 
 #include "ui/PartManager_CartStagingDialog.h"
+#include "ui/PartManager_ReceiveArrivalDialog.h"
 
 #include <QColor>
 #include <QDesktopServices>
@@ -118,6 +119,10 @@ namespace PartManager
 
 	void OrderManagerDialog::reload()
 	{
+		// Every action in here ends in reload(), and clearing the table drops the selection with
+		// it — which is how confirming an arrival used to leave the user staring at an empty line
+		// list wondering whether it had worked.
+		const int wasSelected = selectedOrderId();
 		m_orders = m_controller.orders(m_ui->openOnlyCheck->isChecked());
 
 		m_ui->orderTable->clearContents();
@@ -148,6 +153,19 @@ namespace PartManager
 		m_ui->orderTable->horizontalHeader()->setSectionResizeMode(OrderColumnStatus,
 			QHeaderView::Stretch);
 
+		// Put the selection back before showLines() runs off the end of it. Not selectOrder(),
+		// which un-filters the list when the order it wants is hidden — an order that closing just
+		// filtered out is meant to disappear.
+		for (int candidate = 0; candidate < m_ui->orderTable->rowCount(); ++candidate)
+		{
+			QTableWidgetItem* item = m_ui->orderTable->item(candidate, OrderColumnId);
+			if (item != nullptr && item->data(OrderIdRole).toInt() == wasSelected)
+			{
+				m_ui->orderTable->selectRow(candidate);
+				break;
+			}
+		}
+
 		if (m_orders.empty())
 		{
 			m_ui->statusLabel->setText(m_ui->openOnlyCheck->isChecked()
@@ -159,6 +177,8 @@ namespace PartManager
 
 	void OrderManagerDialog::showLines()
 	{
+		const OrderLine* wasSelected = selectedLine();
+		const int wasSelectedId = wasSelected == nullptr ? 0 : wasSelected->item.id;
 		const int orderId = selectedOrderId();
 		m_lines = orderId == NoOrderId ? std::vector<OrderLine>() : m_controller.lines(orderId);
 
@@ -237,6 +257,18 @@ namespace PartManager
 				m_ui->lineTable->setItem(row, column, item);
 			}
 			++row;
+		}
+		// Same reasoning as the order table: confirming an arrival must leave the cursor on the
+		// line it was confirmed for. Line ids survive a receive(); they do not survive saveItems(),
+		// which rewrites the rows — that path simply finds nothing and leaves the table unselected.
+		for (int candidate = 0; candidate < m_ui->lineTable->rowCount(); ++candidate)
+		{
+			QTableWidgetItem* item = m_ui->lineTable->item(candidate, LineColumnPart);
+			if (item != nullptr && item->data(LineIdRole).toInt() == wasSelectedId)
+			{
+				m_ui->lineTable->selectRow(candidate);
+				break;
+			}
 		}
 		m_populating = false;
 
@@ -487,7 +519,7 @@ namespace PartManager
 		MouserOrder order;
 		m_controller.load(orderId, order);
 		bool accepted = false;
-		const QString number = QInputDialog::getText(this, tr("Mark as submitted"),
+		const QString number = QInputDialog::getText(this, tr("Mark as ordered"),
 			tr("Mouser order number (optional):"), QLineEdit::Normal,
 			QString::fromStdString(order.mouserOrderNumber), &accepted);
 		if (!accepted)
@@ -508,33 +540,19 @@ namespace PartManager
 			return;
 		}
 
-		bool accepted = false;
-		// The running total, not an increment — confirming "10 arrived" twice must not restock
-		// twice, and the only way to make that obvious is to ask for the total.
-		const int received = QInputDialog::getInt(this, tr("Confirm arrival"),
-			tr("How many of “%1” have arrived in total?\n"
-			   "(%2 ordered, %3 already booked in)")
-				.arg(QString::fromStdString(line->partName))
-				.arg(line->item.quantityOrdered)
-				.arg(line->item.quantityReceived),
-			line->item.quantityOrdered, 0, 1000000, 1, &accepted);
-		if (!accepted)
+		// The database stores a running total, but a package is what the user is holding: asking
+		// for the total means doing a subtraction in your head every time an order arrives in
+		// pieces. The dialog asks for this package and shows the sum it makes.
+		ReceiveArrivalDialog arrival(QString::fromStdString(line->partName),
+			line->item.quantityOrdered, line->item.quantityReceived, line->item.unitPrice, this);
+		if (arrival.exec() != QDialog::Accepted)
 		{
 			return;
 		}
-
-		double unitCost = line->item.unitPrice;
-		if (received > line->item.quantityReceived)
-		{
-			// §3: what was actually paid is its own observation, and only the user knows it —
-			// Mouser's list price and the price on the invoice are different numbers.
-			unitCost = QInputDialog::getDouble(this, tr("Confirm arrival"),
-				tr("Unit price actually paid (0 to skip):"), unitCost, 0.0, 1000000.0, 4, &accepted);
-			if (!accepted)
-			{
-				return;
-			}
-		}
+		// Both fields live in the one dialog now, so a price nobody wanted to change no longer
+		// costs a second popup — and nothing is written until OK.
+		const int received = arrival.totalReceived();
+		const double unitCost = arrival.unitPrice();
 
 		if (!m_controller.receive(line->item.id, received, unitCost,
 			line->item.currency.empty() ? std::string() : line->item.currency))

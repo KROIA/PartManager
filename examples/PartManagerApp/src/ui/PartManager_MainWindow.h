@@ -17,6 +17,7 @@
 #include <QMainWindow>
 #include <memory>
 
+class QDockWidget;
 class QLineEdit;
 class QTimer;
 class QTreeWidgetItem;
@@ -76,6 +77,8 @@ namespace PartManager
 		void onGenerateKicadLibraries();
 		// §6's "Open on Mouser" for the selected part, from the preview panel.
 		void onOpenOnMouser();
+		// Preview panel: hands the selected part's stored datasheet to the system PDF viewer.
+		void onOpenDatasheet();
 		// Home tab's 3D Viewer button (§13) — the selected part's 3D model: attach, view, remove.
 		void onView3DModel();
 		// Parts tab's Settings button (§9). Ends the session when a backup was restored, because
@@ -136,8 +139,12 @@ namespace PartManager
 		// Non-owning view of the same connection m_controller holds open.
 		StockController m_stock;
 		RibbonWidget::Ribbon* m_ribbon = nullptr;
-		// The §4 screen, hidden until the ribbon asks for it. Owned by the splitter (Qt parent).
+		// The §4 screen, hidden until the ribbon asks for it. Owned by m_partlistDock.
 		PartlistPanel* m_partlistPanel = nullptr;
+		// §7's tree/table/preview and §4's BOM panel, each in its own dock so the user decides
+		// where they sit. Both owned by the window (Qt parent).
+		QDockWidget* m_browserDock = nullptr;
+		QDockWidget* m_partlistDock = nullptr;
 		// §5a: the part's schematic symbol and PCB footprint, under its photo. Built in code
 		// rather than in the .ui, which would need them promoted there first.
 		KicadPreviewWidget* m_symbolPreview = nullptr;

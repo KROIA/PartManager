@@ -47,6 +47,8 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartlistImportDialo
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_MouserSearchDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_OrderManagerDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_CartStagingDialog.cpp")
+## ...and confirming an arrival opens the per-package dialog.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_ReceiveArrivalDialog.cpp")
 ## ...and New Part offers the §5c symbol/footprint download right after Create.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_EcadFetchDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttributeFormWidget.cpp")
