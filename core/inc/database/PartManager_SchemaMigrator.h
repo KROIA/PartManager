@@ -20,6 +20,12 @@
 //       existing database has because they were never seeded at all.
 //   v10: `search_keywords` on `part_type` and `part` (§7a), ALTERed in, plus
 //       the built-in types' default word lists. Only empty lists are filled.
+//   v11: `excluded_keywords` on `part_type` and `part` (§7a) — the inherited
+//       search words a type or a single part has unticked. ALTERed in, empty
+//       everywhere, so a migrated database searches exactly as it did.
+//   v12: `name_template` on `part_type` (§11) — the pattern behind the part
+//       editor's suggested name. ALTERed in, empty, so nothing suggests one
+//       until a type declares a pattern.
 // @see docs/design/ARCHITECTURE.md §1c
 #pragma once
 
@@ -34,7 +40,7 @@ namespace PartManager
 {
 
 	// The schema (table/column structure) version this build of PartManager understands.
-	constexpr int CurrentSchemaVersion = 10;
+	constexpr int CurrentSchemaVersion = 12;
 
 	// Outcome of comparing a database's stored schema_version against CurrentSchemaVersion.
 	enum class SchemaCompatibility

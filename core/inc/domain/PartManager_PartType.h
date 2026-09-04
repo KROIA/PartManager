@@ -33,6 +33,17 @@ namespace PartManager
 		// so editing this reaches the parts already filed under the type; a part adds its own in
 		// Part::searchKeywords rather than overriding these.
 		std::string searchKeywords;
+		// Inherited words this type drops, one per line, matched whole rather than by prefix (§7a).
+		// A "Ceramic Capacitor" that answers to everything "Capacitor" does except "Farad" unticks
+		// it here. Applied on the way down the chain, so a dropped word never reaches this type's
+		// own children either — the checkbox is about what this branch means, not about one type.
+		std::string excludedKeywords;
+		// The pattern a part of this type gets its suggested name from — literal text with
+		// `{key}` placeholders that stand for the part's attribute values, e.g.
+		// "Resistor {resistance} {package}". Inherited down the §2b chain with the *nearest*
+		// declaration winning rather than accumulating, because a name is one string and not a
+		// list. Empty everywhere = the type suggests no name and the part editor's button is off.
+		std::string nameTemplate;
 	};
 
 }

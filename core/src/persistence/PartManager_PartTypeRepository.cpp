@@ -111,6 +111,8 @@ namespace PartManager
 			type.parentTypeId = std::atoi(row[5].c_str());
 			type.description = row[6];
 			type.searchKeywords = row.size() > 7 ? row[7] : std::string();
+			type.excludedKeywords = row.size() > 8 ? row[8] : std::string();
+			type.nameTemplate = row.size() > 9 ? row[9] : std::string();
 			return type;
 		}
 
@@ -178,7 +180,9 @@ namespace PartManager
 			"kicad_category TEXT,"
 			"parent_type_id INTEGER REFERENCES part_type(id),"
 			"description TEXT,"
-			"search_keywords TEXT"
+			"search_keywords TEXT,"
+			"excluded_keywords TEXT,"
+			"name_template TEXT"
 			");") && ok;
 		ok = db.execute(
 			"CREATE TABLE IF NOT EXISTS part_type_attribute ("
@@ -212,20 +216,22 @@ namespace PartManager
 	int PartTypeRepository::insertType(SQLiteWrapper::SQLite& db, const PartType& type)
 	{
 		bool ok = db.executeWithParams(
-			"INSERT INTO part_type (name, domain, kicad_relevant, kicad_category, parent_type_id, description, search_keywords) "
-			"VALUES (?, ?, ?, ?, ?, ?, ?);",
+			"INSERT INTO part_type (name, domain, kicad_relevant, kicad_category, parent_type_id, description, search_keywords, excluded_keywords, name_template) "
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);",
 			{ type.name, type.domain, type.kicadRelevant ? "1" : "0", type.kicadCategory,
-			  std::to_string(type.parentTypeId), type.description, type.searchKeywords });
+			  std::to_string(type.parentTypeId), type.description, type.searchKeywords, type.excludedKeywords,
+			  type.nameTemplate });
 		return ok ? static_cast<int>(db.getLastInsertRowId()) : NoParentType;
 	}
 
 	bool PartTypeRepository::updateType(SQLiteWrapper::SQLite& db, const PartType& type)
 	{
 		return db.executeWithParams(
-			"UPDATE part_type SET name=?, domain=?, kicad_relevant=?, kicad_category=?, parent_type_id=?, description=?, search_keywords=? "
+			"UPDATE part_type SET name=?, domain=?, kicad_relevant=?, kicad_category=?, parent_type_id=?, description=?, search_keywords=?, excluded_keywords=?, name_template=? "
 			"WHERE id=?;",
 			{ type.name, type.domain, type.kicadRelevant ? "1" : "0", type.kicadCategory,
-			  std::to_string(type.parentTypeId), type.description, type.searchKeywords, std::to_string(type.id) });
+			  std::to_string(type.parentTypeId), type.description, type.searchKeywords, type.excludedKeywords,
+			  type.nameTemplate, std::to_string(type.id) });
 	}
 
 	bool PartTypeRepository::deleteType(SQLiteWrapper::SQLite& db, int typeId)
@@ -236,7 +242,7 @@ namespace PartManager
 	bool PartTypeRepository::findType(SQLiteWrapper::SQLite& db, int typeId, PartType& outType)
 	{
 		std::vector<std::vector<std::string>> rows = db.fetchAll(
-			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description,search_keywords "
+			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description,search_keywords,excluded_keywords,name_template "
 			"FROM part_type WHERE id=" + std::to_string(typeId) + ";");
 		if (rows.empty())
 		{
@@ -250,7 +256,7 @@ namespace PartManager
 	{
 		std::vector<PartType> result;
 		for (const std::vector<std::string>& row : db.fetchAll(
-			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description,search_keywords FROM part_type ORDER BY id;"))
+			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description,search_keywords,excluded_keywords,name_template FROM part_type ORDER BY id;"))
 		{
 			result.push_back(rowToType(row));
 		}
@@ -737,7 +743,7 @@ namespace PartManager
 		return true;
 	}
 
-	bool PartTypeRepository::ensureSearchKeywordColumns(SQLiteWrapper::SQLite& db)
+	bool PartTypeRepository::ensureLateAddedColumns(SQLiteWrapper::SQLite& db)
 	{
 		// CREATE TABLE IF NOT EXISTS does nothing to a table that is already there, so an existing
 		// database needs the column added by hand — the same shape as ensureAttrColumn().
@@ -754,7 +760,10 @@ namespace PartManager
 			return db.execute(std::string("ALTER TABLE ") + table + " ADD COLUMN " + column + " TEXT;");
 		};
 		bool ok = ensureColumn("part_type", "search_keywords");
-		return ensureColumn("part", "search_keywords") && ok;
+		ok = ensureColumn("part", "search_keywords") && ok;
+		ok = ensureColumn("part_type", "excluded_keywords") && ok;
+		ok = ensureColumn("part", "excluded_keywords") && ok;
+		return ensureColumn("part_type", "name_template") && ok;
 	}
 
 	bool PartTypeRepository::seedDefaultFileSlots(SQLiteWrapper::SQLite& db)

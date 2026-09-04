@@ -16,6 +16,8 @@
 #include "controllers/PartManager_StockController.h"
 #include <QDialog>
 
+class QLabel;
+class QPushButton;
 class QTimer;
 
 namespace Ui { class PartEditorDialog; }
@@ -24,6 +26,7 @@ namespace PartManager
 {
 
 	class AttributeFormWidget;
+	class KeywordCheckList;
 	class KicadPreviewWidget;
 
 	class PartEditorDialog : public QDialog
@@ -103,6 +106,10 @@ namespace PartManager
 		void loadPart();
 		// Restarts the §10 debounce — a burst of keystrokes becomes one write.
 		void scheduleSave();
+		// §11: re-renders the category's naming pattern against what the fields hold right now,
+		// and disables the button when the name it produces is the one the part already has.
+		// Reads the widgets rather than m_part, so it is current before the autosave has run.
+		void updateSuggestedName();
 		// Fills the "+ Tag" menu with the tags this part does not carry yet.
 		void refreshAddTagMenu();
 		// Puts the datasheet row into one of its three states: none, attached, or attached but
@@ -128,6 +135,15 @@ namespace PartManager
 		// Built in code rather than in the .ui, which would need them promoted there first.
 		KicadPreviewWidget* m_symbolPreview = nullptr;
 		KicadPreviewWidget* m_footprintPreview = nullptr;
+		// §7a: the search words this part gets from its category, one tick box each, so a single
+		// part can drop one it does not answer to.
+		KeywordCheckList* m_inheritedKeywords = nullptr;
+		// §11: the name the category's pattern builds out of this part, and the button that takes
+		// it. The label shows it even when it equals the current name, so the pattern is always
+		// visible; the button is what goes quiet.
+		QLabel* m_suggestedNameLabel = nullptr;
+		QPushButton* m_applyNameButton = nullptr;
+		QString m_suggestedName;
 		QTimer* m_saveTimer;
 		Part m_part;
 		// Blocks autosave while loadPart() writes into the widgets.

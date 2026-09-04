@@ -2,25 +2,37 @@
 #include "ui_PartManager_TypeTemplateDialog.h"
 #include "controllers/PartManager_MainWindowController.h"
 #include "domain/PartManager_PartFileRole.h"
+#include "search/PartManager_SearchEngine.h"
+#include "widgets/PartManager_KeywordCheckList.h"
 #include "units/PartManager_UnitTable.h"
 
 #include <algorithm>
 
+#include <QAction>
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QFormLayout>
+#include <QGroupBox>
+#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QIcon>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
 #include <QPixmap>
+#include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QSyntaxHighlighter>
+#include <QTextDocument>
+#include <QVBoxLayout>
 #include <QStringList>
 #include <QStyle>
 #include <QTableWidget>
+#include <QToolButton>
 #include <QTreeWidgetItem>
 
 namespace PartManager
@@ -31,6 +43,44 @@ namespace PartManager
 		// carries the part_type id.
 		constexpr int RowIdRole = Qt::UserRole;
 		constexpr int TypeIdRole = Qt::UserRole;
+
+		// Paints the `{key}` placeholders in the naming pattern while it is being typed: green once
+		// the letters so far spell a key this type has, orange until they do. The closing brace is
+		// not waited for — a run is highlighted from `{` to `}` *or to the end of the line*, which
+		// is what makes the colour flip on the last letter typed rather than on the brace after it.
+		// No Q_OBJECT: it declares no signals or slots, so moc has nothing to do here.
+		class TemplateKeyHighlighter : public QSyntaxHighlighter
+		{
+		public:
+			TemplateKeyHighlighter(QTextDocument* document, const QStringList* knownKeys)
+				: QSyntaxHighlighter(document)
+				, m_knownKeys(knownKeys)
+			{
+			}
+
+		protected:
+			void highlightBlock(const QString& text) override
+			{
+				int at = 0;
+				while ((at = text.indexOf(QLatin1Char('{'), at)) >= 0)
+				{
+					const int close = text.indexOf(QLatin1Char('}'), at + 1);
+					const int keyEnd = close < 0 ? text.size() : close;
+					const int runEnd = close < 0 ? text.size() : close + 1;
+					const QString key = text.mid(at + 1, keyEnd - at - 1);
+					QTextCharFormat format;
+					format.setBackground(m_knownKeys->contains(key)
+						? QColor(0xB7, 0xE4, 0xB0)    // this type has that attribute
+						: QColor(0xFF, 0xD1, 0x8C));  // not (yet) a key anything would fill in
+					format.setForeground(QColor(0x20, 0x20, 0x20));   // both backgrounds are pale
+					setFormat(at, runEnd - at, format);
+					at = runEnd;
+				}
+			}
+
+		private:
+			const QStringList* m_knownKeys;
+		};
 
 		// Attribute table columns, in the mockup's order.
 		enum AttributeColumn
@@ -228,6 +278,66 @@ namespace PartManager
 		m_ui->fileSlotUpButton->setIcon(style()->standardIcon(QStyle::SP_ArrowUp));
 		m_ui->fileSlotDownButton->setIcon(style()->standardIcon(QStyle::SP_ArrowDown));
 
+		// §7a: both halves of the same thing in one frame — the words this branch inherits on top,
+		// because they are the ones that already apply, and the words it adds of its own below.
+		m_inheritedKeywords = new KeywordCheckList(this);
+		m_inheritedKeywords->setEmptyText(tr("No parent type hands any search words down to this one."));
+		QGroupBox* searchWordsGroup = new QGroupBox(tr("Search words"), this);
+		QFormLayout* searchWordsForm = new QFormLayout(searchWordsGroup);
+		// takeRow() rather than a reparent, so the row the field came from closes up instead of
+		// leaving an empty one in the middle of the form.
+		QFormLayout::TakeRowResult keywordRow = m_ui->formLayout->takeRow(m_ui->searchKeywordsEdit);
+		delete keywordRow.labelItem;
+		delete keywordRow.fieldItem;
+		m_ui->searchKeywordsLabel->setText(tr("This type's own"));
+		searchWordsForm->addRow(tr("Inherited"), m_inheritedKeywords);
+		searchWordsForm->addRow(m_ui->searchKeywordsLabel, m_ui->searchKeywordsEdit);
+		m_ui->formLayout->insertRow(6, searchWordsGroup);
+
+		// §11: the pattern the part editor's suggested name is built from. Typed as text — the
+		// syntax is one form, `{key}` — with a menu that inserts a placeholder for any attribute
+		// the type has, so the keys never have to be remembered or spelled right.
+		m_nameTemplateEdit = new QPlainTextEdit(this);
+		m_nameTemplateEdit->setLineWrapMode(QPlainTextEdit::NoWrap);
+		m_nameTemplateEdit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+		m_nameTemplateEdit->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+		m_nameTemplateEdit->setTabChangesFocus(true);
+		// One line high, so it reads as the single-line field it is despite being a text edit.
+		m_nameTemplateEdit->setFixedHeight(m_nameTemplateEdit->fontMetrics().height() + 12);
+		m_nameTemplateEdit->setPlaceholderText(tr("e.g. Resistor {resistance} {package}"));
+		m_nameHighlighter = new TemplateKeyHighlighter(m_nameTemplateEdit->document(),
+			&m_knownTemplateKeys);
+		m_nameTemplateEdit->setToolTip(tr("Every {key} is replaced by that attribute's value on the "
+			"part. {manufacturer}, {mpn} and {package} are understood too. A placeholder the part "
+			"has no value for simply disappears. Inherited by subtypes that declare no pattern of "
+			"their own."));
+		QToolButton* insertKeyButton = new QToolButton(this);
+		insertKeyButton->setText(tr("Insert…"));
+		insertKeyButton->setPopupMode(QToolButton::InstantPopup);
+		insertKeyButton->setToolTip(tr("Puts a placeholder for one of this type's attributes into "
+			"the pattern at the cursor."));
+		m_insertKeyMenu = new QMenu(insertKeyButton);
+		insertKeyButton->setMenu(m_insertKeyMenu);
+		connect(m_insertKeyMenu, &QMenu::aboutToShow, this, &TypeTemplateDialog::refreshInsertKeyMenu);
+
+		// What the pattern would actually produce, on a part with a value in every field — the
+		// answer to "is that the name I meant" without leaving the dialog to go and look.
+		m_namePreviewLabel = new QLabel(this);
+		m_namePreviewLabel->setEnabled(false);
+		m_namePreviewLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+
+		QWidget* nameTemplateRow = new QWidget(this);
+		QVBoxLayout* nameTemplateColumn = new QVBoxLayout(nameTemplateRow);
+		nameTemplateColumn->setContentsMargins(0, 0, 0, 0);
+		nameTemplateColumn->setSpacing(2);
+		QHBoxLayout* nameTemplateLayout = new QHBoxLayout();
+		nameTemplateLayout->setContentsMargins(0, 0, 0, 0);
+		nameTemplateLayout->addWidget(m_nameTemplateEdit);
+		nameTemplateLayout->addWidget(insertKeyButton);
+		nameTemplateColumn->addLayout(nameTemplateLayout);
+		nameTemplateColumn->addWidget(m_namePreviewLabel);
+		m_ui->formLayout->insertRow(7, tr("Name pattern"), nameTemplateRow);
+
 		connect(m_ui->newTypeButton, &QPushButton::clicked, this, &TypeTemplateDialog::onNewType);
 		connect(m_ui->deleteTypeButton, &QPushButton::clicked, this, &TypeTemplateDialog::onDeleteType);
 		connect(m_ui->typeTree, &QTreeWidget::itemSelectionChanged, this,
@@ -238,6 +348,23 @@ namespace PartManager
 		connect(m_ui->kicadRelevantCheck, &QCheckBox::toggled, this, &TypeTemplateDialog::onTypeFieldEdited);
 		connect(m_ui->descriptionEdit, &QPlainTextEdit::textChanged, this, &TypeTemplateDialog::onTypeFieldEdited);
 		connect(m_ui->searchKeywordsEdit, &QPlainTextEdit::textChanged, this, &TypeTemplateDialog::onTypeFieldEdited);
+		connect(m_inheritedKeywords, &KeywordCheckList::excludedChanged, this, &TypeTemplateDialog::onTypeFieldEdited);
+		connect(m_nameTemplateEdit, &QPlainTextEdit::textChanged, this, [this]()
+			{
+				// A name pattern is one line. Enter is the only way to get a second one into a
+				// text edit, and folding it away here costs less than an event filter.
+				const QString typed = m_nameTemplateEdit->toPlainText();
+				if (typed.contains(QLatin1Char('\n')))
+				{
+					QString flattened = typed;
+					flattened.replace(QLatin1Char('\n'), QString());
+					m_nameTemplateEdit->setPlainText(flattened);
+					m_nameTemplateEdit->moveCursor(QTextCursor::End);
+					return;   // setPlainText() brings us straight back here
+				}
+				updateNamePreview();
+				onTypeFieldEdited();
+			});
 		connect(m_ui->domainCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
 			&TypeTemplateDialog::onTypeFieldEdited);
 		connect(m_ui->parentCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
@@ -323,6 +450,18 @@ namespace PartManager
 		m_ui->kicadCategoryEdit->setText(toQt(type.kicadCategory));
 		m_ui->descriptionEdit->setPlainText(toQt(type.description));
 		m_ui->searchKeywordsEdit->setPlainText(toQt(type.searchKeywords));
+		// What the *ancestors* declare, not what this type does — those are the words it can only
+		// keep or drop. A root type has none, which is what the widget's empty text is for.
+		m_inheritedKeywords->setKeywords(
+			toQt(SearchEngine::inheritedKeywords(m_types, type.parentTypeId)),
+			toQt(type.excludedKeywords));
+		m_nameTemplateEdit->setPlainText(toQt(type.nameTemplate));   // user data
+		// What an empty field inherits, so a subtype's blank pattern does not read as "no name".
+		const QString inheritedPattern = type.nameTemplate.empty()
+			? nameTemplateFor(m_types, type.parentTypeId) : QString();
+		m_nameTemplateEdit->setPlaceholderText(inheritedPattern.isEmpty()
+			? tr("e.g. Resistor {resistance} {package}")
+			: tr("inherited: %1").arg(inheritedPattern));
 
 		// A type cannot descend from itself, directly or through a chain — the §2b walk would
 		// then never reach a root. typeIdWithDescendants() is the same subtree the main window
@@ -368,6 +507,8 @@ namespace PartManager
 		type.parentTypeId = m_ui->parentCombo->currentData().toInt();
 		type.description = m_ui->descriptionEdit->toPlainText().toStdString();
 		type.searchKeywords = m_ui->searchKeywordsEdit->toPlainText().toStdString();
+		type.excludedKeywords = m_inheritedKeywords->excludedKeywords().toStdString();
+		type.nameTemplate = m_nameTemplateEdit->toPlainText().toStdString();
 		if (!m_controller.updateType(type))
 		{
 			return;
@@ -394,6 +535,101 @@ namespace PartManager
 			// in the forest — both tables and the tree have to be re-read.
 			refreshTypeTree();
 		}
+	}
+
+	void TypeTemplateDialog::updateNameTemplateFeedback()
+	{
+		m_knownTemplateKeys.clear();
+		for (const PartTypeAttribute& attribute : m_attributes)
+		{
+			m_knownTemplateKeys.append(toQt(attribute.key));
+		}
+		m_knownTemplateKeys << QStringLiteral("manufacturer")
+			<< QStringLiteral("mpn") << QStringLiteral("package");
+		// **Only from here, never from the field's own textChanged.** rehighlight() walks the
+		// document inside an edit block, which makes it emit contentsChanged — and that is
+		// textChanged — so a repaint asked for while handling a keystroke asks for another one
+		// forever. Typing needs no rehighlight anyway: the highlighter is called on the block that
+		// changed as part of the edit. This is only for when the *key set* moved under it.
+		m_nameHighlighter->rehighlight();
+		updateNamePreview();
+	}
+
+	void TypeTemplateDialog::updateNamePreview()
+	{
+		// An invented part with a value in every field. Made up rather than read out of the
+		// database on purpose: a category with no parts in it yet is exactly when the pattern is
+		// being written, and a preview that only appears once the first part exists would be
+		// missing at the one moment it is needed.
+		const PartType type = selectedType();
+		std::map<std::string, AttributeValue> values;
+		for (const PartTypeAttribute& attribute : m_attributes)
+		{
+			AttributeValue value;
+			value.present = true;
+			switch (attribute.datatype)
+			{
+			case AttributeDataType::Dimension:
+			case AttributeDataType::Number:
+				value.number = 4700.0;   // reads as "4.7 k<unit>" through the §2a formatter
+				break;
+			case AttributeDataType::Bool:
+				value.flag = true;
+				break;
+			case AttributeDataType::Enum:
+				value.text = attribute.enumOptions.empty()
+					? toQt(attribute.label) : toQt(attribute.enumOptions.front());
+				break;
+			default:
+				value.text = toQt(attribute.label);
+				break;
+			}
+			values[attribute.key] = value;
+		}
+
+		Part sample;
+		sample.partTypeId = type.id;
+		sample.manufacturer = "Acme";
+		sample.mpn = "ABC-123";
+		sample.package = "0603";
+		sample.attributes = writeAttributesJson(m_attributes, values).toStdString();
+
+		QString pattern = m_nameTemplateEdit->toPlainText();
+		if (pattern.trimmed().isEmpty())
+		{
+			pattern = nameTemplateFor(m_types, type.parentTypeId);   // what an empty field inherits
+		}
+		const QString example = renderNameTemplate(pattern, sample, m_attributes);
+		m_namePreviewLabel->setText(example.isEmpty()
+			? tr("No pattern yet, so parts of this type are named by hand.")
+			: tr("Example: %1").arg(example));
+	}
+
+	void TypeTemplateDialog::refreshInsertKeyMenu()
+	{
+		// Rebuilt each time it opens rather than on every table edit: an attribute added a moment
+		// ago has to be in it, and this is the only moment anyone can tell.
+		m_insertKeyMenu->clear();
+		auto addKey = [this](const QString& key, const QString& label)
+		{
+			QAction* action = m_insertKeyMenu->addAction(label);
+			connect(action, &QAction::triggered, this, [this, key]()
+				{
+					m_nameTemplateEdit->insertPlainText(QLatin1Char('{') + key + QLatin1Char('}'));
+					// textChanged has already run updateNameTemplateFeedback() and the save.
+				});
+		};
+		for (const PartTypeAttribute& attribute : m_attributes)
+		{
+			// Label and key both: the label is what the user knows the field by, the key is what
+			// the pattern will read once inserted, and neither on its own is enough to pick from.
+			addKey(toQt(attribute.key), tr("%1  —  {%2}")
+				.arg(toQt(attribute.label), toQt(attribute.key)));
+		}
+		m_insertKeyMenu->addSeparator();
+		addKey(QStringLiteral("manufacturer"), tr("Manufacturer  —  {manufacturer}"));
+		addKey(QStringLiteral("mpn"), tr("MPN  —  {mpn}"));
+		addKey(QStringLiteral("package"), tr("Package  —  {package}"));
 	}
 
 	PartType TypeTemplateDialog::selectedType() const
@@ -560,6 +796,9 @@ namespace PartManager
 		// for. Selecting it also re-enables the buttons for its new position.
 		selectRowById(m_ui->attributeTable, AttrRequired, selectAttributeId);
 		onAttributeSelectionChanged();
+		// m_attributes was just rebuilt, and it is what decides which placeholders are green and
+		// what the example name is made of. This is the only place that list changes.
+		updateNameTemplateFeedback();
 	}
 
 	void TypeTemplateDialog::refreshFileSlotTable(int selectFileSlotId)
@@ -617,6 +856,8 @@ namespace PartManager
 		m_ui->parentCombo->setEnabled(hasType);
 		m_ui->descriptionEdit->setEnabled(hasType);
 		m_ui->searchKeywordsEdit->setEnabled(hasType);
+		m_inheritedKeywords->setEnabled(hasType);
+		m_nameTemplateEdit->setEnabled(hasType);
 		m_ui->addAttributeButton->setEnabled(hasType);
 		m_ui->addFileSlotButton->setEnabled(hasType);
 

@@ -56,6 +56,8 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_ReceiveArrivalDialo
 ## ...and New Part offers the §5c symbol/footprint download right after Create.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_EcadFetchDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttributeFormWidget.cpp")
+## ...and the §7a tick list of the search words the part inherits from its category.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KeywordCheckList.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_DimensionLineEdit.cpp")
 ## The part editor and the main window preview both embed the KiCad symbol/footprint painter.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KicadPreviewWidget.cpp")

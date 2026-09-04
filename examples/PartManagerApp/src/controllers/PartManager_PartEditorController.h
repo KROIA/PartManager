@@ -120,6 +120,24 @@ namespace PartManager
 	// `partCount` is the caller's — PartEditorController::partCountOfType(), so this stays pure.
 	TypeDeletionBlock typeDeletionBlock(const std::vector<PartType>& types, int typeId, int partCount);
 
+	// §11 suggested part name. The naming pattern a part of `typeId` uses: the nearest non-empty
+	// PartType::nameTemplate on it or on an ancestor (§2b). Nearest wins instead of accumulating,
+	// unlike attributes or search words — a name is one string, and a subtype that wants a
+	// different one wants a *different* one, not its parent's with something appended.
+	// Cycle-safe, like every other walk over `parent_type_id`.
+	QString nameTemplateFor(const std::vector<PartType>& types, int typeId);
+
+	// `pattern` with every `{key}` replaced by that part's value for it, formatted exactly as the
+	// part table shows it — so a 4700 Ω attribute renders "4.7 kΩ" (§2a). Besides the type's
+	// attributes, the three part fields `{manufacturer}`, `{mpn}` and `{package}` are understood:
+	// a generic name is usually "what it is, how big, what package", and package is not an
+	// attribute. A placeholder with nothing behind it renders as nothing and the run of spaces it
+	// leaves is collapsed, so a pattern can name an optional attribute without punching a hole in
+	// every name that lacks it. An unknown key is left as it was typed, which is what makes a
+	// mistyped one visible instead of silently dropping part of the name.
+	QString renderNameTemplate(const QString& pattern, const Part& part,
+		const std::vector<PartTypeAttribute>& attributes);
+
 	// Repository wrapper shared by PartEditorDialog, NewPartDialog and ManageTagsDialog.
 	// Holds the caller's DatabaseHandle without owning it — MainWindow's controller does.
 	class PartEditorController

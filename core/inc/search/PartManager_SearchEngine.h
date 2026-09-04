@@ -49,11 +49,23 @@ namespace PartManager
 		// contain the letter anywhere — which is all of them. `term` is expected lowercase, as
 		// SearchQuery::parse() leaves it; the list is lowercased here.
 		static bool keywordListMatches(const std::string& keywordList, const std::string& term);
+		// The list split into trimmed, non-empty words, in order and without duplicates. The one
+		// place the newline-separated storage format is interpreted, so the checkbox lists in the
+		// two editors and the matcher agree on what "a word" is.
+		static std::vector<std::string> keywordLines(const std::string& keywordList);
+		// The words of `keywordList` that `term` is a prefix of — what keywordListMatches() answers
+		// yes/no about. The search needs the words themselves to ask whether a part unticked them.
+		static std::vector<std::string> keywordsMatching(const std::string& keywordList, const std::string& term);
 		// The search words a part of `typeId` answers to through its type: the type's own list and
-		// every ancestor's, root first, newline-joined (§2b). Cycle-safe, like every other walk
-		// over `parent_type_id`. Takes the whole type list so a caller in a loop reads the table
-		// once rather than once per type.
+		// every ancestor's, root first, newline-joined (§2b), minus every word a type on the way
+		// down has unticked in PartType::excludedKeywords. Exclusions are applied at the level that
+		// declares them, so a word a type drops is gone from its children as well. Cycle-safe, like
+		// every other walk over `parent_type_id`. Takes the whole type list so a caller in a loop
+		// reads the table once rather than once per type.
 		static std::string inheritedKeywords(const std::vector<PartType>& types, int typeId);
+		// Everything a search matches this one part on: what it inherits (above), minus the words
+		// the part itself unticked, plus its own list.
+		static std::string effectiveKeywords(const std::vector<PartType>& types, const Part& part);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		// Matching parts, ordered by id. partTypeId 0 = search across all types (§7a tree filter);
 		// any other value scopes to that one type (§7a table filter). An empty query matches every

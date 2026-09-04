@@ -3,6 +3,7 @@
 
 #include "ui/PartManager_EcadFetchDialog.h"
 #include "widgets/PartManager_AttributeFormWidget.h"
+#include "widgets/PartManager_KeywordCheckList.h"
 #include "widgets/PartManager_KicadPreviewWidget.h"
 #include "widgets/PartManager_TypeIconPainter.h"
 #include "search/PartManager_SearchEngine.h"
@@ -16,11 +17,15 @@
 #include <QColor>
 #include <QDesktopServices>
 #include <QFileDialog>
+#include <QFormLayout>
+#include <QGridLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHash>
 #include <QHeaderView>
 #include <QIcon>
 #include <QInputDialog>
+#include <QLabel>
 #include <QLineEdit>
 #include <QLocale>
 #include <QMenu>
@@ -113,6 +118,68 @@ namespace PartManager
 		m_ui->setupUi(this);
 		m_ui->attributeLayout->addWidget(m_attributeForm);
 
+		// §11: the category's naming pattern applied to this part, and one button to take it.
+		// A frame of its own above Identity, with the Name field moved into it, because the
+		// suggestion and the field it fills are one thing and reading them apart makes the button
+		// look like it acts on nothing.
+		m_suggestedNameLabel = new QLabel(this);
+		m_suggestedNameLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+		m_applyNameButton = new QPushButton(tr("Use suggested name"), this);
+		m_applyNameButton->setToolTip(tr("Writes the name the category's pattern builds from this "
+			"part's attributes into the Name field. The pattern is set in Edit Type Templates."));
+
+		QGroupBox* nameGroup = new QGroupBox(tr("Component name"), this);
+		QGridLayout* nameGrid = new QGridLayout(nameGroup);
+		nameGrid->addWidget(m_applyNameButton, 0, 0);
+		nameGrid->addWidget(m_suggestedNameLabel, 0, 1);
+		// Out of the Identity form and into this one — takeRow() rather than a reparent, so the
+		// row it came from closes up instead of leaving an empty one behind.
+		QFormLayout::TakeRowResult nameRow = m_ui->identityLayout->takeRow(m_ui->nameEdit);
+		delete nameRow.labelItem;
+		delete nameRow.fieldItem;
+		nameGrid->addWidget(m_ui->nameLabel, 1, 0);
+		nameGrid->addWidget(m_ui->nameEdit, 1, 1);
+		nameGrid->setColumnStretch(1, 1);
+		m_ui->scrollLayout->insertWidget(0, nameGroup);
+
+		// §7a: both halves of the same thing, so both live in one frame — the inherited words on
+		// top because they are the ones that already apply, the part's own additions below.
+		m_inheritedKeywords = new KeywordCheckList(this);
+		m_inheritedKeywords->setEmptyText(
+			tr("This category declares no search words yet — add them in Edit Type Templates "
+			   "to give every part in it the same ones."));
+		QGroupBox* searchWordsGroup = new QGroupBox(tr("Search words"), this);
+		QFormLayout* searchWordsForm = new QFormLayout(searchWordsGroup);
+		QFormLayout::TakeRowResult keywordRow = m_ui->identityLayout->takeRow(m_ui->searchKeywordsEdit);
+		delete keywordRow.labelItem;
+		delete keywordRow.fieldItem;
+		m_ui->searchKeywordsLabel->setText(tr("This part's own"));
+		searchWordsForm->addRow(tr("From the category"), m_inheritedKeywords);
+		searchWordsForm->addRow(m_ui->searchKeywordsLabel, m_ui->searchKeywordsEdit);
+
+		// The two quantities out of Identity and into a frame of their own: they are the only
+		// fields here that describe the shelf rather than the part, and the history table further
+		// down is about them and not about anything else in Identity.
+		QGroupBox* stockGroup = new QGroupBox(tr("Stock"), this);
+		QFormLayout* stockForm = new QFormLayout(stockGroup);
+		for (QWidget* field : { static_cast<QWidget*>(m_ui->stockSpin),
+			static_cast<QWidget*>(m_ui->stockMinSpin) })
+		{
+			QFormLayout::TakeRowResult row = m_ui->identityLayout->takeRow(field);
+			QWidget* label = row.labelItem != nullptr ? row.labelItem->widget() : nullptr;
+			delete row.labelItem;
+			delete row.fieldItem;
+			stockForm->addRow(label, field);
+		}
+
+		// Final order: what it is called, what it is, what it measures, how many are on the shelf,
+		// and how to find it again — the type's own fields sit directly under the identity they
+		// belong to rather than at the bottom past four file sections.
+		m_ui->scrollLayout->removeWidget(m_ui->attributeGroup);
+		m_ui->scrollLayout->insertWidget(2, m_ui->attributeGroup);
+		m_ui->scrollLayout->insertWidget(3, stockGroup);
+		m_ui->scrollLayout->insertWidget(4, searchWordsGroup);
+
 		// Side by side under the KiCad rows: the symbol is what goes on the schematic, the
 		// footprint what goes on the board, and seeing both at once is how you catch a vendor
 		// zip that turned out to hold the wrong package.
@@ -147,6 +214,20 @@ namespace PartManager
 		connect(m_ui->packageEdit, &QLineEdit::textChanged, this, &PartEditorDialog::scheduleSave);
 		connect(m_ui->descriptionEdit, &QPlainTextEdit::textChanged, this, &PartEditorDialog::scheduleSave);
 		connect(m_ui->searchKeywordsEdit, &QPlainTextEdit::textChanged, this, &PartEditorDialog::scheduleSave);
+		connect(m_inheritedKeywords, &KeywordCheckList::excludedChanged, this, &PartEditorDialog::scheduleSave);
+		// The suggestion follows the attribute values as they are typed, not only once they commit
+		// — the point of showing it is to watch the name the part is about to get take shape.
+		connect(m_attributeForm, &AttributeFormWidget::valueChanged,
+			this, &PartEditorDialog::updateSuggestedName);
+		connect(m_applyNameButton, &QPushButton::clicked, this, [this]()
+			{
+				// Taking the suggestion makes the button match the name and go disabled, and Qt
+				// hands the focus a disabled widget gives up to the next one in the chain — which
+				// the scroll area then scrolls into view, throwing the page somewhere else. Moving
+				// the focus to the field being filled first keeps it where the user is looking.
+				m_ui->nameEdit->setFocus(Qt::OtherFocusReason);
+				m_ui->nameEdit->setText(m_suggestedName);   // textChanged carries it into the autosave
+			});
 		// The quantity is the one field that is not a plain autosave: it becomes a §3 correction,
 		// and it commits on focus-loss/Enter rather than per keystroke so typing "12" logs one
 		// adjustment to 12 instead of one to 1 and another to 12.
@@ -234,16 +315,11 @@ namespace PartManager
 		m_ui->searchKeywordsEdit->setToolTip(
 			tr("Extra words a search matches this part on, one per line. The category's own words "
 			   "already apply and do not need repeating here."));
-		{
-			const std::string inherited = SearchEngine::inheritedKeywords(
-				m_controller.types(), m_part.partTypeId);
-			QString shown = toQt(inherited);   // user data
-			shown.replace(QLatin1Char('\n'), QStringLiteral(", "));
-			m_ui->inheritedKeywordsLabel->setText(shown.isEmpty()
-				? tr("This category declares no search words yet — add them in Edit Type Templates "
-					 "to give every part in it the same ones.")
-				: tr("From the category: %1").arg(shown));
-		}
+		// The inherited words are a tick list rather than text: they live on the category, so the
+		// only thing this part can say about one of them is whether it applies here.
+		m_inheritedKeywords->setKeywords(
+			toQt(SearchEngine::inheritedKeywords(m_controller.types(), m_part.partTypeId)),
+			toQt(m_part.excludedKeywords));
 
 		// The log is the source of truth, `part.stock_qty` only its cache (§3) — so the field shows
 		// the log's number, and m_part follows it. A database whose cache had drifted (an import
@@ -262,6 +338,7 @@ namespace PartManager
 		updateKicadState();
 		updateMouserState();
 		reloadHistory();
+		updateSuggestedName();
 		m_loading = false;
 	}
 
@@ -799,8 +876,31 @@ namespace PartManager
 		accept();
 	}
 
+	void PartEditorDialog::updateSuggestedName()
+	{
+		// Against the widgets, not against m_part: the suggestion has to be right the moment a
+		// package or an attribute is typed, which is up to 400 ms before the autosave writes it.
+		Part current = m_part;
+		current.manufacturer = m_ui->manufacturerEdit->text().toStdString();
+		current.mpn = m_ui->mpnEdit->text().toStdString();
+		current.package = m_ui->packageEdit->text().toStdString();
+		current.attributes = m_attributeForm->valuesJson().toStdString();
+
+		const QString pattern = nameTemplateFor(m_controller.types(), current.partTypeId);
+		m_suggestedName = renderNameTemplate(pattern, current,
+			m_controller.attributesFor(current.partTypeId));
+
+		m_suggestedNameLabel->setText(m_suggestedName.isEmpty()
+			? tr("This category has no naming pattern — set one in Edit Type Templates.")
+			: m_suggestedName);   // user data
+		m_suggestedNameLabel->setEnabled(!m_suggestedName.isEmpty());
+		m_applyNameButton->setEnabled(!m_suggestedName.isEmpty()
+			&& m_suggestedName != m_ui->nameEdit->text());
+	}
+
 	void PartEditorDialog::scheduleSave()
 	{
+		updateSuggestedName();
 		if (!m_loading)
 		{
 			m_saveTimer->start();
@@ -821,6 +921,7 @@ namespace PartManager
 		m_part.package = m_ui->packageEdit->text().toStdString();
 		m_part.description = m_ui->descriptionEdit->toPlainText().toStdString();
 		m_part.searchKeywords = m_ui->searchKeywordsEdit->toPlainText().toStdString();
+		m_part.excludedKeywords = m_inheritedKeywords->excludedKeywords().toStdString();
 		// Not read off the spin box here: the quantity is only ever changed by commitStockQuantity(),
 		// which logs it (§3). m_part.stockQty already holds what the log says, so the write below
 		// re-states the cache instead of overwriting it.

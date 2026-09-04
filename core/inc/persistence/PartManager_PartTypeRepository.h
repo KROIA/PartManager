@@ -89,9 +89,11 @@ namespace PartManager
 		// "Widerstand" for a Resistor. Only *empty* lists are written, so an edited one is never
 		// overwritten, which is also what makes this safe to re-run as a migration step.
 		static bool seedDefaultSearchKeywords(SQLiteWrapper::SQLite& db);
-		// Adds `search_keywords` to `part_type` and `part` when they predate it. CREATE TABLE IF
-		// NOT EXISTS cannot, so an existing database needs the ALTER — see the v10 migration.
-		static bool ensureSearchKeywordColumns(SQLiteWrapper::SQLite& db);
+		// Adds the columns that arrived after `part_type` and `part` were first created —
+		// `search_keywords`, `excluded_keywords` (§7a) and `name_template` (§11). CREATE TABLE IF
+		// NOT EXISTS cannot, so an existing database needs the ALTER; see the v10..v12 migrations.
+		// Per column, so a database missing only one of them gets only that one.
+		static bool ensureLateAddedColumns(SQLiteWrapper::SQLite& db);
 #endif
 
 	};

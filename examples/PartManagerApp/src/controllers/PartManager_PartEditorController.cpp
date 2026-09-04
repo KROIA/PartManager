@@ -1,4 +1,7 @@
 #include "controllers/PartManager_PartEditorController.h"
+// For formatAttributeValue(): the suggested name renders an attribute exactly as the §7b part
+// table's cell does, rather than growing a second opinion about what "4.7 kΩ" looks like.
+#include "controllers/PartManager_MainWindowController.h"
 
 #include "filestore/PartManager_FileStore.h"
 #include "import/PartManager_EcadArchive.h"
@@ -230,6 +233,108 @@ namespace PartManager
 			}
 		}
 		return block;
+	}
+
+	QString nameTemplateFor(const std::vector<PartType>& types, int typeId)
+	{
+		std::vector<int> visited;
+		int current = typeId;
+		while (current != NoParentType
+			&& std::find(visited.begin(), visited.end(), current) == visited.end())
+		{
+			visited.push_back(current);
+			const PartType* found = nullptr;
+			for (const PartType& type : types)
+			{
+				if (type.id == current)
+				{
+					found = &type;
+				}
+			}
+			if (found == nullptr)
+			{
+				break;
+			}
+			if (!found->nameTemplate.empty())
+			{
+				return QString::fromStdString(found->nameTemplate);   // user data
+			}
+			current = found->parentTypeId;
+		}
+		return QString();
+	}
+
+	QString renderNameTemplate(const QString& pattern, const Part& part,
+		const std::vector<PartTypeAttribute>& attributes)
+	{
+		if (pattern.trimmed().isEmpty())
+		{
+			return QString();
+		}
+		const std::map<std::string, AttributeValue> values =
+			readAttributesJson(QString::fromStdString(part.attributes), attributes);
+
+		QString rendered;
+		int cursor = 0;
+		while (cursor < pattern.size())
+		{
+			const int open = pattern.indexOf(QLatin1Char('{'), cursor);
+			const int close = open < 0 ? -1 : pattern.indexOf(QLatin1Char('}'), open + 1);
+			if (open < 0 || close < 0)
+			{
+				rendered += pattern.mid(cursor);
+				break;
+			}
+			rendered += pattern.mid(cursor, open - cursor);
+			const QString key = pattern.mid(open + 1, close - open - 1);
+			cursor = close + 1;
+
+			if (key == QLatin1String("manufacturer"))
+			{
+				rendered += QString::fromStdString(part.manufacturer);
+				continue;
+			}
+			if (key == QLatin1String("mpn"))
+			{
+				rendered += QString::fromStdString(part.mpn);
+				continue;
+			}
+			if (key == QLatin1String("package"))
+			{
+				rendered += QString::fromStdString(part.package);
+				continue;
+			}
+
+			const PartTypeAttribute* attribute = nullptr;
+			for (const PartTypeAttribute& candidate : attributes)
+			{
+				if (QString::fromStdString(candidate.key) == key)
+				{
+					attribute = &candidate;
+				}
+			}
+			if (attribute == nullptr)
+			{
+				rendered += QLatin1Char('{') + key + QLatin1Char('}');   // a key nothing declares
+				continue;
+			}
+			// The same string the part table's cell shows, through the same function, so a name
+			// built from an attribute can never disagree with the column next to it.
+			PartColumn column;
+			column.key = key;
+			column.isAttribute = true;
+			column.unit = QString::fromStdString(attribute->unit);
+			column.datatype = attribute->datatype;
+			const auto found = values.find(attribute->key);
+			if (found != values.end() && found->second.present)
+			{
+				rendered += formatAttributeValue(QString::fromStdString(part.attributes), column);
+			}
+		}
+
+		// A placeholder that rendered as nothing leaves the spaces that were around it, and two
+		// of them read as a typo rather than as a missing value.
+		return rendered.simplified();
 	}
 
 	PartEditorController::PartEditorController(DatabaseHandle* handle)

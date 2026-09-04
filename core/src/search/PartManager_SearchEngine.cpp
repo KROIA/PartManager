@@ -23,27 +23,26 @@ namespace PartManager
 		}
 	}
 
-	bool SearchEngine::keywordListMatches(const std::string& keywordList, const std::string& term)
+	std::vector<std::string> SearchEngine::keywordLines(const std::string& keywordList)
 	{
-		if (term.empty() || keywordList.empty())
-		{
-			return false;
-		}
-		const std::string lowered = toLower(keywordList);
-		const std::string needle = toLower(term);
-		// Line by line, comparing at the front of each. A trailing '\r' from a list that was
-		// pasted in from somewhere else is not stripped: it can only ever be at the *end* of a
-		// line, and the comparison is against the beginning.
+		std::vector<std::string> words;
 		size_t start = 0;
-		while (start <= lowered.size())
+		while (start <= keywordList.size())
 		{
-			const size_t end = lowered.find('\n', start);
-			const std::string line = lowered.substr(start,
-				(end == std::string::npos ? lowered.size() : end) - start);
-			size_t first = line.find_first_not_of(" \t");
-			if (first != std::string::npos && line.compare(first, needle.size(), needle) == 0)
+			const size_t end = keywordList.find('\n', start);
+			std::string line = keywordList.substr(start,
+				(end == std::string::npos ? keywordList.size() : end) - start);
+			// A '\r' from a list pasted in from somewhere else is whitespace at the end of the
+			// line, so trimming both sides takes care of it along with stray spaces.
+			const size_t first = line.find_first_not_of(" \t\r");
+			const size_t last = line.find_last_not_of(" \t\r");
+			if (first != std::string::npos)
 			{
-				return true;
+				line = line.substr(first, last - first + 1);
+				if (std::find(words.begin(), words.end(), line) == words.end())
+				{
+					words.push_back(line);
+				}
 			}
 			if (end == std::string::npos)
 			{
@@ -51,12 +50,67 @@ namespace PartManager
 			}
 			start = end + 1;
 		}
-		return false;
+		return words;
+	}
+
+	std::vector<std::string> SearchEngine::keywordsMatching(const std::string& keywordList,
+		const std::string& term)
+	{
+		std::vector<std::string> matches;
+		if (term.empty())
+		{
+			return matches;
+		}
+		const std::string needle = toLower(term);
+		for (const std::string& word : keywordLines(keywordList))
+		{
+			if (toLower(word).compare(0, needle.size(), needle) == 0)
+			{
+				matches.push_back(word);
+			}
+		}
+		return matches;
+	}
+
+	bool SearchEngine::keywordListMatches(const std::string& keywordList, const std::string& term)
+	{
+		return !keywordsMatching(keywordList, term).empty();
+	}
+
+	namespace
+	{
+		// `words` minus everything in `removeList`, compared whole and case-insensitively — the
+		// unticked boxes. Whole-word and not prefix, unlike the search itself: the boxes are drawn
+		// from the very list being filtered, so there is an exact word behind every one of them.
+		void removeKeywords(std::vector<std::string>& words, const std::string& removeList)
+		{
+			for (const std::string& excluded : SearchEngine::keywordLines(removeList))
+			{
+				const std::string lowered = toLower(excluded);
+				words.erase(std::remove_if(words.begin(), words.end(),
+					[&lowered](const std::string& word) { return toLower(word) == lowered; }),
+					words.end());
+			}
+		}
+
+		std::string joinKeywords(const std::vector<std::string>& words)
+		{
+			std::string joined;
+			for (const std::string& word : words)
+			{
+				joined += joined.empty() ? word : "\n" + word;
+			}
+			return joined;
+		}
 	}
 
 	std::string SearchEngine::inheritedKeywords(const std::vector<PartType>& types, int typeId)
 	{
-		std::string joined;
+		// The chain is walked child -> root because that is the direction the links point, but the
+		// words have to be accumulated root -> child: a type's exclusions apply to what it inherited
+		// from above, and its own words are added after them, so an ancestor's word it drops is gone
+		// while a word of its own by the same name is not.
+		std::vector<const PartType*> chain;
 		std::vector<int> visited;
 		int current = typeId;
 		while (current != NoParentType
@@ -75,17 +129,39 @@ namespace PartManager
 			{
 				break;
 			}
-			if (!found->searchKeywords.empty())
-			{
-				// Prepended, so the root's words come first — the order only shows in the editor,
-				// but "everything a Capacitor answers to, then what a Ceramic one adds" reads the
-				// way the inheritance does.
-				joined = joined.empty() ? found->searchKeywords
-					: found->searchKeywords + "\n" + joined;
-			}
+			chain.push_back(found);
 			current = found->parentTypeId;
 		}
-		return joined;
+
+		std::vector<std::string> words;
+		// Root first, so "everything a Capacitor answers to, then what a Ceramic one adds" reads
+		// the way the inheritance does. The order only shows in the editors' checkbox lists.
+		for (auto it = chain.rbegin(); it != chain.rend(); ++it)
+		{
+			removeKeywords(words, (*it)->excludedKeywords);
+			for (const std::string& word : keywordLines((*it)->searchKeywords))
+			{
+				if (std::find(words.begin(), words.end(), word) == words.end())
+				{
+					words.push_back(word);
+				}
+			}
+		}
+		return joinKeywords(words);
+	}
+
+	std::string SearchEngine::effectiveKeywords(const std::vector<PartType>& types, const Part& part)
+	{
+		std::vector<std::string> words = keywordLines(inheritedKeywords(types, part.partTypeId));
+		removeKeywords(words, part.excludedKeywords);
+		for (const std::string& word : keywordLines(part.searchKeywords))
+		{
+			if (std::find(words.begin(), words.end(), word) == words.end())
+			{
+				words.push_back(word);
+			}
+		}
+		return joinKeywords(words);
 	}
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
@@ -194,21 +270,24 @@ namespace PartManager
 			return {};   // tag schema was never created in this database, so no part can carry a tag
 		}
 
-		// The types whose inherited search words answer to `term`, so a part inherits its
-		// category's keywords without them ever being copied onto the part.
-		auto typeIdsMatchingKeyword = [](SQLiteWrapper::SQLite& database, const std::string& term)
+		// Per type, the inherited search words that answer to `term` — so a part inherits its
+		// category's keywords without them ever being copied onto the part. The words and not just
+		// a yes/no, because a part may have unticked some of them and the SQL has to ask which.
+		struct TypeKeywordHit { int typeId; std::vector<std::string> words; };
+		auto typesMatchingKeyword = [](SQLiteWrapper::SQLite& database, const std::string& term)
 		{
-			std::vector<int> ids;
+			std::vector<TypeKeywordHit> hits;
 			const std::vector<PartType> types = PartTypeRepository::listTypes(database);
 			for (const PartType& type : types)
 			{
-				if (SearchEngine::keywordListMatches(
-					SearchEngine::inheritedKeywords(types, type.id), term))
+				std::vector<std::string> words = SearchEngine::keywordsMatching(
+					SearchEngine::inheritedKeywords(types, type.id), term);
+				if (!words.empty())
 				{
-					ids.push_back(type.id);
+					hits.push_back({ type.id, std::move(words) });
 				}
 			}
-			return ids;
+			return hits;
 		};
 
 		std::string sql = "SELECT id FROM part WHERE 1=1";
@@ -251,15 +330,22 @@ namespace PartManager
 			// need a recursive CTE that has to be guarded against a cycle in `parent_type_id`,
 			// and PartTypeRepository already has a walk that is guarded. There are eighteen types
 			// in a stock database, so the list this produces is short.
-			const std::vector<int> typeIds = typeIdsMatchingKeyword(db, term);
-			for (size_t i = 0; i < typeIds.size(); ++i)
+			// One clause per matching type rather than a single `part_type_id IN (...)`, because a
+			// part can untick individual inherited words: the type only lends its match to a part
+			// that still keeps at least one of the words that matched. `excluded_keywords` is
+			// compared whole, newline-fenced on both sides, since the boxes were drawn from this
+			// very list and there is an exact word behind every tick.
+			for (const TypeKeywordHit& hit : typesMatchingKeyword(db, term))
 			{
-				sql += (i == 0 ? " OR part_type_id IN (?" : ",?");
-				binds.push_back(BoundValue::fromNumber(typeIds[i]));
-			}
-			if (!typeIds.empty())
-			{
-				sql += ")";
+				sql += " OR (part_type_id=? AND (";
+				binds.push_back(BoundValue::fromNumber(hit.typeId));
+				for (size_t i = 0; i < hit.words.size(); ++i)
+				{
+					sql += (i == 0 ? "" : " OR ");
+					sql += "instr(char(10)||lower(ifnull(excluded_keywords,''))||char(10),?)=0";
+					binds.push_back(BoundValue::fromText("\n" + toLower(hit.words[i]) + "\n"));
+				}
+				sql += "))";
 			}
 			sql += ")";
 		}

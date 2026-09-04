@@ -32,12 +32,19 @@
 #include "controllers/PartManager_PartEditorController.h"
 #include <QDialog>
 
+class QLabel;
+class QLineEdit;
+class QMenu;
+class QPlainTextEdit;
+class QSyntaxHighlighter;
 class QTableWidget;
 class QTableWidgetItem;
 namespace Ui { class TypeTemplateDialog; }
 
 namespace PartManager
 {
+
+	class KeywordCheckList;
 
 	class TypeTemplateDialog : public QDialog
 	{
@@ -98,12 +105,39 @@ namespace PartManager
 		void moveSelectedAttribute(int offset);
 		void moveSelectedFileSlot(int offset);
 
+		// Fills the "Insert…" menu with one entry per effective attribute plus the three part
+		// fields, each inserting its `{key}` into the naming pattern. Rebuilt on every open.
+		void refreshInsertKeyMenu();
+		// Re-reads which keys exist, repaints the pattern's placeholders (green = a key this type
+		// has, orange = not one yet) and re-renders the example name under it. Called whenever the
+		// pattern or the attribute list changes, which are the only two things it depends on.
+		// **Not callable from the pattern field's textChanged** — see the note on its rehighlight().
+		void updateNameTemplateFeedback();
+		// Just the example name. This is the half that is safe to run on every keystroke.
+		void updateNamePreview();
+
 		// Writes one table row back to its `part_type_attribute` / `part_type_file_slot` row.
 		void saveAttributeRow(int row);
 		void saveFileSlotRow(int row);
 
 		Ui::TypeTemplateDialog* m_ui;
 		PartEditorController m_controller;
+		// §7a: the search words this type inherits from its ancestors, one tick box each. Unticking
+		// one drops it for this type and for everything under it.
+		KeywordCheckList* m_inheritedKeywords = nullptr;
+		// §11: the naming pattern, and the menu that inserts a placeholder for one of this type's
+		// attributes into it — the syntax and the click-together way of writing it are the same
+		// field, so a pattern can be assembled without knowing the keys or typed if you do.
+		// A QPlainTextEdit sized to one line rather than a QLineEdit: the placeholders are coloured
+		// as they are typed, and a QSyntaxHighlighter needs a QTextDocument to attach to.
+		QPlainTextEdit* m_nameTemplateEdit = nullptr;
+		QSyntaxHighlighter* m_nameHighlighter = nullptr;
+		// The keys the highlighter paints green — this type's effective attributes plus the three
+		// part fields. Held here rather than in the highlighter so refreshing the attribute table
+		// is all it takes to keep the colours honest; the highlighter reads this list by pointer.
+		QStringList m_knownTemplateKeys;
+		QLabel* m_namePreviewLabel = nullptr;
+		QMenu* m_insertKeyMenu = nullptr;
 
 		// The rows behind the widgets. Every accessor reads from here rather than off the table,
 		// so a field the editor does not paint — enumOptions, the tooltip — survives a cell edit

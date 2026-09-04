@@ -1755,6 +1755,18 @@ Die Projektseite enthält die README, die derzeit die gesamte Dokumentation ausm
         <source>The file could not be attached.</source>
         <translation>Die Datei konnte nicht angehängt werden.</translation>
     </message>
+    <message>
+        <source>Could not move the part</source>
+        <translation>Bauteil konnte nicht verschoben werden</translation>
+    </message>
+    <message>
+        <source>The database rejected the change — the part is still in its old category.</source>
+        <translation>Die Datenbank hat die Änderung abgelehnt — das Bauteil ist weiterhin in seiner alten Kategorie.</translation>
+    </message>
+    <message>
+        <source>Moved &quot;%1&quot; to %2.</source>
+        <translation>„%1“ nach %2 verschoben.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::ManageDatabasesDialog</name>
@@ -2198,6 +2210,33 @@ Die Datei liegt auf der Festplatte, daher fehlt meist ein Qt3D-Geometrie-Loader 
     <message>
         <source>Showing %1 of %2 — loading more failed: %3</source>
         <translation>Zeige %1 von %2 — Nachladen fehlgeschlagen: %3</translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::MovePartDialog</name>
+    <message>
+        <source>Move part to another category</source>
+        <translation>Bauteil in eine andere Kategorie verschieben</translation>
+    </message>
+    <message>
+        <source>Moving &quot;%1&quot; from %2 to %3.</source>
+        <translation>„%1“ wird von %2 nach %3 verschoben.</translation>
+    </message>
+    <message>
+        <source>These values are lost — %1 does not have these fields</source>
+        <translation>Diese Werte gehen verloren — %1 hat diese Felder nicht</translation>
+    </message>
+    <message>
+        <source>Fields in %1</source>
+        <translation>Felder in %1</translation>
+    </message>
+    <message>
+        <source>Move part</source>
+        <translation>Bauteil verschieben</translation>
+    </message>
+    <message>
+        <source>Still needed before the part can move: %1</source>
+        <translation>Vor dem Verschieben noch erforderlich: %1</translation>
     </message>
 </context>
 <context>
@@ -2958,8 +2997,36 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
         <translation>Diese Kategorie hat noch keine Suchbegriffe — legen Sie sie unter „Typvorlagen bearbeiten“ an, damit jedes Bauteil darin dieselben erhält.</translation>
     </message>
     <message>
-        <source>From the category: %1</source>
-        <translation>Aus der Kategorie: %1</translation>
+        <source>From the category</source>
+        <translation>Aus der Kategorie</translation>
+    </message>
+    <message>
+        <source>Use suggested name</source>
+        <translation>Vorgeschlagenen Namen übernehmen</translation>
+    </message>
+    <message>
+        <source>Writes the name the category&apos;s pattern builds from this part&apos;s attributes into the Name field. The pattern is set in Edit Type Templates.</source>
+        <translation>Schreibt den Namen, den das Muster der Kategorie aus den Attributen dieses Bauteils bildet, in das Feld „Name“. Das Muster wird unter „Typvorlagen bearbeiten“ festgelegt.</translation>
+    </message>
+    <message>
+        <source>Component name</source>
+        <translation>Bauteilname</translation>
+    </message>
+    <message>
+        <source>Search words</source>
+        <translation>Suchbegriffe</translation>
+    </message>
+    <message>
+        <source>This part&apos;s own</source>
+        <translation>Eigene des Bauteils</translation>
+    </message>
+    <message>
+        <source>This category has no naming pattern — set one in Edit Type Templates.</source>
+        <translation>Diese Kategorie hat kein Namensmuster — legen Sie eines unter „Typvorlagen bearbeiten“ an.</translation>
+    </message>
+    <message>
+        <source>Stock</source>
+        <translation>Lager</translation>
     </message>
 </context>
 <context>
@@ -3705,6 +3772,70 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
     <message>
         <source>Remove &quot;%1&quot; from this type? Files already attached to parts are kept.</source>
         <translation>„%1“ aus diesem Typ entfernen? Bereits an Bauteile angehängte Dateien bleiben erhalten.</translation>
+    </message>
+    <message>
+        <source>No parent type hands any search words down to this one.</source>
+        <translation>Kein übergeordneter Typ vererbt Suchbegriffe an diesen.</translation>
+    </message>
+    <message>
+        <source>Search words</source>
+        <translation>Suchbegriffe</translation>
+    </message>
+    <message>
+        <source>This type&apos;s own</source>
+        <translation>Eigene des Typs</translation>
+    </message>
+    <message>
+        <source>Inherited</source>
+        <translation>Geerbt</translation>
+    </message>
+    <message>
+        <source>e.g. Resistor {resistance} {package}</source>
+        <translation>z. B. Widerstand {resistance} {package}</translation>
+    </message>
+    <message>
+        <source>Every {key} is replaced by that attribute&apos;s value on the part. {manufacturer}, {mpn} and {package} are understood too. A placeholder the part has no value for simply disappears. Inherited by subtypes that declare no pattern of their own.</source>
+        <translation>Jedes {key} wird durch den Wert dieses Attributs am Bauteil ersetzt. {manufacturer}, {mpn} und {package} werden ebenfalls verstanden. Ein Platzhalter ohne Wert entfällt einfach. Untertypen ohne eigenes Muster erben dieses.</translation>
+    </message>
+    <message>
+        <source>Insert…</source>
+        <translation>Einfügen…</translation>
+    </message>
+    <message>
+        <source>Puts a placeholder for one of this type&apos;s attributes into the pattern at the cursor.</source>
+        <translation>Fügt einen Platzhalter für eines der Attribute dieses Typs an der Cursorposition in das Muster ein.</translation>
+    </message>
+    <message>
+        <source>Name pattern</source>
+        <translation>Namensmuster</translation>
+    </message>
+    <message>
+        <source>inherited: %1</source>
+        <translation>geerbt: %1</translation>
+    </message>
+    <message>
+        <source>%1  —  {%2}</source>
+        <translation>%1  —  {%2}</translation>
+    </message>
+    <message>
+        <source>Manufacturer  —  {manufacturer}</source>
+        <translation>Hersteller  —  {manufacturer}</translation>
+    </message>
+    <message>
+        <source>MPN  —  {mpn}</source>
+        <translation>MPN  —  {mpn}</translation>
+    </message>
+    <message>
+        <source>Package  —  {package}</source>
+        <translation>Bauform  —  {package}</translation>
+    </message>
+    <message>
+        <source>No pattern yet, so parts of this type are named by hand.</source>
+        <translation>Noch kein Muster — Bauteile dieses Typs werden von Hand benannt.</translation>
+    </message>
+    <message>
+        <source>Example: %1</source>
+        <translation>Beispiel: %1</translation>
     </message>
 </context>
 <context>

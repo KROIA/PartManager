@@ -28,6 +28,7 @@ public:
 		ADD_TEST(TST_SearchEngine::parseMalformedQueriesFailCleanly);
 		ADD_TEST(TST_SearchEngine::keywordsMatchByLinePrefix);
 		ADD_TEST(TST_SearchEngine::keywordsAreInheritedDownTheTypeChain);
+		ADD_TEST(TST_SearchEngine::untickedKeywordsStopAtTheTypeThatDropsThem);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_SearchEngine::numericComparisonsAgainstAttrColumns);
 		ADD_TEST(TST_SearchEngine::freeTextTagsAndScope);
@@ -108,6 +109,58 @@ private:
 			PartManager::SearchEngine::inheritedKeywords(types, 1), "mlcc"),
 			"the parent must not inherit its child's words");
 		TEST_COMPARE(PartManager::SearchEngine::inheritedKeywords(types, 3), std::string("B\nA"));
+	}
+
+	TEST_FUNCTION(untickedKeywordsStopAtTheTypeThatDropsThem)
+	{
+		TEST_START;
+
+		std::vector<PartManager::PartType> types;
+		PartManager::PartType capacitor;
+		capacitor.id = 1;
+		capacitor.name = "Capacitor";
+		capacitor.searchKeywords = "C\nCap\nFarad";
+		types.push_back(capacitor);
+
+		PartManager::PartType ceramic;
+		ceramic.id = 2;
+		ceramic.name = "Ceramic Capacitor";
+		ceramic.parentTypeId = 1;
+		ceramic.searchKeywords = "MLCC";
+		ceramic.excludedKeywords = "Farad";
+		types.push_back(ceramic);
+
+		PartManager::PartType x7r;
+		x7r.id = 3;
+		x7r.name = "X7R";
+		x7r.parentTypeId = 2;
+		types.push_back(x7r);
+
+		TEST_COMPARE(PartManager::SearchEngine::inheritedKeywords(types, 2),
+			std::string("C\nCap\nMLCC"));
+		// The whole point of doing this on the way down: a word a branch drops is gone from
+		// everything under that branch, not just from the one type that unticked it.
+		TEST_COMPARE(PartManager::SearchEngine::inheritedKeywords(types, 3),
+			std::string("C\nCap\nMLCC"));
+		TEST_ASSERT_M(PartManager::SearchEngine::keywordListMatches(
+			PartManager::SearchEngine::inheritedKeywords(types, 1), "farad"),
+			"the type that declares the word must keep it");
+
+		// Whole-word, so unticking "C" does not take "Cap" with it.
+		PartManager::PartType dropC = ceramic;
+		dropC.excludedKeywords = "C";
+		types[1] = dropC;
+		TEST_COMPARE(PartManager::SearchEngine::inheritedKeywords(types, 2),
+			std::string("Cap\nFarad\nMLCC"));
+
+		// A part drops one for itself only, and its own list is added after its exclusions.
+		types[1] = ceramic;
+		PartManager::Part part;
+		part.partTypeId = 2;
+		part.searchKeywords = "decoupling";
+		part.excludedKeywords = "Cap";
+		TEST_COMPARE(PartManager::SearchEngine::effectiveKeywords(types, part),
+			std::string("C\nMLCC\ndecoupling"));
 	}
 
 	// Tests — parsing (no database)
@@ -424,6 +477,25 @@ private:
 			"both resistors must be found by their category's keyword");
 		TEST_ASSERT_M(!containsPart(hits, fixture.c100nId),
 			"the capacitor's category has no such keyword, so it must not match");
+
+		// One part unticking an inherited word drops out of that search, and only that part.
+		PartManager::Part r220;
+		TEST_ASSERT_M(PartManager::PartRepository::findPart(db, fixture.r220Id, r220),
+			"the fixture's 220R must be readable");
+		r220.excludedKeywords = "Ohm";
+		TEST_ASSERT_M(PartManager::PartRepository::updatePart(db, r220), "updatePart failed");
+
+		hits = PartManager::SearchEngine::search(db, "ohm");
+		TEST_COMPARE(hits.size(), static_cast<size_t>(1));
+		TEST_ASSERT_M(containsPart(hits, fixture.r10kId),
+			"the part that kept the word must still be found by it");
+		// ...and the words it kept still work, which is why the exclusion is checked per word
+		// rather than per type.
+		TEST_ASSERT_M(containsPart(PartManager::SearchEngine::search(db, "widerstand"), fixture.r220Id),
+			"unticking one inherited word must not drop the others");
+
+		r220.excludedKeywords.clear();
+		TEST_ASSERT_M(PartManager::PartRepository::updatePart(db, r220), "updatePart failed");
 
 		// A part's own words are additive, not a replacement for the category's.
 		PartManager::Part c100n;

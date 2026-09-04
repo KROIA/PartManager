@@ -130,8 +130,22 @@ namespace PartManager
 			// already exists — and the built-in types are given their default word lists, without
 			// which the feature does nothing on a database that already has all its categories.
 			// Only empty lists are filled, so this cannot overwrite an edited one.
-			PartTypeRepository::ensureSearchKeywordColumns(db);
+			PartTypeRepository::ensureLateAddedColumns(db);
 			PartTypeRepository::seedDefaultSearchKeywords(db);
+		}
+		if (storedSchemaVersion < 11 && db.isOpen())
+		{
+			// v10 -> v11: `excluded_keywords` alongside them, for the words a type or a part unticks
+			// off the list it inherits. Same helper — it adds whichever of the four columns is
+			// missing, so a database arriving from v9 gets both pairs in one pass.
+			PartTypeRepository::ensureLateAddedColumns(db);
+		}
+		if (storedSchemaVersion < 12 && db.isOpen())
+		{
+			// v11 -> v12: `name_template` on `part_type` (§11) — the pattern the part editor's
+			// "suggested name" is built from. Same helper again; empty everywhere, so no type
+			// suggests a name until someone writes a pattern for it.
+			PartTypeRepository::ensureLateAddedColumns(db);
 		}
 		return SchemaCompatibility::migrated;
 	}

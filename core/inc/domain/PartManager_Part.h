@@ -31,6 +31,10 @@ namespace PartManager
 		// list is not copied in here: it applies through the type at search time, so editing a
 		// category's words reaches every part already filed under it.
 		std::string searchKeywords;
+		// The words from its category chain this one part does not answer to, one per line (§7a).
+		// The part editor ticks them off a checkbox list rather than asking anyone to retype them,
+		// which is why they are stored whole and matched whole.
+		std::string excludedKeywords;
 		std::string package;               // 'SOIC-8', 'M3x10', ...
 		std::string attributes = "{}";      // raw JSON, validated against part_type_attribute at save time
 		int datasheetFileId = 0;            // FK -> PartFile::id; 0 => none
