@@ -25,10 +25,26 @@
 //   - bundle newer (edited in KiCad)               → it is written into the attachment
 //   - neither touched                              → regenerated from the template
 //
-// A part with no attached symbol still gets the generic `(extends ...)` one, and
-// editing *that* in KiCad creates the attachment — which is what makes the edit
-// survive a database move, since `kicad_libs/` is regenerable and the filestore
-// is not.
+// **Nothing is invented.** A part is generated from the KiCad files it actually
+// has attached, never from a placeholder:
+//
+//   - no attached `.kicad_sym` and no attached `.kicad_mod` → the part is not
+//     generated at all
+//   - symbol only   → symbol only, which is normal and useful
+//   - footprint only → the footprint is written, and a symbol is derived from its
+//     pads *when they carry pin numbers* — those pins are real copper, so the
+//     symbol places correctly. Pads with no numbers derive nothing.
+//
+// A dummy symbol is worse than an absent part: it places silently in a schematic
+// and is wrong on the board. Every skip is named in the result, because a user
+// expecting 38 symbols and getting 12 has to be told which 26 went and that it
+// was deliberate.
+//
+// **A part that stops qualifying takes its artifacts with it.** Its
+// `kicad_generated_item` rows would otherwise outlive it and report a phantom
+// "modified externally" forever. The artifact is removed and the row forgotten —
+// **unless its hash says a human edited it**, in which case it is kept on disk,
+// still tracked, and surfaced as `stale` so the user decides.
 //
 // **Only parts whose type is `kicad_relevant` are generated**, and a type with
 // no `kicad_category` inherits its nearest ancestor's (§2b). A part whose type
@@ -49,13 +65,17 @@ namespace SQLiteWrapper { class SQLite; }
 namespace PartManager
 {
 
-	// One symbol that was left alone because someone edited it in KiCad. Surfaced so the user can
+	// One artifact that was left alone because someone edited it in KiCad. Surfaced so the user can
 	// force-regenerate or re-baseline it, per §5a.
 	struct PART_MANAGER_API KicadSkippedItem
 	{
 		int partId = 0;
 		std::string partName;
 		std::string targetPath;      // "Resistors.kicad_sym:RC0603-4K7"
+		// True when the part behind it no longer qualifies for generation at all (its KiCad files
+		// were detached, or the part is gone). Doing nothing already keeps such an artifact, so
+		// re-baselining it is meaningless — the only real choice left is to remove it.
+		bool stale = false;
 	};
 
 	// What one generation run did.
@@ -78,11 +98,23 @@ namespace PartManager
 		int footprintsSyncedBack = 0;
 		// Symbols taken from the part's attached `.kicad_sym` instead of the generic template.
 		int symbolsFromAttachment = 0;
+		// Symbols built from the pads of a part's footprint because it has no `.kicad_sym`. Worth
+		// counting apart: their pins are real, their arrangement is not the part's pinout, and a
+		// user who sees the number knows how many symbols are waiting to be drawn properly.
+		int symbolsDerivedFromFootprint = 0;
 		int footprintsCopied = 0;
 		int modelsCopied = 0;
 		// Parts whose type is KiCad-relevant but resolves to no category — they went nowhere and
 		// the user needs to know which, rather than wondering why a part never appears in KiCad.
 		std::vector<std::string> skippedForNoCategory;
+		// Parts with neither an attached KiCad symbol nor an attached footprint: nothing at all was
+		// generated for them, deliberately.
+		std::vector<std::string> skippedForNoKicadFiles;
+		// Parts that got their footprint but no symbol: no usable `.kicad_sym`, and pads with no
+		// numbers to derive one from either.
+		std::vector<std::string> skippedForNoSymbol;
+		// Artifacts of parts that stopped qualifying: dropped from the library and forgotten.
+		int staleItemsRemoved = 0;
 		std::vector<KicadSkippedItem> preserved;
 
 		// Human summary of the counts above, for a status line.

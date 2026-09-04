@@ -22,6 +22,20 @@ namespace PartManager
 		// The artifact a row stands for. The list is rebuilt on every run, so the target travels
 		// with the item rather than being looked up by index.
 		constexpr int TargetPathRole = Qt::UserRole;
+		// Whether the part behind the row is gone from generation entirely — a different decision
+		// for the user, so the buttons and the wording have to know.
+		constexpr int StaleRole = Qt::UserRole + 1;
+
+		// Part names, which are the user's own data and so are never translated.
+		QString joinNames(const std::vector<std::string>& names)
+		{
+			QStringList list;
+			for (const std::string& name : names)
+			{
+				list.append(QString::fromStdString(name));
+			}
+			return list.join(QStringLiteral(", "));
+		}
 	}
 
 	KicadLibraryDialog::KicadLibraryDialog(DatabaseHandle* handle, QWidget* parent)
@@ -101,13 +115,23 @@ namespace PartManager
 		{
 			// Named, not just counted: without a KiCad category a part simply never appears in
 			// KiCad, and there is nothing on screen to explain why.
-			QStringList names;
-			for (const std::string& name : result.skippedForNoCategory)
-			{
-				names.append(QString::fromStdString(name));
-			}
 			lines.append(tr("No KiCad category, so not generated: %1")
-				.arg(names.join(QStringLiteral(", "))));
+				.arg(joinNames(result.skippedForNoCategory)));
+		}
+		// Named, not counted, and for the same reason: a user expecting 38 symbols and getting 12
+		// has to be told which 26 went and that it was deliberate, not a failure.
+		if (!result.skippedForNoKicadFiles.empty())
+		{
+			lines.append(tr("No KiCad symbol or footprint attached, so not generated at all: %1")
+				.arg(joinNames(result.skippedForNoKicadFiles)));
+		}
+		if (!result.skippedForNoSymbol.empty())
+		{
+			// Both halves of the reason, because they need different fixes: attach a symbol, or
+			// give the footprint's pads numbers.
+			lines.append(tr("Footprint generated but no symbol: none is attached, and the "
+				"footprint's pads carry no pin numbers to derive one from: %1")
+				.arg(joinNames(result.skippedForNoSymbol)));
 		}
 		m_summary->setPlainText(lines.join(QStringLiteral("\n")));
 
@@ -118,8 +142,13 @@ namespace PartManager
 			QListWidgetItem* row = new QListWidgetItem(
 				QString::fromStdString(item.targetPath), m_preservedList);
 			row->setData(TargetPathRole, QString::fromStdString(item.targetPath));
-			row->setToolTip(tr("Your edit is still in the file. Regenerating discards it; "
-				"keeping it stops this warning without changing anything."));
+			row->setData(StaleRole, item.stale);
+			row->setToolTip(item.stale
+				? tr("The part behind this no longer has a KiCad symbol or footprint attached, so "
+					"PartManager does not generate it any more. Your edit is kept because it is "
+					"yours; removing it is the only thing left to decide.")
+				: tr("Your edit is still in the file. Regenerating discards it; "
+					"keeping it stops this warning without changing anything."));
 		}
 		if (m_preserved.empty() && result.ok)
 		{
@@ -133,8 +162,13 @@ namespace PartManager
 	{
 		QListWidgetItem* item = m_preservedList->currentItem();
 		const bool real = item != nullptr && !item->data(TargetPathRole).toString().isEmpty();
+		// A stale artifact is already kept by doing nothing, so "Keep My Version" would do nothing
+		// visible while re-baselining it — and the *next* run would then delete it as ours.
+		const bool stale = real && item->data(StaleRole).toBool();
 		m_regenerateButton->setEnabled(real);
-		m_keepButton->setEnabled(real);
+		m_regenerateButton->setText(stale
+			? tr("Remove It") : tr("Regenerate It (discard my edit)"));
+		m_keepButton->setEnabled(real && !stale);
 
 		// Installing reads the libraries off disk, so it works on a database generated in an
 		// earlier session — the button does not wait for a Generate in this one.
@@ -246,8 +280,11 @@ namespace PartManager
 			return;
 		}
 		// There is no undo for this, and the edit is the user's own work.
-		if (QMessageBox::question(this, tr("Discard your edit?"),
-			tr("“%1” will be overwritten with PartManager's generated version. "
+		const bool stale = item->data(StaleRole).toBool();
+		if (QMessageBox::question(this, tr("Discard your edit?"), stale
+			? tr("“%1” will be removed from the library. Its part has no KiCad symbol or footprint "
+				 "attached any more, so PartManager will not put it back.").arg(target)
+			: tr("“%1” will be overwritten with PartManager's generated version. "
 			   "Your changes to it are lost.").arg(target),
 			QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
 		{

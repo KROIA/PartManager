@@ -73,6 +73,13 @@ namespace PartManager
 		double sizeY = 0.0;
 		std::string layer;          // footprints only: "F.Cu", "F.SilkS", "F.CrtYd", ...
 		std::string label;          // a pin's number, or a pad's
+		// Pads only, and **normally empty**. KiCad writes `(pinfunction "VCC")` and
+		// `(pintype "power_in")` onto the pads of a footprint placed on a *board*, copied there
+		// from the schematic it was synced with; a footprint sitting in a library has neither.
+		// Carried anyway because a symbol derived from those pads (§5a) can then use the real pin
+		// names on the rare file that has them, instead of naming every pin "~".
+		std::string pinName;
+		std::string pinType;
 	};
 
 	// Where a footprint's `(model ...)` entry says its 3D model goes. **A model file's own

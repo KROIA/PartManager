@@ -550,6 +550,16 @@ namespace PartManager
 				// side-entry package in the KiCad library uses it.
 				shape.rotationDegrees = at->number(3);
 				shape.label = node.text(1);
+				// Present only on a pad that a board synced from a schematic, so a library
+				// footprint supplies neither — the deriving code treats absent as the normal case.
+				if (const Node* function = node.find("pinfunction"))
+				{
+					shape.pinName = function->text(1);
+				}
+				if (const Node* pinType = node.find("pintype"))
+				{
+					shape.pinType = pinType->text(1);
+				}
 				// The shape is the fourth atom: "(pad "1" smd roundrect ...)". Only round and
 				// oval need distinguishing; every other shape is close enough to a rectangle
 				// at preview size.

@@ -36,9 +36,15 @@ public:
 		ADD_TEST(TST_KicadLibrary::mergingIntoKicadsTableKeepsWhatIsAlreadyThere);
 		ADD_TEST(TST_KicadLibrary::kicadsOwnSettingsFolderIsFound);
 		ADD_TEST(TST_KicadLibrary::pinningKeepsWhatTheUserPinned);
+		ADD_TEST(TST_KicadLibrary::padsBecomeTheDerivedSymbolsPins);
+		ADD_TEST(TST_KicadLibrary::padNumbersSortInAnOrderThatSurvivesBgas);
+		ADD_TEST(TST_KicadLibrary::aFootprintWithNoUsablePadsDerivesNothing);
+		ADD_TEST(TST_KicadLibrary::aVendorFootprintDerivesOnePinPerPad);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_KicadLibrary::handEditedSymbolsSurviveRegeneration);
 		ADD_TEST(TST_KicadLibrary::footprintReferenceUsesTheLibraryNickname);
+		ADD_TEST(TST_KicadLibrary::partsWithoutKicadFilesAreSkippedNotInvented);
+		ADD_TEST(TST_KicadLibrary::aFootprintOnlyPartDerivesItsSymbolFromThePads);
 #endif
 	}
 
@@ -57,7 +63,61 @@ private:
 		}
 		return 0;
 	}
+
+	// A one-symbol library file as a vendor ships one. Attaching this is what makes a part
+	// qualify for a symbol at all, now that nothing is generated from a template.
+	static std::filesystem::path writeSymbolFile(const std::filesystem::path& folder,
+		const std::string& symbolName)
+	{
+		const std::filesystem::path path = folder / (symbolName + ".kicad_sym");
+		std::ofstream(path, std::ios::binary)
+			<< "(kicad_symbol_lib\n\t(version 20241209)\n"
+			<< "\t(symbol \"" << symbolName << "\"\n"
+			<< "\t\t(property \"Reference\" \"R\"\n\t\t\t(at 0 0 0)\n\t\t)\n"
+			<< "\t\t(symbol \"" << symbolName << "_0_1\"\n"
+			<< "\t\t\t(rectangle\n\t\t\t\t(start -2.54 -1.016)\n\t\t\t\t(end 2.54 1.016)\n\t\t\t)\n"
+			<< "\t\t)\n\t)\n)\n";
+		return path;
+	}
+
+	static std::filesystem::path writeFootprintFile(const std::filesystem::path& folder,
+		const std::string& name)
+	{
+		const std::filesystem::path path = folder / (name + ".kicad_mod");
+		std::ofstream(path, std::ios::binary)
+			<< "(footprint \"" << name << "\" (version 20240108) (layer \"F.Cu\"))\n";
+		return path;
+	}
+
+	// The same, with pads — which is what makes a symbol derivable from it.
+	static std::filesystem::path writePaddedFootprintFile(const std::filesystem::path& folder,
+		const std::string& name, int padCount)
+	{
+		const std::filesystem::path path = folder / (name + ".kicad_mod");
+		std::ofstream out(path, std::ios::binary);
+		out << "(footprint \"" << name << "\" (version 20240108) (layer \"F.Cu\")\n";
+		for (int pad = 1; pad <= padCount; ++pad)
+		{
+			out << "  (pad \"" << pad << "\" smd roundrect (at " << pad << " 0) (size 0.6 0.7)"
+				<< " (layers \"F.Cu\" \"F.Paste\" \"F.Mask\"))\n";
+		}
+		out << ")\n";
+		return path;
+	}
 #endif
+
+	// How many times `needle` appears in `text` — a pin count read off the file the writer
+	// produced, which is the only place the pin count is observable.
+	static size_t countOf(const std::string& text, const std::string& needle)
+	{
+		size_t count = 0;
+		for (size_t at = text.find(needle); at != std::string::npos;
+			at = text.find(needle, at + needle.size()))
+		{
+			++count;
+		}
+		return count;
+	}
 
 	static std::string readFile(const std::filesystem::path& path)
 	{
@@ -255,13 +315,22 @@ private:
 		type.kicadCategory = "Resistors";
 		const int typeId = PartManager::PartTypeRepository::insertType(db, type);
 
+		const std::string libs = (folder / "kicad_libs").string();
+		const std::string filestore = (folder / "filestore").string();
+		PartManager::FileStore store(filestore);
+
+		// Both parts carry their own `.kicad_sym`: nothing is generated from a template any more,
+		// so an attachment is what makes a part appear in a library at all.
 		for (const char* name : { "R-4K7", "R-10K" })
 		{
 			PartManager::Part part;
 			part.partTypeId = typeId;
 			part.name = name;
 			part.mpn = name;
-			PartManager::PartRepository::insertPart(db, part);
+			const int partId = PartManager::PartRepository::insertPart(db, part);
+			std::string error;
+			TEST_ASSERT_M(store.attachFile(db, partId, PartManager::PartFileRole::KicadSymbol,
+				writeSymbolFile(folder, name).string(), &error) != 0, error);
 		}
 
 		// A type that is KiCad-relevant but has no category: its parts go nowhere and must be
@@ -275,9 +344,6 @@ private:
 		lonely.partTypeId = orphanId;
 		lonely.name = "WIDGET-1";
 		PartManager::PartRepository::insertPart(db, lonely);
-
-		const std::string libs = (folder / "kicad_libs").string();
-		const std::string filestore = (folder / "filestore").string();
 
 		PartManager::KicadGenerationResult first =
 			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
@@ -344,7 +410,7 @@ private:
 			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
 		TEST_COMPARE(fourth.symbolsPreserved, 0);
 		TEST_COMPARE(fourth.symbolsSyncedBack, 0);
-		TEST_COMPARE(fourth.symbolsFromAttachment, 1);
+		TEST_COMPARE(fourth.symbolsFromAttachment, 2);
 		TEST_ASSERT_M(readFile(library).find("HandEdited") != std::string::npos,
 			"the adopted edit must be regenerated from the attachment, not dropped");
 
@@ -356,17 +422,20 @@ private:
 		TEST_ASSERT_M(readFile(library).find("HandEdited") != std::string::npos,
 			"the adopted edit must not decay over repeated runs");
 
-		// Deleting the wrong thing by hand is how a sync feature loses data, so: removing the
-		// attachment is what puts the part back on the generic template. Nothing else does.
-		PartManager::FileStore store(filestore);
+		// Removing the attachment leaves the part with no KiCad files at all, so it stops being
+		// generated: no template stands in for it, and the symbol an earlier run left behind goes
+		// with it rather than lingering as an entry no part points at.
 		TEST_ASSERT(store.detachFile(db, attached.id));
-		PartManager::KicadGenerationResult forced = PartManager::KicadLibraryGenerator::generate(
-			db, libs, filestore, { "Resistors.kicad_sym:R-4K7" });
-		TEST_COMPARE(forced.symbolsPreserved, 0);
-		TEST_COMPARE(forced.symbolsGenerated, 2);
-		TEST_COMPARE(forced.symbolsFromAttachment, 0);
-		TEST_ASSERT_M(readFile(library).find("HandEdited") == std::string::npos,
-			"with the attachment gone, force-regenerate must discard the edit");
+		PartManager::KicadGenerationResult sixth =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_COMPARE(sixth.symbolsGenerated, 1);
+		TEST_COMPARE(sixth.staleItemsRemoved, 1);
+		TEST_COMPARE(sixth.skippedForNoKicadFiles.size(), static_cast<size_t>(1));
+		TEST_COMPARE(sixth.skippedForNoKicadFiles[0], std::string("R-4K7"));
+		TEST_ASSERT_M(readFile(library).find("\"R-4K7\"") == std::string::npos,
+			"a part that stopped qualifying must not keep its symbol in the library");
+		TEST_ASSERT_M(readFile(library).find("\"R-10K\"") != std::string::npos,
+			"and must not take the rest of the library with it");
 	}
 
 	// A symbol's `Footprint` property is resolved by KiCad through the fp-lib-table, where the
@@ -402,15 +471,15 @@ private:
 		part.mpn = "R-4K7";
 		const int partId = PartManager::PartRepository::insertPart(db, part);
 
-		// A footprint attachment is what makes the generator write the property at all.
-		const std::filesystem::path source = folder / "R_0603.kicad_mod";
-		std::ofstream(source, std::ios::binary)
-			<< "(footprint \"R_0603\" (version 20240108) (layer \"F.Cu\"))\n";
+		// A footprint attachment is what makes the generator write the property at all, and a
+		// symbol attachment is what makes there be a symbol to write it on.
 		const std::string filestore = (folder / "filestore").string();
 		PartManager::FileStore store(filestore);
 		std::string error;
 		TEST_ASSERT_M(store.attachFile(db, partId, PartManager::PartFileRole::KicadFootprint,
-			source.string(), &error) != 0, error);
+			writeFootprintFile(folder, "R_0603").string(), &error) != 0, error);
+		TEST_ASSERT_M(store.attachFile(db, partId, PartManager::PartFileRole::KicadSymbol,
+			writeSymbolFile(folder, "R-4K7").string(), &error) != 0, error);
 
 		const std::string libs = (folder / "kicad_libs").string();
 		const PartManager::KicadGenerationResult result =
@@ -429,7 +498,401 @@ private:
 		std::filesystem::remove_all(folder);
 	}
 
+	// §5a: nothing is invented. A placeholder symbol is worse than an absent part — it places
+	// silently in a schematic and is wrong on the board — so a part with no KiCad files attached
+	// produces nothing, and the artifacts an earlier run left for it do not outlive it.
+	TEST_FUNCTION(partsWithoutKicadFilesAreSkippedNotInvented)
+	{
+		TEST_START;
+
+		std::filesystem::path folder =
+			std::filesystem::temp_directory_path() / "PartManager_TST_KicadSkip";
+		std::filesystem::remove_all(folder);
+		std::filesystem::create_directories(folder);
+
+		SQLiteWrapper::SQLite db((folder / "test.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+		PartManager::KicadEditTracker::createSchema(db);
+
+		PartManager::PartType type;
+		type.name = "Resistor";
+		type.domain = "electronic";
+		type.kicadRelevant = true;
+		type.kicadCategory = "Resistors";
+		const int typeId = PartManager::PartTypeRepository::insertType(db, type);
+
+		const std::string libs = (folder / "kicad_libs").string();
+		const std::string filestore = (folder / "filestore").string();
+		PartManager::FileStore store(filestore);
+		std::string error;
+
+		int ids[3] = { 0, 0, 0 };
+		const char* names[3] = { "NEITHER", "SYM-ONLY", "FP-ONLY" };
+		for (int i = 0; i < 3; ++i)
+		{
+			PartManager::Part part;
+			part.partTypeId = typeId;
+			part.name = names[i];
+			ids[i] = PartManager::PartRepository::insertPart(db, part);
+		}
+		const int symbolFileId = store.attachFile(db, ids[1], PartManager::PartFileRole::KicadSymbol,
+			writeSymbolFile(folder, "SYM-ONLY").string(), &error);
+		TEST_ASSERT_M(symbolFileId != 0, error);
+		const int footprintFileId = store.attachFile(db, ids[2],
+			PartManager::PartFileRole::KicadFootprint,
+			writeFootprintFile(folder, "FP-ONLY").string(), &error);
+		TEST_ASSERT_M(footprintFileId != 0, error);
+
+		const PartManager::KicadGenerationResult first =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_ASSERT_M(first.ok, first.errorMessage);
+
+		// Neither file: nothing at all, and named so the user knows it was deliberate.
+		TEST_COMPARE(first.skippedForNoKicadFiles.size(), static_cast<size_t>(1));
+		TEST_COMPARE(first.skippedForNoKicadFiles[0], std::string("NEITHER"));
+		// A symbol without a footprint is normal and useful, so it is still generated.
+		TEST_COMPARE(first.symbolsGenerated, 1);
+		TEST_COMPARE(first.symbolsFromAttachment, 1);
+		// A footprint without a symbol is also normal: the footprint is written and no symbol is
+		// invented for it — but the missing symbol is reported, not swallowed.
+		TEST_COMPARE(first.footprintsCopied, 1);
+		TEST_COMPARE(first.skippedForNoSymbol.size(), static_cast<size_t>(1));
+		TEST_COMPARE(first.skippedForNoSymbol[0], std::string("FP-ONLY"));
+
+		const std::filesystem::path library =
+			std::filesystem::path(libs) / "symbols" / "Resistors.kicad_sym";
+		const std::string text = readFile(library);
+		TEST_ASSERT_M(text.find("\"SYM-ONLY\"") != std::string::npos, text);
+		TEST_ASSERT_M(text.find("NEITHER") == std::string::npos,
+			"a part with no KiCad files must not get a placeholder symbol: " + text);
+		TEST_ASSERT_M(text.find("\"FP-ONLY\"") == std::string::npos,
+			"a footprint must not drag an invented symbol in with it: " + text);
+		const std::filesystem::path pretty =
+			std::filesystem::path(libs) / "footprints" / "Resistors.pretty";
+		TEST_ASSERT(std::filesystem::exists(pretty / "FP-ONLY.kicad_mod"));
+		TEST_ASSERT_M(!std::filesystem::exists(pretty / "SYM-ONLY.kicad_mod"),
+			"no footprint was attached, so none may be written");
+
+		// Two consecutive runs must agree, or every regeneration reports something new to act on.
+		const PartManager::KicadGenerationResult second =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_COMPARE(second.symbolsGenerated, first.symbolsGenerated);
+		TEST_COMPARE(second.footprintsCopied, first.footprintsCopied);
+		TEST_COMPARE(second.staleItemsRemoved, 0);
+		TEST_COMPARE(second.symbolsPreserved, 0);
+		TEST_COMPARE(second.skippedForNoKicadFiles.size(), static_cast<size_t>(1));
+		TEST_COMPARE(readFile(library), text);
+
+		// A part that stops qualifying: the artifact goes and the tracking row with it, or the next
+		// run compares a file nobody will ever regenerate against a hash and reports it forever.
+		TEST_ASSERT(store.detachFile(db, symbolFileId));
+		TEST_ASSERT(store.detachFile(db, footprintFileId));
+		const PartManager::KicadGenerationResult third =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_COMPARE(third.symbolsGenerated, 0);
+		TEST_COMPARE(third.footprintsCopied, 0);
+		TEST_COMPARE(third.staleItemsRemoved, 2);
+		TEST_COMPARE(third.skippedForNoKicadFiles.size(), static_cast<size_t>(3));
+		TEST_ASSERT_M(!std::filesystem::exists(pretty / "FP-ONLY.kicad_mod"),
+			"the footprint of a part that stopped qualifying must not be left on disk");
+		TEST_ASSERT_M(!std::filesystem::exists(library),
+			"a library that lost its last symbol must go, not sit there empty");
+		TEST_COMPARE(PartManager::KicadEditTracker::allItems(db).size(), static_cast<size_t>(0));
+
+		// And idempotent: the second removal run has nothing left to remove and says so.
+		const PartManager::KicadGenerationResult fourth =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_COMPARE(fourth.staleItemsRemoved, 0);
+		TEST_COMPARE(fourth.skippedForNoKicadFiles.size(), static_cast<size_t>(3));
+
+		// A hand-edited artifact is never deleted, even when its part is gone: it is the user's own
+		// work, so it stays on disk, stays tracked, and is surfaced as stale instead.
+		TEST_ASSERT_M(store.attachFile(db, ids[1], PartManager::PartFileRole::KicadSymbol,
+			writeSymbolFile(folder, "SYM-ONLY").string(), &error) != 0, error);
+		TEST_ASSERT(PartManager::KicadLibraryGenerator::generate(db, libs, filestore).ok);
+		std::string edited = readFile(library);
+		const size_t at = edited.find("\"SYM-ONLY\"");
+		TEST_ASSERT_M(at != std::string::npos, edited);
+		edited.insert(edited.find('\n', at) + 1, "\t\t(property \"HandEdited\" \"yes\" (at 0 0 0))\n");
+		std::ofstream(library, std::ios::binary | std::ios::trunc) << edited;
+
+		PartManager::PartFile attached;
+		TEST_ASSERT(PartManager::FileStore::roleFile(db, ids[1],
+			PartManager::PartFileRole::KicadSymbol, attached));
+		TEST_ASSERT(store.detachFile(db, attached.id));
+		const PartManager::KicadGenerationResult fifth =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_COMPARE(fifth.staleItemsRemoved, 0);
+		TEST_COMPARE(fifth.preserved.size(), static_cast<size_t>(1));
+		TEST_ASSERT_M(fifth.preserved[0].stale,
+			"an orphaned hand edit has to be marked stale, or the dialog offers the wrong action");
+		TEST_ASSERT_M(readFile(library).find("HandEdited") != std::string::npos,
+			"a hand-edited symbol must never be deleted, even when nothing generates it any more");
+		// Stable: it is reported again rather than quietly decaying, and force-regenerating is
+		// what finally removes it.
+		const PartManager::KicadGenerationResult sixth =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_COMPARE(sixth.preserved.size(), static_cast<size_t>(1));
+		const PartManager::KicadGenerationResult seventh =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore,
+				{ "Resistors.kicad_sym:SYM-ONLY" });
+		TEST_COMPARE(seventh.staleItemsRemoved, 1);
+		TEST_COMPARE(seventh.preserved.size(), static_cast<size_t>(0));
+		TEST_ASSERT_M(!std::filesystem::exists(library), "forcing must remove the orphan");
+
+		db.close();
+		std::filesystem::remove_all(folder);
+	}
+
+	// M5: footprint-only parts. One whose pads carry numbers now gets a symbol derived from them —
+	// its pins are real copper, so it places correctly — and one whose pads carry none still gets
+	// nothing at all, and is still named in the result.
+	TEST_FUNCTION(aFootprintOnlyPartDerivesItsSymbolFromThePads)
+	{
+		TEST_START;
+
+		std::filesystem::path folder =
+			std::filesystem::temp_directory_path() / "PartManager_TST_KicadDerive";
+		std::filesystem::remove_all(folder);
+		std::filesystem::create_directories(folder);
+
+		SQLiteWrapper::SQLite db((folder / "test.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+		PartManager::KicadEditTracker::createSchema(db);
+
+		PartManager::PartType type;
+		type.name = "IC";
+		type.domain = "electronic";
+		type.kicadRelevant = true;
+		type.kicadCategory = "ICs";
+		const int typeId = PartManager::PartTypeRepository::insertType(db, type);
+
+		PartManager::Part padded;
+		padded.partTypeId = typeId;
+		padded.name = "PADDED";
+		const int paddedId = PartManager::PartRepository::insertPart(db, padded);
+		PartManager::Part bare;
+		bare.partTypeId = typeId;
+		bare.name = "NO-PADS";
+		const int bareId = PartManager::PartRepository::insertPart(db, bare);
+
+		const std::string libs = (folder / "kicad_libs").string();
+		const std::string filestore = (folder / "filestore").string();
+		PartManager::FileStore store(filestore);
+		std::string error;
+		const int paddedFileId = store.attachFile(db, paddedId,
+			PartManager::PartFileRole::KicadFootprint,
+			writePaddedFootprintFile(folder, "PADDED", 6).string(), &error);
+		TEST_ASSERT_M(paddedFileId != 0, error);
+		TEST_ASSERT_M(store.attachFile(db, bareId, PartManager::PartFileRole::KicadFootprint,
+			writeFootprintFile(folder, "NO-PADS").string(), &error) != 0, error);
+
+		const PartManager::KicadGenerationResult first =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_ASSERT_M(first.ok, first.errorMessage);
+		TEST_COMPARE(first.symbolsDerivedFromFootprint, 1);
+		TEST_COMPARE(first.symbolsFromAttachment, 0);
+		TEST_COMPARE(first.symbolsGenerated, 1);
+		TEST_COMPARE(first.footprintsCopied, 2);
+		// The one with nothing to derive from is reported, not swallowed.
+		TEST_COMPARE(first.skippedForNoSymbol.size(), static_cast<size_t>(1));
+		TEST_COMPARE(first.skippedForNoSymbol[0], std::string("NO-PADS"));
+
+		const std::filesystem::path library =
+			std::filesystem::path(libs) / "symbols" / "ICs.kicad_sym";
+		const std::string text = readFile(library);
+		TEST_ASSERT_M(text.find("\"PADDED\"") != std::string::npos, text);
+		TEST_ASSERT_M(text.find("\"NO-PADS\"") == std::string::npos,
+			"a footprint with no numbered pads must not drag an invented symbol in with it: " + text);
+		TEST_COMPARE(countOf(text, "(pin "), static_cast<size_t>(6));
+		TEST_ASSERT_M(text.find("(number \"6\"") != std::string::npos, text);
+		// The footprint the pins came from, spelled the way KiCad resolves it.
+		TEST_ASSERT_M(text.find("\"PartManager_ICs:PADDED\"") != std::string::npos, text);
+		TEST_ASSERT_M(text.find(PartManager::KicadSymbolWriter::DerivedMarker) != std::string::npos,
+			"a derived symbol has to say so, or it reads as one somebody drew: " + text);
+
+		// Byte-identical twice over, or §5a reads the second run's own output as a hand edit.
+		const PartManager::KicadGenerationResult second =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_COMPARE(second.symbolsDerivedFromFootprint, 1);
+		TEST_COMPARE(second.symbolsPreserved, 0);
+		TEST_COMPARE(second.staleItemsRemoved, 0);
+		TEST_COMPARE(readFile(library), text);
+
+		// And it is swept like any other generated artifact when the part stops qualifying.
+		TEST_ASSERT(store.detachFile(db, paddedFileId));
+		const PartManager::KicadGenerationResult third =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_COMPARE(third.symbolsDerivedFromFootprint, 0);
+		TEST_COMPARE(third.staleItemsRemoved, 2);
+		TEST_ASSERT_M(readFile(library).find("\"PADDED\"") == std::string::npos,
+			"a derived symbol whose footprint was detached must go with it");
+
+		db.close();
+		std::filesystem::remove_all(folder);
+	}
+
 #endif
+
+	// §5a: a part with a footprint and no symbol gets one derived from its pads. The pins are the
+	// footprint's own pad numbers, which is the whole difference from the placeholder this
+	// replaced — that one invented a pin count and was wrong on the board.
+	TEST_FUNCTION(padsBecomeTheDerivedSymbolsPins)
+	{
+		TEST_START;
+		using Writer = PartManager::KicadSymbolWriter;
+
+		// Deliberately out of order, with a pad number that appears twice (a split ground pad is
+		// one pin, not two) and a mounting hole that carries no number at all.
+		const std::string footprint =
+			"(footprint \"SOT-23\" (version 20240108) (layer \"F.Cu\")\n"
+			"  (pad \"1\" smd roundrect (at -0.95 -1) (size 0.6 0.7) (layers \"F.Cu\"))\n"
+			"  (pad \"3\" smd roundrect (at 0 1) (size 0.6 0.7) (layers \"F.Cu\")\n"
+			"    (pinfunction \"GATE\") (pintype \"input\"))\n"
+			"  (pad \"2\" smd roundrect (at 0.95 -1) (size 0.6 0.7) (layers \"F.Cu\"))\n"
+			"  (pad \"2\" smd roundrect (at 1.5 -1) (size 0.6 0.7) (layers \"F.Cu\"))\n"
+			"  (pad \"\" np_thru_hole circle (at 0 3) (size 1 1) (drill 1) (layers \"*.Cu\"))\n"
+			")\n";
+
+		const std::vector<PartManager::KicadDerivedPin> pins = Writer::pinsFromFootprint(footprint);
+		TEST_COMPARE(pins.size(), static_cast<size_t>(3));
+		TEST_COMPARE(pins[0].number, std::string("1"));
+		TEST_COMPARE(pins[1].number, std::string("2"));
+		TEST_COMPARE(pins[2].number, std::string("3"));
+		// A library footprint normally carries no names at all; this one does on a single pad.
+		TEST_ASSERT_M(pins[0].name.empty(), "a pad with no (pinfunction ...) has no name to offer");
+		TEST_COMPARE(pins[2].name, std::string("GATE"));
+		TEST_COMPARE(pins[2].type, std::string("input"));
+
+		PartManager::KicadSymbolSpec spec;
+		spec.name = "SOT23-PART";
+		spec.reference = "U";
+		spec.footprint = "PartManager_ICs:SOT23-PART";
+		const std::string block = Writer::derivedSymbolBlock(spec, pins);
+
+		TEST_COMPARE(countOf(block, "(pin "), static_cast<size_t>(3));
+		TEST_ASSERT_M(block.find("(name \"GATE\"") != std::string::npos, block);
+		TEST_ASSERT_M(block.find("(pin input line") != std::string::npos, block);
+		// No (pintype ...) on the pad, so the pin is passive: the type KiCad's ERC is quietest
+		// about, and never guessed from the number or the name.
+		TEST_ASSERT_M(countOf(block, "(pin passive line") == static_cast<size_t>(2), block);
+		TEST_ASSERT_M(countOf(block, "(name \"~\"") == static_cast<size_t>(2), block);
+		// The Footprint property is the footprint the pins came out of — not a guess.
+		TEST_ASSERT_M(block.find("\"PartManager_ICs:SOT23-PART\"") != std::string::npos, block);
+		// Marked, so nobody mistakes it for a symbol someone drew.
+		TEST_ASSERT_M(block.find(PartManager::KicadSymbolWriter::DerivedMarker) != std::string::npos,
+			block);
+		TEST_ASSERT_M(block.find("PartManager-derived") != std::string::npos, block);
+		// Pins down the left then up the right, every one on KiCad's 2.54 mm grid — a pin off the
+		// grid cannot be wired to, which makes the symbol useless in exactly the quiet way this
+		// change exists to avoid.
+		TEST_ASSERT_M(block.find("(at -7.62 2.54 0)") != std::string::npos, block);
+		TEST_ASSERT_M(block.find("(at -7.62 0.00 0)") != std::string::npos, block);
+		TEST_ASSERT_M(block.find("(at 7.62 2.54 180)") != std::string::npos, block);
+		// Two runs of the same input are the same bytes, or every regeneration would report the
+		// symbol as hand-edited (§5a).
+		TEST_COMPARE(Writer::derivedSymbolBlock(spec, Writer::pinsFromFootprint(footprint)), block);
+	}
+
+	// A mixed set of pad numbers still has one definite order. "10" must not sort before "2", and
+	// a BGA's "A1"/"B12" must not break the rule that handles the numeric ones.
+	TEST_FUNCTION(padNumbersSortInAnOrderThatSurvivesBgas)
+	{
+		TEST_START;
+
+		std::string footprint = "(footprint \"MIXED\" (layer \"F.Cu\")\n";
+		const char* numbers[7] = { "A10", "10", "MH", "A2", "2", "B1", "A1" };
+		for (const char* number : numbers)
+		{
+			footprint += std::string("  (pad \"") + number
+				+ "\" smd rect (at 0 0) (size 1 1) (layers \"F.Cu\"))\n";
+		}
+		footprint += ")\n";
+
+		const std::vector<PartManager::KicadDerivedPin> pins =
+			PartManager::KicadSymbolWriter::pinsFromFootprint(footprint);
+		TEST_COMPARE(pins.size(), static_cast<size_t>(7));
+		const char* expected[7] = { "2", "10", "A1", "A2", "A10", "B1", "MH" };
+		for (size_t i = 0; i < pins.size(); ++i)
+		{
+			TEST_ASSERT_M(pins[i].number == expected[i],
+				"pad " + std::to_string(i) + " sorted to " + pins[i].number + ", expected "
+					+ expected[i]);
+		}
+	}
+
+	// "Otherwise don't": a footprint that carries nothing usable derives no symbol at all. The
+	// user asked for exactly this — a derived symbol is only honest because its pins are pads.
+	TEST_FUNCTION(aFootprintWithNoUsablePadsDerivesNothing)
+	{
+		TEST_START;
+		using Writer = PartManager::KicadSymbolWriter;
+
+		// Two mounting holes and a paste island: copper, and not one pin between them.
+		const std::string mechanical =
+			"(footprint \"BRACKET\" (version 20240108) (layer \"F.Cu\")\n"
+			"  (pad \"\" np_thru_hole circle (at -2 0) (size 3 3) (drill 3) (layers \"*.Cu\"))\n"
+			"  (pad \"\" np_thru_hole circle (at 2 0) (size 3 3) (drill 3) (layers \"*.Cu\"))\n"
+			"  (fp_line (start -3 -3) (end 3 -3) (layer \"F.SilkS\") (width 0.12))\n"
+			")\n";
+
+		PartManager::KicadSymbolSpec spec;
+		spec.name = "BRACKET";
+		TEST_ASSERT(Writer::pinsFromFootprint(mechanical).empty());
+		TEST_ASSERT_M(Writer::derivedSymbolBlock(spec,
+			Writer::pinsFromFootprint(mechanical)).empty(),
+			"a footprint with no numbered pads must derive nothing, not a box with no pins");
+		// And the same for a file that is not a footprint at all.
+		TEST_ASSERT(Writer::pinsFromFootprint("not a footprint").empty());
+	}
+
+	// The real thing, not only invented input: a vendor footprint out of the user's own library.
+	// Every one of them is the legacy `(module ...)` form with *unquoted* pad numbers, which is
+	// the spelling an invented test file would never have produced.
+	TEST_FUNCTION(aVendorFootprintDerivesOnePinPerPad)
+	{
+		TEST_START;
+
+		// CAY16-221J8LF, an eight-resistor network — copied verbatim from
+		// KicadFresh/filestore, trimmed to its header and its pads.
+		std::string footprint =
+			"(module \"CAY16221J8LF\" (layer F.Cu)\n"
+			"  (descr \"CAY16-221J8LF-1\")\n"
+			"  (tags \"Resistor Network\")\n"
+			"  (attr smd)\n";
+		const double xs[16] = { -1.750, -1.250, -0.750, -0.250, 0.250, 0.750, 1.250, 1.750,
+			1.750, 1.250, 0.750, 0.250, -0.250, -0.750, -1.250, -1.750 };
+		for (int pad = 1; pad <= 16; ++pad)
+		{
+			footprint += "  (pad " + std::to_string(pad) + " smd rect (at "
+				+ std::to_string(xs[pad - 1]) + " " + (pad <= 8 ? "0.725" : "-0.725")
+				+ " 0) (size 0.325 0.650) (layers F.Cu F.Paste F.Mask))\n";
+		}
+		footprint += ")\n";
+
+		const std::vector<PartManager::KicadDerivedPin> pins =
+			PartManager::KicadSymbolWriter::pinsFromFootprint(footprint);
+		TEST_COMPARE(pins.size(), static_cast<size_t>(16));
+		TEST_COMPARE(pins[0].number, std::string("1"));
+		// The one that a lexical sort gets wrong.
+		TEST_COMPARE(pins[9].number, std::string("10"));
+		TEST_COMPARE(pins[15].number, std::string("16"));
+
+		PartManager::KicadSymbolSpec spec;
+		spec.name = "CAY16-221J8LF";
+		const std::string block = PartManager::KicadSymbolWriter::derivedSymbolBlock(spec, pins);
+		TEST_COMPARE(countOf(block, "(pin "), static_cast<size_t>(16));
+		// Eight down the left, eight up the right: pin 1 top left, pin 16 top right, which is how
+		// anyone reading a schematic expects a 16-pin part to be drawn.
+		TEST_ASSERT_M(countOf(block, "(at -7.62 ") == static_cast<size_t>(8), block);
+		TEST_ASSERT_M(countOf(block, "(at 7.62 ") == static_cast<size_t>(8), block);
+		TEST_ASSERT_M(block.find("(at -7.62 10.16 0)") != std::string::npos, block);
+		TEST_ASSERT_M(block.find("(at 7.62 10.16 180)") != std::string::npos, block);
+	}
 
 	// Installing into KiCad's own sym-lib-table. The file belongs to the user's whole KiCad
 	// install, so the property that matters is not "our rows are there" but "nothing else moved".

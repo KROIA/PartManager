@@ -18,6 +18,11 @@
 // user places a real, working symbol and fixes the pinout in KiCad if they care,
 // and §5a's edit tracker then leaves their fix alone.
 //
+// **The one symbol that is generated with real pins** is
+// `derivedSymbolBlock()`: when a part has a footprint and no symbol, its pads
+// already carry pin numbers, so a symbol built from them connects to the right
+// copper. That is not the invented pinout above — see the function's own note.
+//
 // The format targets the KiCad 9 `kicad_symbol_lib` s-expression
 // (`version 20241209`), which KiCad 7/8 also read.
 // @see docs/design/ARCHITECTURE.md §5a
@@ -49,6 +54,15 @@ namespace PartManager
 		std::string model3DPath;        // written as PM_3DModel, ${KIPRJMOD}-relative where possible
 	};
 
+	// One pin of a symbol derived from a footprint's pads (§5a). Not a spec for what the part's
+	// pinout *is* — only for what its pads carry, which is all a footprint knows.
+	struct PART_MANAGER_API KicadDerivedPin
+	{
+		std::string number;     // the pad number, verbatim: "1", "A12", "MH1"
+		std::string name;       // `(pinfunction ...)`, empty when the footprint has none
+		std::string type;       // `(pintype ...)`, empty when the footprint has none
+	};
+
 	class PART_MANAGER_API KicadSymbolWriter
 	{
 		KicadSymbolWriter() = delete;
@@ -69,6 +83,35 @@ namespace PartManager
 		// One `(symbol ...)` block for a part, as `(extends "<base>")` plus its properties.
 		// Indented to sit directly inside a `(kicad_symbol_lib ...)`.
 		static std::string symbolBlock(const KicadSymbolSpec& spec);
+
+		// The pins a footprint can honestly supply: one per **distinct** pad number, sorted.
+		//
+		// A pad with no number is copper with no net — a mounting hole, an NPTH, a bare paste
+		// island — and is not a pin. Several pads sharing one number are one pin: a thermal pad
+		// split into pieces and a ground pad broken up are both drawn that way, and one pin per
+		// piece would produce a symbol nothing can wire.
+		//
+		// Empty when the footprint carries nothing usable, which is the caller's signal to derive
+		// no symbol at all rather than to invent one.
+		static std::vector<KicadDerivedPin> pinsFromFootprint(const std::string& footprintText);
+
+		// A symbol whose pins are `pins`: a plain rectangle with the pads down its two sides.
+		// Empty when `pins` is.
+		//
+		// **This is not the old placeholder.** That one invented a pin count, so it placed
+		// silently in a schematic and was wrong on the board. These pins are the footprint's own
+		// pads, numbered as the footprint numbers them, so the symbol places correctly — the
+		// arrangement is arbitrary, the connectivity is not. Marked with `DerivedMarker` in its
+		// description and keywords so nobody mistakes it for a symbol someone drew.
+		//
+		// `spec.footprint` is written out as usual. The rule that the Footprint property is left
+		// empty rather than guessed from `part.package` does not apply here: this is not a guess,
+		// it is the footprint the pins were read out of.
+		static std::string derivedSymbolBlock(const KicadSymbolSpec& spec,
+			const std::vector<KicadDerivedPin>& pins);
+
+		// What marks a derived symbol in its description and keywords.
+		static const char* const DerivedMarker;
 
 		// A complete library file: header, every base symbol, then `symbols` verbatim. Taking the
 		// symbol blocks as text rather than specs is what lets the generator preserve

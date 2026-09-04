@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <system_error>
 
@@ -64,6 +65,11 @@ namespace PartManager
 		{
 			text += " (" + std::to_string(symbolsFromAttachment) + " from the part's own KiCad file)";
 		}
+		if (symbolsDerivedFromFootprint > 0)
+		{
+			text += " (" + std::to_string(symbolsDerivedFromFootprint)
+				+ " derived from the footprint's pads)";
+		}
 		if (symbolsPreserved > 0)
 		{
 			// Named first among the caveats because it is the one the user has to act on.
@@ -87,6 +93,20 @@ namespace PartManager
 		{
 			text += ", " + std::to_string(skippedForNoCategory.size())
 				+ " part(s) skipped for having no KiCad category";
+		}
+		if (!skippedForNoKicadFiles.empty())
+		{
+			text += ", " + std::to_string(skippedForNoKicadFiles.size())
+				+ " part(s) skipped for having no KiCad symbol or footprint";
+		}
+		if (!skippedForNoSymbol.empty())
+		{
+			text += ", " + std::to_string(skippedForNoSymbol.size())
+				+ " part(s) with a footprint but no symbol";
+		}
+		if (staleItemsRemoved > 0)
+		{
+			text += ", " + std::to_string(staleItemsRemoved) + " no longer generated and removed";
 		}
 		return text;
 	}
@@ -309,6 +329,12 @@ namespace PartManager
 		std::map<std::string, std::vector<std::string>> symbolsByCategory;
 		// Category -> the target paths generated into it, so a preserved symbol can be matched.
 		std::map<std::string, std::vector<std::pair<std::string, int>>> targetsByCategory;
+		// Every artifact of a part that qualified this run, whether it ended up regenerated or
+		// preserved. Anything tracked and *not* in here belongs to a part that stopped qualifying.
+		std::set<std::string> currentTargets;
+		// Libraries with at least one qualifying part, so a library that lost its last one can be
+		// told apart from one that only holds footprints.
+		std::set<std::string> usedLibraries;
 
 		for (const PartType& type : PartTypeRepository::listTypes(db))
 		{
@@ -332,13 +358,32 @@ namespace PartManager
 				const std::string symbolName = KicadSymbolWriter::sanitizeSymbolName(part.name);
 				const std::string targetPath = libraryName + ".kicad_sym:" + symbolName;
 
-				KicadSymbolSpec spec = specFor(db, part, type.name, filestorePath, modelsDir,
-					result.modelsCopied);
-				// The footprint the symbol should reference, whether or not the part has one
-				// attached — the .pretty entry is written under the symbol's name either way.
+				// **Nothing is invented.** A part is generated from the KiCad files it actually
+				// has: neither attached means it is not generated at all, symbol only means symbol
+				// only, footprint only means the footprint and no symbol. A placeholder symbol is
+				// worse than an absent part — it places silently in a schematic and is wrong on
+				// the board. Whatever an earlier run left for a part that no longer qualifies is
+				// removed by the stale pass below.
 				PartFile footprintRow;
 				const bool hasFootprint =
 					FileStore::roleFile(db, part.id, PartFileRole::KicadFootprint, footprintRow);
+				PartFile symbolRow;
+				const bool hasSymbol =
+					FileStore::roleFile(db, part.id, PartFileRole::KicadSymbol, symbolRow);
+				if (!hasSymbol && !hasFootprint)
+				{
+					result.skippedForNoKicadFiles.push_back(part.name);
+					continue;
+				}
+				usedLibraries.insert(libraryName);
+				// The library exists even when this category only ever produces footprints, so the
+				// fp-lib-table entry KiCad needs is written and its sym-lib-table twin resolves.
+				symbolsByCategory.emplace(libraryName, std::vector<std::string>());
+
+				KicadSymbolSpec spec = specFor(db, part, type.name, filestorePath, modelsDir,
+					result.modelsCopied);
+				// The footprint the symbol should reference — the .pretty entry is written under
+				// the symbol's name.
 				if (hasFootprint)
 				{
 					// **The nickname, not the file name.** KiCad resolves a `Footprint` property
@@ -349,28 +394,50 @@ namespace PartManager
 					spec.footprint = KicadLibTable::nicknameFor(libraryName) + ":" + symbolName;
 				}
 
-				// §5c: the part's own `.kicad_sym` wins over the generic template.
+				// Read once: the footprint is both where the symbol's pins may come from and what
+				// gets copied into the `.pretty` below.
+				const std::string footprintText = hasFootprint
+					? readFile(std::filesystem::path(filestorePath) / footprintRow.relativePath)
+					: std::string();
+
+				// §5c: the symbol is the part's own `.kicad_sym`, or one derived from the pads of
+				// its footprint, or there is no symbol.
 				std::string block = symbolFromAttachment(db, part, filestorePath, symbolName,
 					spec.footprint, spec);
+				bool derived = false;
+				if (block.empty() && hasFootprint)
+				{
+					// **Still nothing invented.** A pad carries a pin number, so a symbol built
+					// from the pads connects to the copper the part actually has — which is
+					// exactly what the placeholder this replaced never did. A footprint whose
+					// pads carry no numbers derives nothing.
+					block = KicadSymbolWriter::derivedSymbolBlock(spec,
+						KicadSymbolWriter::pinsFromFootprint(footprintText));
+					derived = !block.empty();
+				}
 				if (block.empty())
 				{
-					block = KicadSymbolWriter::symbolBlock(spec);
+					// No symbol attached and no pads to read: an attachment that will not parse is
+					// a problem to report, and a footprint of nothing but mounting holes has no
+					// pins to offer. Neither is a reason to invent any.
+					result.skippedForNoSymbol.push_back(part.name);
 				}
 				else
 				{
-					++result.symbolsFromAttachment;
+					if (derived) { ++result.symbolsDerivedFromFootprint; }
+					else         { ++result.symbolsFromAttachment; }
+					symbolsByCategory[libraryName].push_back(block);
+					targetsByCategory[libraryName].push_back({ targetPath, part.id });
+					currentTargets.insert(targetPath);
 				}
-				symbolsByCategory[libraryName].push_back(block);
-				targetsByCategory[libraryName].push_back({ targetPath, part.id });
 
 				// Footprints are per-file, so they are a straight hash check against the file.
 				if (hasFootprint)
 				{
-					const std::filesystem::path stored =
-						std::filesystem::path(filestorePath) / footprintRow.relativePath;
 					const std::filesystem::path target = footprintsDir
 						/ (libraryName + ".pretty")
 						/ (symbolName + ".kicad_mod");
+					currentTargets.insert(target.string());
 					const std::string onDisk = readFile(target);
 					const KicadItemState state = KicadEditTracker::stateOf(db, target.string(), onDisk);
 					const bool forced = std::find(forcePaths.begin(), forcePaths.end(),
@@ -398,7 +465,7 @@ namespace PartManager
 					// into kicad_libs/3dmodels/ by specFor(), so the copy is pointed at that —
 					// otherwise KiCad opens the footprint and shows no model at all.
 					const std::string contents =
-						KicadGeometry::withModelPath(readFile(stored), spec.model3DPath);
+						KicadGeometry::withModelPath(footprintText, spec.model3DPath);
 					if (!contents.empty() && writeFile(target, contents))
 					{
 						KicadEditTracker::record(db, part.id, KicadItemType::Footprint,
@@ -409,6 +476,58 @@ namespace PartManager
 			}
 		}
 
+		// What an earlier run generated for a part that no longer qualifies — its KiCad files were
+		// detached, its category went away, it was renamed, or the part is gone. Left alone the row
+		// would report a phantom "modified externally" on every future run, because that part will
+		// never produce a fresh baseline for it again, and the library would keep an entry nothing
+		// points at. So the artifact goes and the row is forgotten — **unless its hash says a human
+		// edited it**, which is never ours to delete: that one stays, stays tracked, and is
+		// surfaced as `stale` for the user to decide on (force-regenerate removes it).
+		std::map<std::string, std::vector<KicadGeneratedItem>> staleSymbolsByCategory;
+		for (const KicadGeneratedItem& item : KicadEditTracker::allItems(db))
+		{
+			if (currentTargets.count(item.targetPath) != 0)
+			{
+				continue;
+			}
+			if (item.itemType == KicadItemType::Symbol)
+			{
+				// Deferred to the write loop below: a symbol is removed by leaving it out of the
+				// file that is rebuilt there, not by touching anything here.
+				const size_t marker = item.targetPath.find(".kicad_sym:");
+				if (marker == std::string::npos)
+				{
+					continue;
+				}
+				const std::string library = item.targetPath.substr(0, marker);
+				staleSymbolsByCategory[library].push_back(item);
+				symbolsByCategory.emplace(library, std::vector<std::string>());
+				continue;
+			}
+
+			// A footprint is its own file, so dropping it means deleting it.
+			const std::filesystem::path target(item.targetPath);
+			const std::string onDisk = readFile(target);
+			const bool forced = std::find(forcePaths.begin(), forcePaths.end(), item.targetPath)
+				!= forcePaths.end();
+			if (KicadEditTracker::stateOf(item.lastGeneratedHash, onDisk, true)
+				== KicadItemState::EditedExternally && !forced)
+			{
+				KicadSkippedItem skipped;
+				skipped.partId = item.partId;
+				skipped.partName = target.filename().string();
+				skipped.targetPath = item.targetPath;
+				skipped.stale = true;
+				result.preserved.push_back(skipped);
+				continue;
+			}
+			std::error_code error;
+			std::filesystem::remove(target, error);
+			KicadEditTracker::forget(db, item.targetPath);
+			++result.staleItemsRemoved;
+		}
+
+		std::vector<std::string> libraryNames;
 		for (const std::pair<const std::string, std::vector<std::string>>& entry : symbolsByCategory)
 		{
 			const std::string& libraryName = entry.first;
@@ -466,19 +585,51 @@ namespace PartManager
 				++result.symbolsGenerated;
 			}
 
+			// Symbols of parts that stopped qualifying. Leaving one out of `blocks` is what removes
+			// it, since the file is rebuilt from `blocks` every run.
+			for (const KicadGeneratedItem& item : staleSymbolsByCategory[libraryName])
+			{
+				const std::string symbolName = item.targetPath.substr(item.targetPath.find(':') + 1);
+				const std::string existing = onDiskSymbols.count(symbolName) != 0
+					? onDiskSymbols[symbolName] : std::string();
+				const bool forced = std::find(forcePaths.begin(), forcePaths.end(), item.targetPath)
+					!= forcePaths.end();
+				if (KicadEditTracker::stateOf(item.lastGeneratedHash, existing, true)
+					== KicadItemState::EditedExternally && !forced)
+				{
+					// Someone's own work, and no part behind it any more. Not deleted, not synced
+					// back into a part that no longer wants it — carried across and reported.
+					blocks.push_back(existing);
+					KicadSkippedItem skipped;
+					skipped.partId = item.partId;
+					skipped.partName = symbolName;
+					skipped.targetPath = item.targetPath;
+					skipped.stale = true;
+					result.preserved.push_back(skipped);
+					++result.symbolsPreserved;
+					continue;
+				}
+				KicadEditTracker::forget(db, item.targetPath);
+				++result.staleItemsRemoved;
+			}
+
+			if (blocks.empty() && usedLibraries.count(libraryName) == 0)
+			{
+				// The library lost its last part: the file goes rather than sitting there empty and
+				// listed in a table for a category that no longer exists.
+				std::error_code error;
+				std::filesystem::remove(libraryPath, error);
+				continue;
+			}
 			if (!writeFile(libraryPath, KicadSymbolWriter::library(blocks)))
 			{
 				result.errorMessage = "Could not write " + libraryPath.string();
 				return result;
 			}
+			libraryNames.push_back(libraryName);
 			++result.librariesWritten;
 		}
 
-		std::vector<std::string> libraryNames;
-		for (const std::pair<const std::string, std::vector<std::string>>& entry : symbolsByCategory)
-		{
-			libraryNames.push_back(entry.first);
-		}
 		// Written every run, including when nothing generated: a table listing a library that no
 		// longer exists makes KiCad complain on every launch.
 		writeFile(root / "partmanager-sym-lib-table", symLibTable(libraryNames, PathVariable));

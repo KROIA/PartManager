@@ -1,12 +1,19 @@
 #include "kicad/PartManager_KicadSymbolWriter.h"
+#include "kicad/PartManager_KicadGeometry.h"
 #include "PartManager_global.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <cstdlib>
+#include <set>
 
 namespace PartManager
 {
 
 	const char* const KicadSymbolWriter::GenericBaseSymbol = "PM_Generic";
+	const char* const KicadSymbolWriter::DerivedMarker =
+		"Pins derived from the footprint's pads, not a drawn symbol.";
 
 	namespace
 	{
@@ -239,6 +246,165 @@ namespace PartManager
 			if (base == "PM_LED") { return "LED_*"; }
 			return std::string();
 		}
+
+		// Everything above a symbol's body: the flags and every property. Shared by the two kinds
+		// of symbol this file writes, so a field added to one cannot quietly go missing from the
+		// other. `hidePinNumbers` is false for a symbol whose pins are real pads — the number is
+		// then the only thing that says which pin is which.
+		std::string symbolPrologue(const KicadSymbolSpec& spec, const std::string& name,
+			const std::string& footprintFilter, bool hidePinNumbers)
+		{
+			std::string out;
+			out += "\t(symbol \"" + KicadSymbolWriter::escape(name) + "\"\n";
+			out += hidePinNumbers
+				? "\t\t(pin_numbers\n\t\t\t(hide yes)\n\t\t)\n"
+				: "\t\t(pin_numbers)\n";
+			out += "\t\t(pin_names\n\t\t\t(offset 0)\n\t\t)\n";
+			out += "\t\t(exclude_from_sim no)\n";
+			out += "\t\t(in_bom yes)\n";
+			out += "\t\t(on_board yes)\n";
+			// Reference and Value are the two the user sees on the canvas, so they are placed
+			// rather than hidden. Everything else is metadata.
+			out += "\t\t(property \"Reference\" \"" + KicadSymbolWriter::escape(spec.reference) + "\"\n";
+			out += "\t\t\t(at 2.54 1.27 0)\n";
+			out += "\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n";
+			out += "\t\t)\n";
+			out += "\t\t(property \"Value\" \""
+				+ KicadSymbolWriter::escape(spec.value.empty() ? name : spec.value) + "\"\n";
+			out += "\t\t\t(at 2.54 -1.27 0)\n";
+			out += "\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n";
+			out += "\t\t)\n";
+			out += hiddenProperty("Footprint", spec.footprint);
+			out += hiddenProperty("Datasheet", spec.datasheet);
+			out += hiddenProperty("Description", spec.description);
+			out += hiddenProperty("ki_keywords", spec.keywords);
+			// The round trip back into this app: a symbol on a board can be traced to the row it
+			// came from, which is what §5b's verification plugin reads.
+			out += hiddenProperty("PM_PartID",
+				spec.partId > 0 ? std::to_string(spec.partId) : std::string());
+			out += hiddenProperty("Mouser P/N", spec.mouserPartNumber);
+			out += hiddenProperty("PM_3DModel", spec.model3DPath);
+			out += hiddenProperty("ki_fp_filters", footprintFilter);
+			return out;
+		}
+
+		// A coordinate, written the one way so two runs of the generator cannot disagree by a
+		// digit — a symbol that differs run to run reads as a hand edit on every run (§5a).
+		std::string coordinate(double millimetres)
+		{
+			char text[32] = { 0 };
+			std::snprintf(text, sizeof(text), "%.2f", millimetres);
+			// "-0.00" is a real snprintf result and would be the one place the output depends on
+			// how the value happened to reach zero.
+			return std::string(text) == "-0.00" ? std::string("0.00") : std::string(text);
+		}
+
+		// KiCad's pin electrical types are bare tokens, and this one comes out of a file this app
+		// did not write. Anything that is not one of those tokens' shape would corrupt the
+		// s-expression, so it is refused rather than escaped — there is nothing to escape *to*.
+		bool isPinTypeToken(const std::string& text)
+		{
+			if (text.empty() || text.size() > 24) { return false; }
+			for (char c : text)
+			{
+				if (!((c >= 'a' && c <= 'z') || c == '_')) { return false; }
+			}
+			return true;
+		}
+
+		// A plain rectangle with the pads down its two sides, DIP fashion: the first half descends
+		// the left, the second half climbs the right, two pins meaning one each side. The
+		// arrangement is arbitrary and says nothing about the part; the *numbering* is the
+		// footprint's own, which is what makes the symbol place correctly on a board.
+		std::string derivedBody(const std::string& name, const std::vector<KicadDerivedPin>& pins)
+		{
+			const std::size_t leftCount = (pins.size() + 1) / 2;
+			const std::size_t rightCount = pins.size() - leftCount;
+			const std::size_t rows = leftCount > rightCount ? leftCount : rightCount;
+			// Every y a multiple of 2.54: a pin off KiCad's grid cannot be wired to, and rounding
+			// the *centre* of an odd row count onto the grid is what keeps them all there.
+			const auto rowY = [rows](std::size_t row)
+				{
+					return 2.54 * (static_cast<double>(rows / 2) - static_cast<double>(row));
+				};
+
+			std::string out;
+			out += "\t\t(symbol \"" + KicadSymbolWriter::escape(name) + "_0_1\"\n";
+			out += "\t\t\t(rectangle\n";
+			out += "\t\t\t\t(start -5.08 " + coordinate(rowY(0) + 2.54) + ")\n";
+			out += "\t\t\t\t(end 5.08 " + coordinate(rowY(rows - 1) - 2.54) + ")\n";
+			out += "\t\t\t\t(stroke\n\t\t\t\t\t(width 0.254)\n\t\t\t\t\t(type default)\n\t\t\t\t)\n";
+			out += "\t\t\t\t(fill\n\t\t\t\t\t(type background)\n\t\t\t\t)\n";
+			out += "\t\t\t)\n";
+			out += "\t\t)\n";
+			out += "\t\t(symbol \"" + KicadSymbolWriter::escape(name) + "_1_1\"\n";
+			for (std::size_t i = 0; i < pins.size(); ++i)
+			{
+				const bool onLeft = i < leftCount;
+				const std::size_t row = onLeft ? i : rightCount - 1 - (i - leftCount);
+				// `passive` where the footprint says nothing, because it is the type KiCad's ERC
+				// is quietest about: `unspecified` makes it complain about every pin of a symbol
+				// nobody has looked at yet. The type is never guessed from a pin's number or name.
+				const std::string type = isPinTypeToken(pins[i].type) ? pins[i].type : "passive";
+				out += "\t\t\t(pin " + type + " line\n";
+				out += "\t\t\t\t(at " + std::string(onLeft ? "-7.62 " : "7.62 ")
+					+ coordinate(rowY(row)) + (onLeft ? " 0)\n" : " 180)\n");
+				out += "\t\t\t\t(length 2.54)\n";
+				// "~" is KiCad's own "this pin has no name", which is the honest answer for a pad
+				// that carries a number and nothing else.
+				out += "\t\t\t\t(name \"" + KicadSymbolWriter::escape(
+					pins[i].name.empty() ? std::string("~") : pins[i].name)
+					+ "\"\n\t\t\t\t\t(effects\n\t\t\t\t\t\t(font\n\t\t\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t\t\t)\n\t\t\t\t\t)\n\t\t\t\t)\n";
+				out += "\t\t\t\t(number \"" + KicadSymbolWriter::escape(pins[i].number)
+					+ "\"\n\t\t\t\t\t(effects\n\t\t\t\t\t\t(font\n\t\t\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t\t\t)\n\t\t\t\t\t)\n\t\t\t\t)\n";
+				out += "\t\t\t)\n";
+			}
+			out += "\t\t)\n";
+			return out;
+		}
+
+		// A total order over pad numbers. "10" must not sort before "2", and a BGA's "A1" / "B12"
+		// must not break whatever rule handles the numeric ones: each number is split into its
+		// leading non-digit run and the digits that follow, the runs compared lexically and the
+		// digits numerically, with the whole string as the last tie-break so a mixed set still
+		// comes out in one definite order.
+		bool padNumberLess(const std::string& a, const std::string& b)
+		{
+			const auto split = [](const std::string& text, std::string& prefix,
+				unsigned long long& value, bool& hasDigits, std::string& rest)
+				{
+					std::size_t i = 0;
+					while (i < text.size() && !std::isdigit(static_cast<unsigned char>(text[i])))
+					{
+						prefix += text[i];
+						++i;
+					}
+					const std::size_t digitsAt = i;
+					while (i < text.size() && std::isdigit(static_cast<unsigned char>(text[i])))
+					{
+						++i;
+					}
+					hasDigits = i > digitsAt;
+					// A pad number long enough to overflow is not a pad number; capping the run
+					// keeps the order total instead of wrapping round to something smaller.
+					value = hasDigits
+						? std::strtoull(text.substr(digitsAt,
+							(i - digitsAt) > 18 ? 18 : (i - digitsAt)).c_str(), nullptr, 10)
+						: 0;
+					rest = text.substr(i);
+				};
+
+			std::string prefixA, prefixB, restA, restB;
+			unsigned long long valueA = 0, valueB = 0;
+			bool digitsA = false, digitsB = false;
+			split(a, prefixA, valueA, digitsA, restA);
+			split(b, prefixB, valueB, digitsB, restB);
+			if (prefixA != prefixB)   { return prefixA < prefixB; }
+			if (digitsA != digitsB)   { return digitsB; }   // "A" before "A1"
+			if (valueA != valueB)     { return valueA < valueB; }
+			if (restA != restB)       { return restA < restB; }
+			return a < b;
+		}
 	}
 
 	std::vector<std::string> KicadSymbolWriter::baseSymbolBlocks()
@@ -262,8 +428,6 @@ namespace PartManager
 		const std::string name = sanitizeSymbolName(spec.name);
 		const std::string base = spec.baseSymbol.empty() ? GenericBaseSymbol : spec.baseSymbol;
 
-		std::string out;
-		out += "\t(symbol \"" + escape(name) + "\"\n";
 		// **The body is copied in, not inherited.** `(extends "PM_R")` is the tidier file and was
 		// what this wrote first, but KiCad requires the parent in the same library and then lists
 		// it in the symbol chooser like any other symbol — so every generated library showed
@@ -271,34 +435,62 @@ namespace PartManager
 		// category. KiCad has no way to hide a symbol from the chooser, so the parents have to
 		// stop existing. The bases are still the single definition of what each body looks like;
 		// they are stamped out under the part's name instead of being referenced.
-		out += "\t\t(pin_numbers\n\t\t\t(hide yes)\n\t\t)\n";
-		out += "\t\t(pin_names\n\t\t\t(offset 0)\n\t\t)\n";
-		out += "\t\t(exclude_from_sim no)\n";
-		out += "\t\t(in_bom yes)\n";
-		out += "\t\t(on_board yes)\n";
-		// Reference and Value are the two the user sees on the canvas, so they are placed rather
-		// than hidden. Everything else is metadata.
-		out += "\t\t(property \"Reference\" \"" + escape(spec.reference) + "\"\n";
-		out += "\t\t\t(at 2.54 1.27 0)\n";
-		out += "\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n";
-		out += "\t\t)\n";
-		out += "\t\t(property \"Value\" \"" + escape(spec.value.empty() ? name : spec.value) + "\"\n";
-		out += "\t\t\t(at 2.54 -1.27 0)\n";
-		out += "\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n";
-		out += "\t\t)\n";
-		out += hiddenProperty("Footprint", spec.footprint);
-		out += hiddenProperty("Datasheet", spec.datasheet);
-		out += hiddenProperty("Description", spec.description);
-		out += hiddenProperty("ki_keywords", spec.keywords);
-		// The round trip back into this app: a symbol on a board can be traced to the row it
-		// came from, which is what §5b's verification plugin reads.
-		out += hiddenProperty("PM_PartID", spec.partId > 0 ? std::to_string(spec.partId) : std::string());
-		out += hiddenProperty("Mouser P/N", spec.mouserPartNumber);
-		out += hiddenProperty("PM_3DModel", spec.model3DPath);
-		out += hiddenProperty("ki_fp_filters", footprintFilterForBase(base));
-		out += bodyForBase(base, name);
-		out += "\t)\n";
-		return out;
+		return symbolPrologue(spec, name, footprintFilterForBase(base), true)
+			+ bodyForBase(base, name) + "\t)\n";
+	}
+
+	std::vector<KicadDerivedPin> KicadSymbolWriter::pinsFromFootprint(const std::string& footprintText)
+	{
+		std::vector<KicadDerivedPin> pins;
+		std::set<std::string> seen;
+		for (const KicadShape& shape : KicadGeometry::footprint(footprintText).shapes)
+		{
+			if (shape.kind != KicadShapeKind::Pad || shape.label.empty())
+			{
+				// No number means copper with no net — a mounting hole, an NPTH, a paste island.
+				continue;
+			}
+			// First pad of a number wins. The duplicates are the same pin's other pieces, so
+			// there is nothing in them the first one does not already say.
+			if (!seen.insert(shape.label).second)
+			{
+				continue;
+			}
+			KicadDerivedPin pin;
+			pin.number = shape.label;
+			pin.name = shape.pinName;
+			pin.type = shape.pinType;
+			pins.push_back(pin);
+		}
+		std::sort(pins.begin(), pins.end(),
+			[](const KicadDerivedPin& a, const KicadDerivedPin& b)
+			{
+				return padNumberLess(a.number, b.number);
+			});
+		return pins;
+	}
+
+	std::string KicadSymbolWriter::derivedSymbolBlock(const KicadSymbolSpec& spec,
+		const std::vector<KicadDerivedPin>& pins)
+	{
+		if (pins.empty())
+		{
+			// A footprint with nothing usable derives nothing. The whole difference between this
+			// and the placeholder §5a removed is that a derived pin is a real pad.
+			return std::string();
+		}
+		const std::string name = sanitizeSymbolName(spec.name);
+
+		// Marked in the two fields KiCad shows in its chooser, so this is never mistaken for a
+		// symbol someone drew — and so whoever later draws the real one knows what they replace.
+		KicadSymbolSpec marked = spec;
+		marked.description = marked.description.empty()
+			? std::string(DerivedMarker) : marked.description + " " + DerivedMarker;
+		marked.keywords = marked.keywords.empty()
+			? std::string("PartManager-derived") : marked.keywords + " PartManager-derived";
+		// No `ki_fp_filters`: the symbol already names the one footprint it belongs to, and a
+		// filter would only hide it from KiCad's footprint chooser for no gain.
+		return symbolPrologue(marked, name, std::string(), false) + derivedBody(name, pins) + "\t)\n";
 	}
 
 	std::string KicadSymbolWriter::library(const std::vector<std::string>& symbolBlocks)
