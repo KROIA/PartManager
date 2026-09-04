@@ -4,6 +4,7 @@
 #include "ui/PartManager_MainWindow.h"
 
 #include <QApplication>
+#include <QIcon>
 #include <QMessageBox>
 
 int main(int argc, char* argv[])
@@ -28,6 +29,10 @@ int main(int argc, char* argv[])
 	// AppSettings (and therefore the known-databases registry, §1b) keys off these.
 	QCoreApplication::setOrganizationName("KROIA");
 	QCoreApplication::setApplicationName("PartManager");
+	// The taskbar, the Alt-Tab card and every window's title bar. AppIcon.ico is the same drawing
+	// and covers the .exe in Explorer, but Windows takes that one from the binary's resources and
+	// never from a running process — so both are needed, and both are generated from app.svg.
+	app.setWindowIcon(QIcon(QStringLiteral(":/icons/app.png")));
 
 	// §8/§9. After the organization/application names, because Settings reads its file from a
 	// path those key off — asking earlier would read a different (empty) settings file.

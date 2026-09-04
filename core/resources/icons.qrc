@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
+        <file>icons/app.png</file>
         <file>icons/accept.png</file>
         <file>icons/plus.png</file>
         <file>icons/tabelle.png</file>
