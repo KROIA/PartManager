@@ -782,7 +782,15 @@ namespace PartManager
 				QTreeWidgetItem* target = droppedMoveTarget(drop);
 				if (target == nullptr)
 				{
-					return false;
+					// Must be swallowed here, not just refused: falling through to QTreeWidget's own
+					// drop handling would decode this payload — Qt's internal
+					// application/x-qabstractitemmodeldatalist format, one (row, column) entry per
+					// visible column of the dragged row — as a generic item-model drop and insert a
+					// stray child item per column (image, manufacturer, MPN, package, ...) under
+					// whatever category is under the cursor. True here, unlike the DragEnter/DragMove
+					// case above, because only Drop actually mutates the tree.
+					drop->ignore();
+					return true;
 				}
 				drop->acceptProposedAction();
 				// Queued, not called here. A modal dialog opened inside the drop handler runs its
