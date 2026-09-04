@@ -171,6 +171,14 @@ Clearing the box or pressing Escape in it goes back to the selected category.</s
 Die Tabelle zeigt dann eine Spalte „Kategorie“, die angibt, wo jedes Bauteil liegt.
 Das Feld zu leeren oder darin Escape zu drücken kehrt zur ausgewählten Kategorie zurück.</translation>
     </message>
+    <message>
+        <source>Hide empty</source>
+        <translation>Leere ausblenden</translation>
+    </message>
+    <message>
+        <source>Hides categories that hold no parts, and no parts anywhere below them.</source>
+        <translation>Blendet Kategorien aus, die keine Bauteile enthalten — auch nicht in den Kategorien darunter.</translation>
+    </message>
 </context>
 <context>
     <name>ManageDatabasesDialog</name>
@@ -852,6 +860,10 @@ Mouser füllt das aus seiner Spalte &quot;Package / Case&quot; aus.</translation
     <message>
         <source>3D model</source>
         <translation>3D-Modell</translation>
+    </message>
+    <message>
+        <source>Search words</source>
+        <translation>Suchbegriffe</translation>
     </message>
 </context>
 <context>
@@ -1539,10 +1551,6 @@ Fortfahren?</translation>
         <translation>Tags verwalten</translation>
     </message>
     <message>
-        <source>Settings</source>
-        <translation>Einstellungen</translation>
-    </message>
-    <message>
         <source>Import from Mouser</source>
         <translation>Aus Mouser importieren</translation>
     </message>
@@ -1625,14 +1633,6 @@ Fortfahren?</translation>
         <translation>Öffnet das Datenblatt dieses Bauteils im PDF-Betrachter.</translation>
     </message>
     <message>
-        <source>Switch Database...</source>
-        <translation>Datenbank wechseln...</translation>
-    </message>
-    <message>
-        <source>Panels</source>
-        <translation>Bereiche</translation>
-    </message>
-    <message>
         <source>Help</source>
         <translation>Hilfe</translation>
     </message>
@@ -1662,6 +1662,98 @@ Die Projektseite enthält die README, die derzeit die gesamte Dokumentation ausm
             <numerusform>Alle Kategorien — %n Bauteil</numerusform>
             <numerusform>Alle Kategorien — %n Bauteile</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>&amp;File</source>
+        <translation>&amp;Datei</translation>
+    </message>
+    <message>
+        <source>&amp;Switch Database...</source>
+        <translation>Datenbank &amp;wechseln...</translation>
+    </message>
+    <message>
+        <source>S&amp;ettings...</source>
+        <translation>&amp;Einstellungen...</translation>
+    </message>
+    <message>
+        <source>E&amp;xit</source>
+        <translation>&amp;Beenden</translation>
+    </message>
+    <message>
+        <source>&amp;View</source>
+        <translation>&amp;Ansicht</translation>
+    </message>
+    <message>
+        <source>&amp;Help</source>
+        <translation>&amp;Hilfe</translation>
+    </message>
+    <message>
+        <source>&amp;About PartManager</source>
+        <translation>Über &amp;PartManager</translation>
+    </message>
+    <message>
+        <source>Build</source>
+        <translation>Erstellen</translation>
+    </message>
+    <message>
+        <source>Mouser</source>
+        <translation>Mouser</translation>
+    </message>
+    <message>
+        <source>Library</source>
+        <translation>Bibliothek</translation>
+    </message>
+    <message>
+        <source>Select a part first — a file is attached to one part.</source>
+        <translation>Wählen Sie zuerst ein Bauteil aus — eine Datei wird an ein einzelnes Bauteil angehängt.</translation>
+    </message>
+    <message>
+        <source>Attach a file to this part</source>
+        <translation>Datei an dieses Bauteil anhängen</translation>
+    </message>
+    <message>
+        <source>All supported (*.pdf *.kicad_sym *.kicad_mod *.step *.stp *.stl *.obj *.wrl *.png *.jpg *.jpeg);;Datasheet (*.pdf);;KiCad symbol (*.kicad_sym);;KiCad footprint (*.kicad_mod);;3D model (*.step *.stp *.stl *.obj *.wrl);;Image (*.png *.jpg *.jpeg);;All files (*)</source>
+        <translation>Alle unterstützten (*.pdf *.kicad_sym *.kicad_mod *.step *.stp *.stl *.obj *.wrl *.png *.jpg *.jpeg);;Datenblatt (*.pdf);;KiCad-Symbol (*.kicad_sym);;KiCad-Footprint (*.kicad_mod);;3D-Modell (*.step *.stp *.stl *.obj *.wrl);;Bild (*.png *.jpg *.jpeg);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Datasheet</source>
+        <translation>Datenblatt</translation>
+    </message>
+    <message>
+        <source>KiCad symbol</source>
+        <translation>KiCad-Symbol</translation>
+    </message>
+    <message>
+        <source>KiCad footprint</source>
+        <translation>KiCad-Footprint</translation>
+    </message>
+    <message>
+        <source>3D model</source>
+        <translation>3D-Modell</translation>
+    </message>
+    <message>
+        <source>Image</source>
+        <translation>Bild</translation>
+    </message>
+    <message>
+        <source>Other</source>
+        <translation>Sonstiges</translation>
+    </message>
+    <message>
+        <source>Attach file</source>
+        <translation>Datei anhängen</translation>
+    </message>
+    <message>
+        <source>Attach %1 as:</source>
+        <translation>%1 anhängen als:</translation>
+    </message>
+    <message>
+        <source>Could not attach the file</source>
+        <translation>Datei konnte nicht angehängt werden</translation>
+    </message>
+    <message>
+        <source>The file could not be attached.</source>
+        <translation>Die Datei konnte nicht angehängt werden.</translation>
     </message>
 </context>
 <context>
@@ -2856,6 +2948,18 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
     <message>
         <source>Not everything was attached</source>
         <translation>Nicht alles wurde angehängt</translation>
+    </message>
+    <message>
+        <source>Extra words a search matches this part on, one per line. The category&apos;s own words already apply and do not need repeating here.</source>
+        <translation>Zusätzliche Wörter, unter denen die Suche dieses Bauteil findet — eines pro Zeile. Die Wörter der Kategorie gelten bereits und müssen hier nicht wiederholt werden.</translation>
+    </message>
+    <message>
+        <source>This category declares no search words yet — add them in Edit Type Templates to give every part in it the same ones.</source>
+        <translation>Diese Kategorie hat noch keine Suchbegriffe — legen Sie sie unter „Typvorlagen bearbeiten“ an, damit jedes Bauteil darin dieselben erhält.</translation>
+    </message>
+    <message>
+        <source>From the category: %1</source>
+        <translation>Aus der Kategorie: %1</translation>
     </message>
 </context>
 <context>
@@ -4348,6 +4452,14 @@ Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im 
     <message>
         <source>Close</source>
         <translation>Schließen</translation>
+    </message>
+    <message>
+        <source>Search words</source>
+        <translation>Suchbegriffe</translation>
+    </message>
+    <message>
+        <source>Extra words a search matches this type&apos;s parts on, one per line — &quot;R&quot;, &quot;Res&quot;, &quot;Ohm&quot;. Every part of this type answers to them, and to the ones its parent types declare; a part can add its own in the part editor.</source>
+        <translation>Zusätzliche Wörter, unter denen die Suche die Bauteile dieses Typs findet — eines pro Zeile, etwa „R“, „Res“, „Ohm“. Jedes Bauteil dieses Typs reagiert darauf und auf die Wörter seiner Übergeordneten Typen; eigene kommen im Bauteil-Editor dazu.</translation>
     </message>
 </context>
 </TS>

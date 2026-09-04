@@ -43,7 +43,12 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMenuBar>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QInputDialog>
 #include <QMessageBox>
+#include <QScrollBar>
 #include <QPixmap>
 #include <QPixmapCache>
 #include <QPushButton>
@@ -182,6 +187,7 @@ namespace PartManager
 		, m_stock(m_controller.handle())
 	{
 		m_ui->setupUi(this);
+		buildMenuBar();
 		buildRibbon();
 
 		// The database name is user data (a folder name), so only the frame around it is translated.
@@ -211,6 +217,9 @@ namespace PartManager
 		m_ui->bodySplitter->setStretchFactor(1, 1);
 		m_ui->bodySplitter->setStretchFactor(2, 0);
 		m_ui->bodySplitter->setSizes({ 220, 540, 240 });
+		// 220 was a guess, and "Crystal / Oscillator (12)" with an icon in front of it does not fit
+		// in it — the tree opened with its longest names elided. The real width is measured once
+		// the categories are in, below.
 
 		// §7's browser is a dock rather than the central widget, so it can be moved, floated or
 		// stacked against the partlist panel — which is the whole reason that panel became a dock
@@ -246,6 +255,21 @@ namespace PartManager
 			view->setMinimumHeight(70);
 			view->setMaximumHeight(110);
 		}
+		// The empty-state label must not have an opinion about how wide the panel is: it is word
+		// wrapped, and a word-wrapped label asks for enough width to lay its sentence out. That
+		// reached the splitter as a minimum every time the selection emptied.
+		m_ui->previewEmptyLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Expanding);
+
+		// **Only the user resizes this panel.** An explicit minimum width, which qSmartMinSize()
+		// honours over the one the layout computes, so nothing inside the panel can push it wider
+		// any more — a long progress line under the 3D scene, a wrapped message where the model
+		// should be, a part number without a space in it. Every one of those used to reach the
+		// splitter as a minimum it had to obey, and chasing them one at a time was never going to
+		// end: a panel that rebuilds its contents for every selection has an unbounded supply.
+		// The cost is that a panel dragged narrower clips its contents instead of refusing, which
+		// is the correct trade for a preview — and the scroll area inside it scrolls.
+		m_ui->previewPanel->setMinimumWidth(150);
+
 		m_symbolPreview->setToolTip(tr("The schematic symbol this part places in KiCad."));
 		m_footprintPreview->setToolTip(tr("The PCB footprint this part places in KiCad."));
 		{
@@ -346,6 +370,60 @@ namespace PartManager
 		reloadCategories();
 	}
 
+	void MainWindow::showEvent(QShowEvent* event)
+	{
+		QMainWindow::showEvent(event);
+		// Once, on the first show. Not in the constructor, which is where this started: before the
+		// window is shown the splitter has no geometry, sizes() is all zeroes, and the arithmetic
+		// below then handed the whole width to the tree and nothing at all to the part table.
+		if (!m_panesFitted)
+		{
+			m_panesFitted = true;
+			fitPanes();
+		}
+	}
+
+	void MainWindow::fitPanes()
+	{
+		const int total = m_ui->bodySplitter->width();
+		if (total <= 0)
+		{
+			return;
+		}
+
+		// The width at which no category name is elided, measured rather than guessed: resizing
+		// the column to its contents accounts for each row's icon and indentation. The header has
+		// to stop stretching the last (only) section first, or the column is by definition the
+		// viewport's width and measuring it says nothing. sizeHintForColumn() would be the direct
+		// way to ask, but QTreeView keeps it protected.
+		QHeaderView* header = m_ui->categoryTree->header();
+		header->setStretchLastSection(false);
+		m_ui->categoryTree->resizeColumnToContents(0);
+		int tree = m_ui->categoryTree->columnWidth(0)
+			+ m_ui->categoryTree->verticalScrollBar()->sizeHint().width()
+			+ 2 * m_ui->categoryTree->frameWidth() + 8;
+		header->setStretchLastSection(true);
+
+		// The preview opens at the narrowest it can draw itself. It is a glance, not a screen —
+		// the rows it describes are what the window is for, and the handle is right there.
+		int preview = m_ui->previewPanel->minimumSizeHint().width();
+
+		// The part table is what must never be squeezed out. Both side panels are capped at a
+		// third of the window each, and if the two of them together still leave the table under
+		// its own minimum they give the difference back in proportion.
+		tree = qBound(160, tree, total / 3);
+		preview = qBound(160, preview, total / 3);
+		const int partsMinimum = qMin(360, total / 3);
+		if (total - tree - preview < partsMinimum)
+		{
+			const int over = partsMinimum - (total - tree - preview);
+			const int fromTree = over * tree / qMax(1, tree + preview);
+			tree -= fromTree;
+			preview -= over - fromTree;
+		}
+		m_ui->bodySplitter->setSizes({ tree, total - tree - preview, preview });
+	}
+
 	MainWindow::~MainWindow()
 	{
 #if RIBBON_WIDGET_LIBRARY_AVAILABLE == 1
@@ -354,9 +432,80 @@ namespace PartManager
 		delete m_ui;
 	}
 
-	void MainWindow::onNotImplemented()
+	void MainWindow::onAttachFile()
 	{
-		// Ribbon actions land in later slices; the buttons exist so the shell matches §7.
+		const int partId = selectedPartId();
+		if (partId == 0)
+		{
+			m_ui->statusBar->showMessage(tr("Select a part first — a file is attached to one part."),
+				4000);
+			return;
+		}
+
+		const QString path = QFileDialog::getOpenFileName(this, tr("Attach a file to this part"),
+			QString(),
+			tr("All supported (*.pdf *.kicad_sym *.kicad_mod *.step *.stp *.stl *.obj *.wrl *.png "
+			   "*.jpg *.jpeg);;Datasheet (*.pdf);;KiCad symbol (*.kicad_sym);;"
+			   "KiCad footprint (*.kicad_mod);;3D model (*.step *.stp *.stl *.obj *.wrl);;"
+			   "Image (*.png *.jpg *.jpeg);;All files (*)"));
+		if (path.isEmpty())
+		{
+			return;
+		}
+
+		// The role is asked for, with the extension's answer preselected rather than assumed: a
+		// .pdf is nearly always the datasheet but is occasionally a mechanical drawing, and a file
+		// filed under the wrong role is invisible in the slot the user goes looking in.
+		const QStringList roles{ tr("Datasheet"), tr("KiCad symbol"), tr("KiCad footprint"),
+			tr("3D model"), tr("Image"), tr("Other") };
+		const std::vector<PartFileRole> roleValues{ PartFileRole::Datasheet, PartFileRole::KicadSymbol,
+			PartFileRole::KicadFootprint, PartFileRole::Kicad3DModel, PartFileRole::Image,
+			PartFileRole::Other };
+		const QString suffix = QFileInfo(path).suffix().toLower();
+		int preselected = 5;
+		if (suffix == QLatin1String("pdf")) { preselected = 0; }
+		else if (suffix == QLatin1String("kicad_sym")) { preselected = 1; }
+		else if (suffix == QLatin1String("kicad_mod")) { preselected = 2; }
+		else if (suffix == QLatin1String("step") || suffix == QLatin1String("stp")
+			|| suffix == QLatin1String("stl") || suffix == QLatin1String("obj")
+			|| suffix == QLatin1String("wrl")) { preselected = 3; }
+		else if (suffix == QLatin1String("png") || suffix == QLatin1String("jpg")
+			|| suffix == QLatin1String("jpeg")) { preselected = 4; }
+
+		bool confirmed = false;
+		const QString chosen = QInputDialog::getItem(this, tr("Attach file"),
+			tr("Attach %1 as:").arg(QFileInfo(path).fileName()), roles, preselected, false, &confirmed);
+		if (!confirmed)
+		{
+			return;
+		}
+		const PartFileRole role = roleValues[static_cast<size_t>(std::max(0, roles.indexOf(chosen)))];
+
+		PartEditorController editor(m_controller.handle());
+		std::string error;
+		bool ok = false;
+		if (role == PartFileRole::Datasheet)
+		{
+			// The datasheet is the one role with a column on `part` pointing at it, so it goes
+			// through the slot that maintains that column and is written back by its caller — here.
+			Part part;
+			ok = editor.loadPart(partId, part)
+				&& editor.attachDatasheet(part, path.toStdString(), &error) != 0
+				&& editor.savePart(part);
+		}
+		else
+		{
+			ok = editor.attachRoleFile(partId, role, path.toStdString(), &error) != 0;
+		}
+
+		if (!ok)
+		{
+			QMessageBox::warning(this, tr("Could not attach the file"), error.empty()
+				? tr("The file could not be attached.") : QString::fromStdString(error));
+			return;
+		}
+		// The row's Files column and the preview both read the attachments, so both are stale now.
+		refreshCurrentCategory();
 	}
 
 	void MainWindow::onGenerateKicadLibraries()
@@ -482,29 +631,43 @@ namespace PartManager
 		QMainWindow::closeEvent(event);
 	}
 
-	void MainWindow::contextMenuEvent(QContextMenuEvent* event)
+	void MainWindow::buildMenuBar()
 	{
-		QMenu menu(this);
-		connect(menu.addAction(tr("Switch Database...")), &QAction::triggered,
+		// A menu bar above the ribbon, where every other desktop application keeps these. They
+		// were on a right-click menu on the window, which is a place nobody looks first, and
+		// Settings was a ribbon button — but Settings is not a thing you *do* to your parts, it is
+		// a property of the application, which is exactly the distinction a menu bar draws.
+		QMenu* fileMenu = menuBar()->addMenu(tr("&File"));
+		connect(fileMenu->addAction(tr("&Switch Database...")), &QAction::triggered,
 			this, &MainWindow::onSwitchDatabase);
+		connect(fileMenu->addAction(tr("S&ettings...")), &QAction::triggered,
+			this, &MainWindow::onSettings);
+		fileMenu->addSeparator();
+		QAction* quit = fileMenu->addAction(tr("E&xit"));
+		quit->setShortcut(QKeySequence::Quit);
+		connect(quit, &QAction::triggered, this, &MainWindow::close);
 
-		// QMainWindow's own dock/toolbar toggles, which are what this handler would otherwise be
-		// taking away — they are the only way back to a dock the user closed. Owned here rather
-		// than by the menu: addMenu() does not adopt it, and createPopupMenu() hands over a new one.
-		QScopedPointer<QMenu> panels(createPopupMenu());
-		if (!panels.isNull())
-		{
-			panels->setTitle(tr("Panels"));
-			menu.addMenu(panels.data());
-		}
+		// Filled when it opens rather than now: createPopupMenu() reports the docks and toolbars
+		// as they stand, and the actions in it are the docks' own toggleViewAction()s, so they go
+		// on ticking themselves after being moved across. Building it once would freeze the list
+		// as it was at startup.
+		QMenu* viewMenu = menuBar()->addMenu(tr("&View"));
+		connect(viewMenu, &QMenu::aboutToShow, this, [this, viewMenu]()
+			{
+				viewMenu->clear();
+				QScopedPointer<QMenu> panels(createPopupMenu());
+				if (!panels.isNull())
+				{
+					viewMenu->addActions(panels->actions());
+				}
+			});
 
-		menu.addSeparator();
-		connect(menu.addAction(tr("Help")), &QAction::triggered, this, &MainWindow::onHelp);
-		connect(menu.addAction(tr("About PartManager")), &QAction::triggered,
+		QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
+		QAction* help = helpMenu->addAction(tr("&Help"));
+		help->setShortcut(QKeySequence::HelpContents);
+		connect(help, &QAction::triggered, this, &MainWindow::onHelp);
+		connect(helpMenu->addAction(tr("&About PartManager")), &QAction::triggered,
 			this, &MainWindow::onAbout);
-
-		menu.exec(event->globalPos());
-		event->accept();
 	}
 
 	std::unique_ptr<DatabaseHandle> MainWindow::takeSwitchTarget()
@@ -612,6 +775,19 @@ namespace PartManager
 		};
 		wire(m_ui->treeFilterEdit, &MainWindow::reloadCategories);
 		wire(m_ui->tableFilterEdit, &MainWindow::refreshCurrentCategory);
+		// Remembered per user rather than per database (§9): someone who never wants to see empty
+		// categories does not want to re-tick this in every database they open. Set before the
+		// connect, so restoring it is not itself a reload — the tree is built after this anyway.
+		m_ui->hideEmptyCheck->setChecked(Settings::getPreferences().hideEmptyCategories);
+		connect(m_ui->hideEmptyCheck, &QCheckBox::toggled, this, [this](bool checked)
+		{
+			// Read-modify-write, not a struct built here: everything else in AppPreferences
+			// belongs to the Settings dialog and must survive this.
+			AppPreferences preferences = Settings::getPreferences();
+			preferences.hideEmptyCategories = checked;
+			Settings::setPreferences(preferences);
+			reloadCategories();
+		});
 
 		// §7a's third scope: the same box, the same grammar, run over every part instead of the
 		// selected category. A checkbox rather than clearing the tree selection, because the
@@ -619,15 +795,11 @@ namespace PartManager
 		// the box is empty, which "the tree happens to have nothing selected" would not be.
 		connect(m_ui->allCategoriesCheck, &QCheckBox::toggled,
 			this, &MainWindow::refreshCurrentCategory);
-		// Emptying the box is the other way out, so the scope cannot outlive the search that
-		// wanted it. (Escape is handled in eventFilter(), which also drops the focus back.)
-		connect(m_ui->tableFilterEdit, &QLineEdit::textChanged, this, [this](const QString& text)
-		{
-			if (text.isEmpty())
-			{
-				m_ui->allCategoriesCheck->setChecked(false);
-			}
-		});
+		// Emptying the box deliberately does *not* drop the scope. It used to, and it made the
+		// tick impossible to keep: backspacing over a search to type a different one dropped it
+		// mid-edit, and unticking the last tag in the tag filter empties the box too, so the
+		// scope disappeared on an action that had nothing to do with it. Escape and clicking a
+		// category are the two ways out, and both are things the user did on purpose.
 		m_ui->tableFilterEdit->installEventFilter(this);
 		// Clicking a category is the other obvious way back, so it drops the scope and re-runs the
 		// same query inside that category — the drill-down a cross-category result invites.
@@ -689,6 +861,13 @@ namespace PartManager
 
 	void MainWindow::reloadCategories()
 	{
+		// Emptying the tree and refilling it moves every child's size hint twice, and the splitter
+		// follows — so "Refresh" used to nudge the three panes apart and back. The user put those
+		// handles where they are; a reload is not a reason to move them.
+		const QList<int> paneSizes = m_ui->bodySplitter->sizes();
+		const auto restorePanes = qScopeGuard([this, paneSizes]()
+			{ m_ui->bodySplitter->setSizes(paneSizes); });
+
 		const QString filter = m_ui->treeFilterEdit->text();
 		markFilterError(m_ui->treeFilterEdit, searchError(filter));
 
@@ -732,6 +911,14 @@ namespace PartManager
 		// most of it reading "(0)". matchCount already includes every descendant, so a category
 		// that only matches through a child survives here and its child is kept below.
 		if (filtering && node.matchCount == 0)
+		{
+			return;
+		}
+		// "Hide empty" is the same idea without a search behind it: a type nobody has ever filed a
+		// part under is a template, not a place to look. partCount counts the whole subtree, so a
+		// parent that is empty itself but has stocked children stays — hiding it would take its
+		// children with it.
+		if (m_ui->hideEmptyCheck->isChecked() && node.partCount == 0)
 		{
 			return;
 		}
@@ -1307,8 +1494,16 @@ namespace PartManager
 		// repaint at the end instead. The guard, not a plain pair of calls, because the empty
 		// state returns early.
 		m_ui->previewPanel->setUpdatesEnabled(false);
-		const auto repaintOnce = qScopeGuard([this]()
-			{ m_ui->previewPanel->setUpdatesEnabled(true); });
+		// ...and the panel keeps its width. Switching between "a part is selected" and "none is"
+		// swaps a scroll area for a label, and the two do not ask for the same width — so a search
+		// that made the selected part vanish widened the panel, and getting the part back narrowed
+		// it again. Two visible jumps for a selection that ended up where it started.
+		const QList<int> paneSizes = m_ui->bodySplitter->sizes();
+		const auto repaintOnce = qScopeGuard([this, paneSizes]()
+			{
+				m_ui->bodySplitter->setSizes(paneSizes);
+				m_ui->previewPanel->setUpdatesEnabled(true);
+			});
 
 		const int partId = selectedPartId();
 		if (partId != 0)
@@ -1430,17 +1625,30 @@ namespace PartManager
 
 		// Tabs, groups and buttons all register themselves with the parent passed to their
 		// constructor — calling addTab()/addGroup()/addButton() on top of that adds them twice.
+		// §7's five tabs. The two-tab fold-in was a scaffold: Partlists, Orders and KiCad each
+		// have their own screen and their own vocabulary, and burying them in *New* and *Manage*
+		// meant the Parts tab was where you went for things that had nothing to do with a part.
+		// Only groups with a working action are built — an empty group, or one filled with
+		// buttons that do nothing, is what the List / Grid button already taught us not to ship.
 		RibbonWidget::RibbonTab* homeTab =
 			new RibbonWidget::RibbonTab(tr("Home"), QStringLiteral(":/icons/tab-home.png"), m_ribbon);
 		RibbonWidget::RibbonTab* partsTab =
 			new RibbonWidget::RibbonTab(tr("Parts"), QStringLiteral(":/icons/tab-parts.png"), m_ribbon);
+		RibbonWidget::RibbonTab* partlistsTab =
+			new RibbonWidget::RibbonTab(tr("Partlists"), QStringLiteral(":/icons/new-partlist.png"), m_ribbon);
+		RibbonWidget::RibbonTab* ordersTab =
+			new RibbonWidget::RibbonTab(tr("Orders"), QStringLiteral(":/icons/orders.png"), m_ribbon);
+		RibbonWidget::RibbonTab* kicadTab =
+			new RibbonWidget::RibbonTab(tr("KiCad"), QStringLiteral(":/icons/viewer-3d.png"), m_ribbon);
 
 		RibbonWidget::RibbonButtonGroup* newGroup = new RibbonWidget::RibbonButtonGroup(tr("New"), homeTab);
 		RibbonWidget::RibbonButtonGroup* stockGroup = new RibbonWidget::RibbonButtonGroup(tr("Stock"), homeTab);
 		RibbonWidget::RibbonButtonGroup* viewGroup = new RibbonWidget::RibbonButtonGroup(tr("View"), homeTab);
 		RibbonWidget::RibbonButtonGroup* manageGroup = new RibbonWidget::RibbonButtonGroup(tr("Manage"), partsTab);
 		RibbonWidget::RibbonButtonGroup* filesGroup = new RibbonWidget::RibbonButtonGroup(tr("Files"), partsTab);
-		RibbonWidget::RibbonButtonGroup* kicadGroup = new RibbonWidget::RibbonButtonGroup(tr("KiCad"), partsTab);
+		RibbonWidget::RibbonButtonGroup* buildGroup = new RibbonWidget::RibbonButtonGroup(tr("Build"), partlistsTab);
+		RibbonWidget::RibbonButtonGroup* mouserGroup = new RibbonWidget::RibbonButtonGroup(tr("Mouser"), ordersTab);
+		RibbonWidget::RibbonButtonGroup* kicadGroup = new RibbonWidget::RibbonButtonGroup(tr("Library"), kicadTab);
 
 		auto addButton = [this](RibbonWidget::RibbonButtonGroup* group, const QString& text,
 			const QString& iconPath, void (MainWindow::*slot)())
@@ -1450,24 +1658,32 @@ namespace PartManager
 			connect(button, &QToolButton::clicked, this, slot);
 		};
 
-		// Import from Mouser has no icon yet — that one is still on the asset list.
 		addButton(newGroup, tr("New Part"), QStringLiteral(":/icons/new-part.png"), &MainWindow::onNewPart);
 		addButton(newGroup, tr("New Partlist"), QStringLiteral(":/icons/new-partlist.png"), &MainWindow::onNewPartlist);
-		addButton(newGroup, tr("Import CSV / BOM"), QStringLiteral(":/icons/import-csv.png"), &MainWindow::onImportPartlist);
-		addButton(newGroup, tr("Partlists"), QStringLiteral(":/icons/view-list.png"), &MainWindow::onManagePartlists);
-		addButton(newGroup, tr("Orders"), QStringLiteral(":/icons/orders.png"), &MainWindow::onManageOrders);
 		addButton(stockGroup, tr("Restock"), QStringLiteral(":/icons/restock.png"), &MainWindow::onRestock);
 		addButton(stockGroup, tr("Take Out"), QStringLiteral(":/icons/take-out.png"), &MainWindow::onTakeOut);
 		addButton(viewGroup, tr("Refresh"), QStringLiteral(":/icons/refresh.png"), &MainWindow::reloadCategories);
 		addButton(viewGroup, tr("Customize Columns"), QStringLiteral(":/icons/tabelle.png"), &MainWindow::onCustomizeColumns);
 		addButton(viewGroup, tr("3D Viewer"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onView3DModel);
+
 		addButton(manageGroup, tr("Edit Type Templates"), QStringLiteral(":/icons/edit-type-template.png"), &MainWindow::onEditTypeTemplates);
 		addButton(manageGroup, tr("Manage Tags"), QStringLiteral(":/icons/manage-tags.png"), &MainWindow::onManageTags);
-		addButton(manageGroup, tr("Settings"), QStringLiteral(":/icons/settings.png"), &MainWindow::onSettings);
 		addButton(manageGroup, tr("Import from Mouser"), QStringLiteral(":/icons/mouser-search.png"), &MainWindow::onNewPartFromMouser);
+		addButton(filesGroup, tr("Attach File"), QStringLiteral(":/icons/attach-file.png"), &MainWindow::onAttachFile);
+		addButton(filesGroup, tr("Open Datasheet"), QStringLiteral(":/icons/open-datasheet.png"), &MainWindow::onOpenDatasheet);
+
+		// New Partlist is on Home as well: it is both "something new" and the first thing you do
+		// on this tab, and a ribbon repeating one action across two tabs is ordinary.
+		addButton(buildGroup, tr("New Partlist"), QStringLiteral(":/icons/new-partlist.png"), &MainWindow::onNewPartlist);
+		addButton(buildGroup, tr("Import CSV / BOM"), QStringLiteral(":/icons/import-csv.png"), &MainWindow::onImportPartlist);
+		addButton(buildGroup, tr("Partlists"), QStringLiteral(":/icons/view-list.png"), &MainWindow::onManagePartlists);
+
+		// §7 also lists Build Order / Stage to Cart / Mark Submitted here. Those are steps *inside*
+		// an order and live on the Orders screen, where the order they apply to is selected; a
+		// ribbon button for them would have nothing to act on.
+		addButton(mouserGroup, tr("Orders"), QStringLiteral(":/icons/orders.png"), &MainWindow::onManageOrders);
+
 		addButton(kicadGroup, tr("Generate Libraries"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onGenerateKicadLibraries);
-		addButton(filesGroup, tr("Attach File"), QStringLiteral(":/icons/attach-file.png"), &MainWindow::onNotImplemented);
-		addButton(filesGroup, tr("Open Datasheet"), QStringLiteral(":/icons/open-datasheet.png"), &MainWindow::onNotImplemented);
 #endif
 	}
 

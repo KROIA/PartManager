@@ -67,6 +67,7 @@ namespace PartManager
 				, backupIntervalHours("backupIntervalHours", 6)
 				, backupRetentionCount("backupRetentionCount", 20)
 				, backupFolder("backupFolder", QString())
+				, hideEmptyCategories("hideEmptyCategories", false)
 			{
 				addSetting(language);
 				addSetting(theme);
@@ -76,6 +77,7 @@ namespace PartManager
 				addSetting(backupIntervalHours);
 				addSetting(backupRetentionCount);
 				addSetting(backupFolder);
+				addSetting(hideEmptyCategories);
 			}
 
 			AppSettings::Setting language;
@@ -86,6 +88,7 @@ namespace PartManager
 			AppSettings::Setting backupIntervalHours;
 			AppSettings::Setting backupRetentionCount;
 			AppSettings::Setting backupFolder;
+			AppSettings::Setting hideEmptyCategories;
 		};
 
 		// Keys inside one remembered-mapping QVariantMap.
@@ -214,6 +217,7 @@ namespace PartManager
 		preferences.currency = group.currency.getValue().toString().toStdString();
 		preferences.kicadLibraryPath = group.kicadLibraryPath.getValue().toString().toStdString();
 		preferences.backupsEnabled = group.backupsEnabled.getValue().toBool();
+		preferences.hideEmptyCategories = group.hideEmptyCategories.getValue().toBool();
 		preferences.backupIntervalHours = clamped(group.backupIntervalHours.getValue().toInt(),
 			MinBackupIntervalHours, MaxBackupIntervalHours);
 		preferences.backupRetentionCount = clamped(group.backupRetentionCount.getValue().toInt(),
@@ -240,6 +244,7 @@ namespace PartManager
 		group.currency.setValue(QString::fromStdString(preferences.currency));
 		group.kicadLibraryPath.setValue(QString::fromStdString(preferences.kicadLibraryPath));
 		group.backupsEnabled.setValue(preferences.backupsEnabled);
+		group.hideEmptyCategories.setValue(preferences.hideEmptyCategories);
 		group.backupIntervalHours.setValue(clamped(preferences.backupIntervalHours,
 			MinBackupIntervalHours, MaxBackupIntervalHours));
 		group.backupRetentionCount.setValue(clamped(preferences.backupRetentionCount,

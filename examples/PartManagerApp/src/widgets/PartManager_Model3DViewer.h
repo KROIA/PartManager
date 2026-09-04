@@ -204,6 +204,10 @@ namespace PartManager
 		QString m_pendingStep;
 		// The mesh handed to QMesh, for the watchdog's message.
 		QString m_loadingMesh;
+		// The model path currently drawn, so showModel() can tell "the user picked another part"
+		// from "the panel was rebuilt for the same one" and skip the second. Empty whenever the
+		// scene does not hold a loaded model, which includes every message state.
+		QString m_shownPath;
 		QTimer* m_loadWatchdog = nullptr;
 	};
 

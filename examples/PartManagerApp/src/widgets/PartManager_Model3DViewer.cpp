@@ -142,6 +142,12 @@ namespace PartManager
 		m_messageLabel = new QLabel(this);
 		m_messageLabel->setAlignment(Qt::AlignCenter);
 		m_messageLabel->setWordWrap(true);
+		// Ignored, or this label decides how wide the viewer is. A stacked widget's size hint is
+		// the widest of its pages, and a word-wrapped label asks for enough width to lay its text
+		// out reasonably — several hundred pixels for the "this format needs a CAD kernel"
+		// paragraph. That reached the preview panel as a minimum width the splitter had to honour,
+		// so showing the message page widened the whole panel and it stayed widened.
+		m_messageLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 		m_stack->addWidget(m_messageLabel);
 		layout->addWidget(m_stack, 1);
 
@@ -151,6 +157,11 @@ namespace PartManager
 		QHBoxLayout* progressLayout = new QHBoxLayout(m_progressStrip);
 		progressLayout->setContentsMargins(4, 0, 4, 2);
 		m_progressLabel = new QLabel(m_progressStrip);
+		// "Loading 1734-SMD-3-Pad.step…" is as wide as the filename is long, and a plain QLabel
+		// asks for exactly that much room — so showing the strip widened the viewer, and hiding it
+		// narrowed it back, once per model load. Ignored means it takes the width it is given;
+		// there is nothing else on that line that the name has to be readable next to.
+		m_progressLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 		m_progressBar = new QProgressBar(m_progressStrip);
 		// 0..0 is Qt's busy indicator. Neither FreeCAD's tessellation nor QMesh's loader reports
 		// a percentage, and a fake one that jumps to 100% and waits is worse than none.
@@ -254,6 +265,7 @@ namespace PartManager
 				{
 					// What the builder produces is a mesh set, not a single mesh.
 					loadMeshSet(meshPath);
+					m_shownPath = stepPath;
 				}
 			});
 		connect(builder, &MeshCacheBuilder::meshFailed, this,
@@ -296,6 +308,17 @@ namespace PartManager
 			}
 		};
 
+		// Already on screen. "Refresh" re-runs the whole preview for the part that is already
+		// selected, and re-loading a model that has not changed is not just wasted work: the
+		// progress strip appears and disappears under the scene, which resizes the window
+		// container by its height twice, and resizing a native window is what flashes.
+		if (!absolutePath.isEmpty() && absolutePath == m_shownPath && !m_meshes.empty())
+		{
+			report(QString());
+			return true;
+		}
+		m_shownPath.clear();
+
 		m_pendingStep.clear();
 		m_loadWatchdog->stop();
 		hideProgress();
@@ -324,6 +347,7 @@ namespace PartManager
 		if (isRenderableModel3D(format))
 		{
 			loadMesh(absolutePath);
+			m_shownPath = absolutePath;
 			report(QString());
 			return true;
 		}
@@ -338,6 +362,7 @@ namespace PartManager
 				// A converted STEP is a *set* — one mesh per solid, each in the colour the STEP
 				// gave that solid.
 				loadMeshSet(cached);
+				m_shownPath = absolutePath;
 				report(QString());
 				return true;
 			}

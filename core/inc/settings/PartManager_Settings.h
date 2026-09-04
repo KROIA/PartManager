@@ -54,6 +54,12 @@ namespace PartManager
 		int backupIntervalHours = 6;
 		int backupRetentionCount = 20;
 		std::string backupFolder;                 // empty = `backups/` inside the database folder
+
+		// §7a's "Hide empty" tick on the category tree. A view preference rather than a §9 one —
+		// the Settings dialog does not show it, the checkbox itself is the control. It lives here
+		// because it is per-user and not per-database: a user who never wants to see empty
+		// categories does not want to re-tick it in every database they open.
+		bool hideEmptyCategories = false;
 	};
 
 	// One remembered CSV/BOM column mapping (§5). Keyed by `headerSignature` — the file's own

@@ -49,6 +49,16 @@ Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an 
          </widget>
         </item>
         <item>
+         <widget class="QCheckBox" name="hideEmptyCheck">
+          <property name="text">
+           <string>Hide empty</string>
+          </property>
+          <property name="toolTip">
+           <string>Hides categories that hold no parts, and no parts anywhere below them.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QLabel" name="categoriesLabel">
           <property name="text">
            <string>CATEGORIES</string>

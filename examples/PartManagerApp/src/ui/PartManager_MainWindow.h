@@ -52,8 +52,9 @@ namespace PartManager
 		std::unique_ptr<DatabaseHandle> takeSwitchTarget();
 
 	private slots:
-		// Placeholder for every ribbon button until the screens behind them exist.
-		void onNotImplemented();
+		// Attaches a file to the selected part under a role picked in the dialog — the ribbon's
+		// way in to what the part editor's attachment slots do, without opening the editor.
+		void onAttachFile();
 		// Loads the tree from the database again — the ribbon's Refresh button and startup both use it.
 		void reloadCategories();
 		// Fills the table with the newly selected category's parts (§7b).
@@ -113,9 +114,8 @@ namespace PartManager
 		// §9a: the "always on clean shutdown" snapshot. Also the only one a user who never leaves
 		// the app running for six hours would ever get.
 		void closeEvent(QCloseEvent* event) override;
-		// §1b's "reachable anytime" menu. Reached only when no child widget claimed the click —
-		// the partlist rows take Qt::CustomContextMenu, which accepts the event and stops it here.
-		void contextMenuEvent(QContextMenuEvent* event) override;
+		// Where the panes get their opening widths — the splitter has no geometry before this.
+		void showEvent(QShowEvent* event) override;
 		// Turns the browser dock's ✕ into "put it back": the dock has a close button so a floating
 		// window can be dismissed the way every floating window can, but closing the browser
 		// outright would leave the main window empty with no way to bring it back.
@@ -146,8 +146,17 @@ namespace PartManager
 		// database switch, which is a shutdown of this database in every way that matters.
 		void flushPendingWork();
 
-		// Builds the Home/Parts tabs of §7 into the .ui file's ribbonToolBar.
+		// Gives the three panes their opening widths: the tree as wide as its own longest row, the
+		// preview as narrow as it can draw itself, the part table everything left over. Runs once
+		// from showEvent() and never again — from then on the widths are the user's.
+		void fitPanes();
+		bool m_panesFitted = false;
+		// Builds §7's five tabs into the .ui file's ribbonToolBar.
 		void buildRibbon();
+		// File / View / Help above the ribbon: switching database, settings, the dock toggles and
+		// the about box — the things that are properties of the application rather than actions on
+		// a part, which is what keeps them off the ribbon.
+		void buildMenuBar();
 		// Wires both §7a filter boxes to their debounce timers, and builds the tag filter
 		// drop-down that writes `tag:` terms into the table box.
 		void setupFilters();
