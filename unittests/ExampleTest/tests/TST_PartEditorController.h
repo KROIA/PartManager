@@ -27,7 +27,9 @@ public:
 		ADD_TEST(TST_PartEditorController::requiredKeysBlockCreation);
 		ADD_TEST(TST_PartEditorController::widgetKindFollowsDatatype);
 		ADD_TEST(TST_PartEditorController::availableTagsExcludeCarriedOnes);
+		ADD_TEST(TST_PartEditorController::suggestedNameFillsInThePattern);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		ADD_TEST(TST_PartEditorController::movingAPartToAnotherTypeKeepsWhatPointsAtIt);
 		ADD_TEST(TST_PartEditorController::datasheetAttachReplaceAndDetach);
 		ADD_TEST(TST_PartEditorController::anImportedDatasheetIsFoundWithoutTheCachedId);
 		ADD_TEST(TST_PartEditorController::imageSlotReplacesInPlaceAndDeleteTakesEverythingWithIt);
@@ -35,6 +37,52 @@ public:
 	}
 
 private:
+
+	// Tests — §11 suggested part name (no database)
+	TEST_FUNCTION(suggestedNameFillsInThePattern)
+	{
+		TEST_START;
+
+		std::vector<PartManager::PartType> types;
+		PartManager::PartType resistor;
+		resistor.id = 1;
+		resistor.nameTemplate = "Resistor {resistance} {tolerance} {package}";
+		types.push_back(resistor);
+		PartManager::PartType precision;   // declares none of its own
+		precision.id = 2;
+		precision.parentTypeId = 1;
+		types.push_back(precision);
+
+		TEST_COMPARE(PartManager::nameTemplateFor(types, 2),
+			QString("Resistor {resistance} {tolerance} {package}"));
+		TEST_ASSERT_M(PartManager::nameTemplateFor(types, 0).isEmpty(),
+			"a type nothing declares a pattern for must suggest no name");
+
+		std::vector<PartManager::PartTypeAttribute> attributes = {
+			makeAttribute("resistance", PartManager::AttributeDataType::Dimension, "\xCE\xA9"),
+			makeAttribute("tolerance", PartManager::AttributeDataType::Text),
+		};
+
+		PartManager::Part part;
+		part.partTypeId = 2;
+		part.package = "0603";
+		// The stored value is base-SI (§2a); the name shows what the part table shows.
+		part.attributes = "{\"resistance\":{\"value\":4700,\"unit\":\"\xCE\xA9\"},\"tolerance\":\"1%\"}";
+		TEST_COMPARE(PartManager::renderNameTemplate(PartManager::nameTemplateFor(types, 2),
+			part, attributes), QString("Resistor 4.7 k\xCE\xA9 1% 0603"));
+
+		// A placeholder with nothing behind it takes its spaces with it, rather than leaving a
+		// double gap in the middle of every name that lacks the value.
+		part.attributes = "{\"resistance\":{\"value\":4700,\"unit\":\"\xCE\xA9\"}}";
+		TEST_COMPARE(PartManager::renderNameTemplate(PartManager::nameTemplateFor(types, 2),
+			part, attributes), QString("Resistor 4.7 k\xCE\xA9 0603"));
+
+		// A key nothing declares stays visible instead of silently vanishing.
+		TEST_COMPARE(PartManager::renderNameTemplate(QString("R {typo}"), part, attributes),
+			QString("R {typo}"));
+		TEST_ASSERT_M(PartManager::renderNameTemplate(QString(), part, attributes).isEmpty(),
+			"an empty pattern must produce no suggestion at all");
+	}
 
 	static PartManager::PartTypeAttribute makeAttribute(const std::string& key,
 		PartManager::AttributeDataType datatype, const std::string& unit = std::string())
@@ -222,6 +270,96 @@ private:
 	}
 
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+	// Re-filing a part under another category (§2b), as the drag onto the tree does it: the type
+	// changes, the values the new type does not declare go, and everything that points at the part
+	// by id is untouched.
+	TEST_FUNCTION(movingAPartToAnotherTypeKeepsWhatPointsAtIt)
+	{
+		TEST_START;
+
+		std::filesystem::path parent =
+			std::filesystem::temp_directory_path() / "PartManager_TST_PartEditorController_move";
+		std::error_code ec;
+		std::filesystem::remove_all(parent, ec);
+		std::filesystem::create_directories(parent, ec);
+
+		std::string error;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			PartManager::DatabaseHandle::createNew(parent.string(), "Move", error);
+		TEST_ASSERT_M(handle != nullptr, "createNew failed: " + error);
+		PartManager::PartEditorController controller(handle.get());
+		SQLiteWrapper::SQLite& db = handle->connection();
+
+		// A "Resistor" with a searchable resistance, and a childless second type that declares
+		// nothing — the "moved somewhere that has no such field" case.
+		int resistorId = 0;
+		for (const PartManager::PartType& type : controller.types())
+		{
+			if (type.name == "Resistor")
+			{
+				resistorId = type.id;
+			}
+		}
+		TEST_ASSERT_M(resistorId != 0, "the seeded Resistor type must exist");
+
+		PartManager::PartType network;
+		network.name = "Resistor Network";
+		network.domain = "electronic";
+		network.parentTypeId = 0;   // deliberately NOT under Resistor: it must not inherit the field
+		network.id = controller.createType(network);
+		TEST_ASSERT_M(network.id != 0, "createType failed");
+
+		PartManager::PartTypeAttribute resistance;
+		resistance.partTypeId = resistorId;
+		resistance.key = "moved_resistance";
+		resistance.label = "Resistance";
+		resistance.unit = "\xCE\xA9";
+		resistance.datatype = PartManager::AttributeDataType::Dimension;
+		resistance.searchable = true;
+		TEST_ASSERT_M(controller.createAttribute(resistance) != 0, "createAttribute failed");
+
+		PartManager::Part part;
+		part.partTypeId = resistorId;
+		part.name = "4x10k array";
+		part.attributes = "{\"moved_resistance\":{\"value\":10000,\"unit\":\"\xCE\xA9\"}}";
+		part.id = controller.createPart(part);
+		TEST_ASSERT_M(part.id != 0, "createPart failed");
+
+		auto attrColumn = [&db, &part]()
+		{
+			std::vector<std::vector<std::string>> rows = db.fetchAll(
+				"SELECT ifnull(attr_moved_resistance,'null') FROM part WHERE id="
+				+ std::to_string(part.id) + ";");
+			return rows.empty() ? std::string("no row") : rows.front().front();
+		};
+		TEST_ASSERT_M(attrColumn() != "null", "the fast-filter column must be written on create");
+
+		// Something that references the part and knows nothing about categories.
+		TEST_ASSERT(db.executeWithParams("INSERT INTO partlist (name) VALUES (?);", { "BOM" }));
+		TEST_ASSERT(db.executeWithParams(
+			"INSERT INTO partlist_item (partlist_id, part_id, quantity_per_unit) VALUES (1, ?, 4);",
+			{ std::to_string(part.id) }));
+
+		// The move itself: new type, attributes rewritten against it — which is what drops the key.
+		part.partTypeId = network.id;
+		part.attributes = "{}";
+		TEST_ASSERT_M(controller.savePart(part), "savePart failed");
+
+		PartManager::Part reloaded;
+		TEST_ASSERT(controller.loadPart(part.id, reloaded));
+		TEST_COMPARE(reloaded.partTypeId, network.id);
+		// **The point of the fix in writeSearchableAttrColumns.** A stale value here would keep
+		// answering `moved_resistance>1k` for a part whose type has no such attribute.
+		TEST_COMPARE(attrColumn(), std::string("null"));
+
+		std::vector<std::vector<std::string>> lines = db.fetchAll(
+			"SELECT part_id FROM partlist_item WHERE part_id=" + std::to_string(part.id) + ";");
+		TEST_COMPARE(lines.size(), static_cast<size_t>(1));
+
+		handle.reset();
+		std::filesystem::remove_all(parent, ec);
+	}
+
 	// The §3 datasheet slot end to end on a throwaway database: what the editor's Attach /
 	// Replace / Remove buttons call, minus the widgets. No network — the download path is
 	// exercised only through its "there is no URL" rejection.

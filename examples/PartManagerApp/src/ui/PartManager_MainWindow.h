@@ -21,6 +21,7 @@
 #include <memory>
 
 class QDockWidget;
+class QDropEvent;
 class QLineEdit;
 class QTimer;
 class QTreeWidgetItem;
@@ -141,6 +142,15 @@ namespace PartManager
 
 		// Re-renders the currently selected category, after an edit changed what it shows.
 		void refreshCurrentCategory();
+
+		// The category item a part is being dragged over, or null when this drop would not be a
+		// move: nothing draggable in it, no category under the cursor, or the part is already
+		// filed there. Shared by the drag feedback and the drop itself, so the cursor can never
+		// promise something the drop then refuses.
+		QTreeWidgetItem* droppedMoveTarget(QDropEvent* event) const;
+		// Re-files a part under another type (§2b). Opens MovePartDialog first unless every value
+		// carries over — see its header for what a move does and does not touch.
+		void movePartToCategory(int partId, int targetTypeId);
 
 		// The §10 partlist flush and the §9a shutdown snapshot. Shared by closeEvent() and the
 		// database switch, which is a shutdown of this database in every way that matters.

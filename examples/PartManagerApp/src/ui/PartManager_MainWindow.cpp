@@ -6,6 +6,7 @@
 #include "ui/PartManager_DatabaseSelectorDialog.h"
 #include "ui/PartManager_ManageTagsDialog.h"
 #include "ui/PartManager_MouserSearchDialog.h"
+#include "ui/PartManager_MovePartDialog.h"
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
 #include "ui/PartManager_OrderManagerDialog.h"
@@ -34,7 +35,9 @@
 #include <QContextMenuEvent>
 #include <QDesktopServices>
 #include <QDockWidget>
+#include <QDropEvent>
 #include <QBrush>
+#include <QStatusBar>
 #include <QColor>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -337,6 +340,15 @@ namespace PartManager
 		// dropped back onto it does nothing rather than reordering the category.
 		m_ui->partTable->setDragEnabled(true);
 		m_ui->partTable->setDragDropMode(QAbstractItemView::DragOnly);
+
+		// ...and the same drag onto a category, which re-files the part (§2b). Handled through the
+		// window's event filter rather than by promoting the tree to a subclass in the .ui: the
+		// drop needs the controller and the dialogs, which a widget subclass would have to be
+		// handed anyway. DropOnly, so the tree's own rows still cannot be dragged around — a
+		// category's place in the forest is the type editor's business.
+		m_ui->categoryTree->setAcceptDrops(true);
+		m_ui->categoryTree->setDragDropMode(QAbstractItemView::DropOnly);
+		m_ui->categoryTree->viewport()->installEventFilter(this);
 
 		connect(m_ui->categoryTree, &QTreeWidget::itemSelectionChanged,
 			this, &MainWindow::onCategorySelectionChanged);
@@ -747,6 +759,47 @@ namespace PartManager
 			m_browserDock->raise();
 			return true;
 		}
+		if (watched == m_ui->categoryTree->viewport())
+		{
+			switch (event->type())
+			{
+			case QEvent::DragEnter:
+			case QEvent::DragMove:
+			{
+				QDropEvent* drag = static_cast<QDropEvent*>(event);
+				if (droppedMoveTarget(drag) != nullptr)
+				{
+					drag->acceptProposedAction();
+					return true;
+				}
+				return false;   // no category under the cursor: let the tree draw a "no" cursor
+			}
+			case QEvent::Drop:
+			{
+				QDropEvent* drop = static_cast<QDropEvent*>(event);
+				QTreeWidgetItem* target = droppedMoveTarget(drop);
+				if (target == nullptr)
+				{
+					return false;
+				}
+				drop->acceptProposedAction();
+				// Queued, not called here. A modal dialog opened inside the drop handler runs its
+				// own event loop while QDrag::exec() is still on the stack, so the drag pixmap and
+				// the row it carries stay painted on top of the dialog, frozen where the mouse was
+				// let go. Returning first lets Qt tear the drag down, and the dialog opens on a
+				// clean screen.
+				const int partId = PartlistPanel::droppedPartId(drop->mimeData());
+				const int typeId = target->data(0, TypeIdRole).toInt();
+				QTimer::singleShot(0, this, [this, partId, typeId]()
+					{
+						movePartToCategory(partId, typeId);
+					});
+				return true;
+			}
+			default:
+				break;
+			}
+		}
 		if (watched == m_ui->tableFilterEdit && event->type() == QEvent::KeyPress
 			&& static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape)
 		{
@@ -972,6 +1025,79 @@ namespace PartManager
 		m_currentTypeId = item->data(0, TypeIdRole).toInt();
 		m_currentTypeName = item->data(0, TypeNameRole).toString();
 		showParts(m_currentTypeId, m_currentTypeName);
+	}
+
+	QTreeWidgetItem* MainWindow::droppedMoveTarget(QDropEvent* event) const
+	{
+		const int partId = PartlistPanel::droppedPartId(event->mimeData());
+		if (partId == 0)
+		{
+			return nullptr;
+		}
+		QTreeWidgetItem* item = m_ui->categoryTree->itemAt(event->pos());
+		if (item == nullptr || item->data(0, TypeIdRole).toInt() == NoParentType)
+		{
+			return nullptr;
+		}
+		// A part dropped on the category it is already in is not a move. Refusing it here means
+		// the cursor says so during the drag rather than a dialog saying so after it.
+		Part part;
+		if (m_controller.handle() == nullptr
+			|| !PartEditorController(m_controller.handle()).loadPart(partId, part)
+			|| part.partTypeId == item->data(0, TypeIdRole).toInt())
+		{
+			return nullptr;
+		}
+		return item;
+	}
+
+	void MainWindow::movePartToCategory(int partId, int targetTypeId)
+	{
+		PartEditorController editor(m_controller.handle());
+		Part part;
+		PartType targetType;
+		for (const PartType& type : editor.types())
+		{
+			if (type.id == targetTypeId)
+			{
+				targetType = type;
+			}
+		}
+		if (!editor.loadPart(partId, part) || targetType.id == NoParentType)
+		{
+			return;
+		}
+
+		// The clean case asks nothing: every value the part holds exists in the new category too,
+		// and nothing it requires is empty. A dialog there would be a confirmation box, and the
+		// drag was already the confirmation.
+		if (MovePartDialog::isCleanMove(editor, part, targetTypeId))
+		{
+			part.partTypeId = targetTypeId;
+		}
+		else
+		{
+			MovePartDialog dialog(editor, part, targetType, this);
+			if (dialog.exec() != QDialog::Accepted)
+			{
+				return;
+			}
+			part = dialog.movedPart();
+		}
+
+		if (!editor.savePart(part))
+		{
+			QMessageBox::warning(this, tr("Could not move the part"),
+				tr("The database rejected the change — the part is still in its old category."));
+			return;
+		}
+		// Only `part_type_id` and the attributes changed. The part keeps its id, so its files,
+		// tags, stock history, partlist lines and order items all still point at it — none of
+		// them names a category.
+		statusBar()->showMessage(tr("Moved \"%1\" to %2.")   // user data both sides
+			.arg(QString::fromStdString(part.name), QString::fromStdString(targetType.name)), 5000);
+		reloadCategories();
+		refreshCurrentCategory();
 	}
 
 	void MainWindow::refreshCurrentCategory()

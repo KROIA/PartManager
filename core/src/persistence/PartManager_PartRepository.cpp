@@ -3,6 +3,7 @@
 #include "persistence/PartManager_TagRepository.h"
 #include "PartManager_global.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 
@@ -91,6 +92,7 @@ namespace PartManager
 			part.createdAt = row[13];
 			part.updatedAt = row[14];
 			part.searchKeywords = row.size() > 15 ? row[15] : std::string();
+			part.excludedKeywords = row.size() > 16 ? row[16] : std::string();
 			return part;
 		}
 
@@ -120,9 +122,17 @@ namespace PartManager
 		}
 
 		// (Re)writes every searchable numeric attr_<key> column for partId, from its type's effective
-		// attribute list and the part's own attributes JSON. Missing/non-numeric values are left untouched.
+		// attribute list and the part's own attributes JSON. Every other attr_* column on the row is
+		// set back to NULL.
+		//
+		// **The NULLing is not tidiness, it is correctness.** These columns are the §7a fast filter,
+		// and nothing else re-reads the JSON to check them. Leaving a stale one behind means a part
+		// whose value was cleared — or, since a part can be moved between categories, one whose type
+		// does not declare that attribute at all any more — still answers `resistance>1k` with the
+		// number it used to have.
 		void writeSearchableAttrColumns(SQLiteWrapper::SQLite& db, int partId, int partTypeId, const std::string& attributesJson)
 		{
+			std::vector<std::string> written;
 			for (const PartTypeAttribute& attribute : PartTypeRepository::effectiveAttributes(db, partTypeId))
 			{
 				if (!attribute.searchable ||
@@ -138,6 +148,20 @@ namespace PartManager
 				db.executeWithParams(
 					"UPDATE part SET attr_" + attribute.key + "=? WHERE id=?;",
 					{ toSqlNumber(value), std::to_string(partId) });
+				written.push_back("attr_" + attribute.key);
+			}
+
+			for (const std::vector<std::string>& row : db.fetchAll("PRAGMA table_info(part);"))
+			{
+				if (row.size() < 2 || row[1].rfind("attr_", 0) != 0
+					|| std::find(written.begin(), written.end(), row[1]) != written.end())
+				{
+					continue;
+				}
+				// Safe to concatenate: the name came out of the schema, and only ensureAttrColumn()
+				// ever puts one there, from a key already restricted to identifier characters.
+				db.executeWithParams("UPDATE part SET " + row[1] + "=NULL WHERE id=?;",
+					{ std::to_string(partId) });
 			}
 		}
 	}
@@ -162,7 +186,8 @@ namespace PartManager
 			"is_active INTEGER NOT NULL DEFAULT 1,"
 			"created_at TEXT NOT NULL DEFAULT (datetime('now')),"
 			"updated_at TEXT NOT NULL DEFAULT (datetime('now')),"
-			"search_keywords TEXT"
+			"search_keywords TEXT,"
+			"excluded_keywords TEXT"
 			");") && ok;
 		ok = db.execute(
 			"CREATE TABLE IF NOT EXISTS part_file ("
@@ -183,12 +208,13 @@ namespace PartManager
 	{
 		bool ok = db.executeWithParams(
 			"INSERT INTO part (part_type_id, name, manufacturer, mpn, description, package, attributes, "
-			"datasheet_file_id, stock_qty, stock_min_qty, storage_location, is_active, search_keywords) "
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+			"datasheet_file_id, stock_qty, stock_min_qty, storage_location, is_active, search_keywords, "
+			"excluded_keywords) "
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
 			{ std::to_string(part.partTypeId), part.name, part.manufacturer, part.mpn, part.description,
 			  part.package, part.attributes, std::to_string(part.datasheetFileId), std::to_string(part.stockQty),
 			  std::to_string(part.stockMinQty), part.storageLocation, part.isActive ? "1" : "0",
-			  part.searchKeywords });
+			  part.searchKeywords, part.excludedKeywords });
 		if (!ok)
 		{
 			return 0;
@@ -206,11 +232,11 @@ namespace PartManager
 		bool ok = db.executeWithParams(
 			"UPDATE part SET part_type_id=?, name=?, manufacturer=?, mpn=?, description=?, package=?, attributes=?, "
 			"datasheet_file_id=?, stock_qty=?, stock_min_qty=?, storage_location=?, is_active=?, search_keywords=?, "
-			"updated_at=datetime('now') WHERE id=?;",
+			"excluded_keywords=?, updated_at=datetime('now') WHERE id=?;",
 			{ std::to_string(part.partTypeId), part.name, part.manufacturer, part.mpn, part.description,
 			  part.package, part.attributes, std::to_string(part.datasheetFileId), std::to_string(part.stockQty),
 			  std::to_string(part.stockMinQty), part.storageLocation, part.isActive ? "1" : "0",
-			  part.searchKeywords, std::to_string(part.id) });
+			  part.searchKeywords, part.excludedKeywords, std::to_string(part.id) });
 		if (ok)
 		{
 			writeSearchableAttrColumns(db, part.id, part.partTypeId, part.attributes);
@@ -242,7 +268,7 @@ namespace PartManager
 	{
 		std::vector<std::vector<std::string>> rows = db.fetchAll(
 			"SELECT id,part_type_id,name,manufacturer,mpn,description,package,attributes,datasheet_file_id,"
-			"stock_qty,stock_min_qty,storage_location,is_active,created_at,updated_at,search_keywords "
+			"stock_qty,stock_min_qty,storage_location,is_active,created_at,updated_at,search_keywords,excluded_keywords "
 			"FROM part WHERE id=" + std::to_string(partId) + ";");
 		if (rows.empty())
 		{
@@ -256,7 +282,7 @@ namespace PartManager
 	{
 		std::string query =
 			"SELECT id,part_type_id,name,manufacturer,mpn,description,package,attributes,datasheet_file_id,"
-			"stock_qty,stock_min_qty,storage_location,is_active,created_at,updated_at,search_keywords FROM part";
+			"stock_qty,stock_min_qty,storage_location,is_active,created_at,updated_at,search_keywords,excluded_keywords FROM part";
 		if (partTypeId != 0)
 		{
 			query += " WHERE part_type_id=" + std::to_string(partTypeId);
