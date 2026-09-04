@@ -15,6 +15,9 @@
 //       type's attributes", so a migrated database renders unchanged.
 //   v5: partlist/partlist_item (§4). Also created empty — a database that has
 //       never held a BOM simply has none.
+//   v9: no table change — seeds the default file slots (datasheet, KiCad
+//       symbol, footprint, 3D model) onto the electronic root types, which no
+//       existing database has because they were never seeded at all.
 // @see docs/design/ARCHITECTURE.md §1c
 #pragma once
 
@@ -29,7 +32,7 @@ namespace PartManager
 {
 
 	// The schema (table/column structure) version this build of PartManager understands.
-	constexpr int CurrentSchemaVersion = 8;
+	constexpr int CurrentSchemaVersion = 9;
 
 	// Outcome of comparing a database's stored schema_version against CurrentSchemaVersion.
 	enum class SchemaCompatibility

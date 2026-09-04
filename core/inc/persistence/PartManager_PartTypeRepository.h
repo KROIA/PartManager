@@ -79,6 +79,12 @@ namespace PartManager
 		// Power Regulator, Transistor, MOSFET, Diode, LED, Connector, Crystal / Oscillator,
 		// Microcontroller, Op-Amp, Logic IC, Switch, Relay, Fuse, Sensor) on a fresh database. No-op (returns true) if part_type already has rows.
 		static bool seedDefaultTypes(SQLiteWrapper::SQLite& db);
+		// Gives every root type whose domain is "electronic" the four file slots such a part is
+		// expected to carry — datasheet (required), KiCad symbol, footprint and 3D model (not).
+		// Per-role and per-type, so it is safe to re-run: it adds what is missing and leaves the
+		// user's own slots, labels and required flags alone. Called by seedDefaultTypes() for a
+		// new database and by the v9 migration for one that predates it.
+		static bool seedDefaultFileSlots(SQLiteWrapper::SQLite& db);
 #endif
 
 	};

@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TypeTemplateDialog</class>
+ <widget class="QDialog" name="TypeTemplateDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1000</width>
+    <height>760</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Type Templates</string>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QLabel" name="headerLabel">
+     <property name="text">
+      <string>A type template decides which fields and which files a part of that type has. A type placed under another one inherits everything the parent declares and can add to it.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="bodyLayout">
+     <item>
+      <layout class="QVBoxLayout" name="typeLayout">
+       <item>
+        <widget class="QLabel" name="typesLabel">
+         <property name="text">
+          <string>TYPES</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTreeWidget" name="typeTree">
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SingleSelection</enum>
+         </property>
+         <property name="headerHidden">
+          <bool>true</bool>
+         </property>
+         <column>
+          <property name="text">
+           <string notr="true">Type</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="typeButtonLayout">
+         <item>
+          <widget class="QPushButton" name="newTypeButton">
+           <property name="text">
+            <string>New Type...</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="deleteTypeButton">
+           <property name="text">
+            <string>Delete Type</string>
+           </property>
+           <property name="toolTip">
+            <string>Refused while parts still use the type, or while another type inherits from it.</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="detailLayout">
+       <item>
+        <layout class="QFormLayout" name="formLayout">
+         <item row="0" column="0">
+          <widget class="QLabel" name="nameLabel">
+           <property name="text">
+            <string>Name</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="nameEdit"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="domainLabel">
+           <property name="text">
+            <string>Domain</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QComboBox" name="domainCombo">
+           <item>
+            <property name="text">
+             <string notr="true">electronic</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string notr="true">mechanical</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string notr="true">generic</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="kicadRelevantLabel">
+           <property name="text">
+            <string>KiCad</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QCheckBox" name="kicadRelevantCheck">
+           <property name="text">
+            <string>Parts of this type get a KiCad symbol and footprint</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="kicadCategoryLabel">
+           <property name="text">
+            <string>KiCad category</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QLineEdit" name="kicadCategoryEdit">
+           <property name="toolTip">
+            <string>The library file the generated symbols land in. Left empty, the parent type's category is used.</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="parentLabel">
+           <property name="text">
+            <string>Parent type</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QComboBox" name="parentCombo">
+           <property name="toolTip">
+            <string>Every attribute and file slot of the parent applies here too. The type itself and the types below it are not offered.</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="QLabel" name="descriptionLabel">
+           <property name="text">
+            <string>Description</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="QPlainTextEdit" name="descriptionEdit">
+           <property name="maximumHeight">
+            <number>56</number>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1">
+          <widget class="QLabel" name="usageLabel">
+           <property name="text">
+            <string notr="true"/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="attributesLabel">
+         <property name="text">
+          <string>ATTRIBUTES</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTableWidget" name="attributeTable">
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <column>
+          <property name="text">
+           <string>Req.</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Key</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Label</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Unit</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Datatype</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Searchable</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Order</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="attributeButtonLayout">
+         <item>
+          <widget class="QPushButton" name="addAttributeButton">
+           <property name="text">
+            <string>Add attribute...</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="removeAttributeButton">
+           <property name="text">
+            <string>Remove</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="attributeUpButton">
+           <property name="text">
+            <string>Move up</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="attributeDownButton">
+           <property name="text">
+            <string>Move down</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="enumOptionsButton">
+           <property name="text">
+            <string>Options...</string>
+           </property>
+           <property name="toolTip">
+            <string>The values an Enum attribute may take, one per line.</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="attributeButtonSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="tooltipLabel">
+         <property name="text">
+          <string notr="true"/>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPlainTextEdit" name="tooltipEdit">
+         <property name="maximumHeight">
+          <number>64</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="fileSlotsLabel">
+         <property name="text">
+          <string>FILE SLOTS</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTableWidget" name="fileSlotTable">
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <column>
+          <property name="text">
+           <string>Req.</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Role</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Label</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Order</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="fileSlotButtonLayout">
+         <item>
+          <widget class="QPushButton" name="addFileSlotButton">
+           <property name="text">
+            <string>Add file slot...</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="removeFileSlotButton">
+           <property name="text">
+            <string>Remove</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="fileSlotUpButton">
+           <property name="text">
+            <string>Move up</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="fileSlotDownButton">
+           <property name="text">
+            <string>Move down</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="fileSlotButtonSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="closeLayout">
+     <item>
+      <widget class="QLabel" name="autosaveLabel">
+       <property name="text">
+        <string>Every change here is saved the moment it is made — Close just leaves the editor.</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="closeSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="closeButton">
+       <property name="text">
+        <string>Close</string>
+       </property>
+       <property name="default">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

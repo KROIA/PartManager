@@ -1,5 +1,6 @@
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "PartManager_global.h"
+#include "domain/PartManager_PartFileRole.h"
 
 #include <cstdlib>
 #include <algorithm>
@@ -682,6 +683,57 @@ namespace PartManager
 		addAttr(sensorId, "output_type", "Output Type", "", AttributeDataType::Enum, false,
 			{ "Analog", "Digital", "PWM", "I2C", "SPI" });
 
+		return seedDefaultFileSlots(db);
+	}
+
+	bool PartTypeRepository::seedDefaultFileSlots(SQLiteWrapper::SQLite& db)
+	{
+		// The four files an electronic part is expected to carry, in the order the part editor
+		// should ask for them. Only the datasheet is required: it is the one a part is useless
+		// without, and it is the one that exists for every part whether or not it has ever been
+		// near KiCad. Marking the KiCad three required would make every passive in the stock
+		// incomplete, which turns the flag into noise nobody reads.
+		struct Slot { PartFileRole role; const char* label; bool required; };
+		// Not named `slots`: that is a Qt keyword macro, and the error it produces blames the line
+		// after it. (core/ is Qt-free, but PartManager_global.h is not, and the macro travels.)
+		static const Slot defaults[] = {
+			{ PartFileRole::Datasheet,      "Datasheet",       true  },
+			{ PartFileRole::KicadSymbol,    "KiCad Symbol",    false },
+			{ PartFileRole::KicadFootprint, "KiCad Footprint", false },
+			{ PartFileRole::Kicad3DModel,   "3D Model",        false },
+		};
+
+		for (const PartType& type : listTypes(db))
+		{
+			// Roots only. A subtype inherits every slot its parent declares (§2b), so declaring
+			// them again on Ceramic Capacitor would be a duplicate row saying the same thing.
+			if (type.domain != "electronic" || type.parentTypeId != NoParentType)
+			{
+				continue;
+			}
+			const std::vector<PartTypeFileSlot> existing = listOwnFileSlots(db, type.id);
+			int order = 0;
+			for (const Slot& wanted : defaults)
+			{
+				const std::string role = toString(wanted.role);
+				bool alreadyThere = false;
+				for (const PartTypeFileSlot& row : existing)
+				{
+					alreadyThere = alreadyThere || row.role == role;
+				}
+				if (!alreadyThere)
+				{
+					PartTypeFileSlot slot;
+					slot.partTypeId = type.id;
+					slot.role = role;
+					slot.label = wanted.label;
+					slot.required = wanted.required;
+					slot.sortOrder = order;
+					insertFileSlot(db, slot);
+				}
+				++order;
+			}
+		}
 		return true;
 	}
 

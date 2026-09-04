@@ -19,6 +19,7 @@ public:
 		ADD_TEST(TST_PartTypeRepository::inheritanceOverridesAndOrders);
 		ADD_TEST(TST_PartTypeRepository::kicadCategoryAndDomainFallBackToParent);
 		ADD_TEST(TST_PartTypeRepository::seedDefaultTypesIsPopulatedAndIdempotent);
+		ADD_TEST(TST_PartTypeRepository::electronicTypesGetTheFourDefaultFileSlots);
 #endif
 	}
 
@@ -140,6 +141,48 @@ private:
 		// Idempotent: calling again on an already-seeded db must not duplicate rows.
 		TEST_ASSERT_M(PartManager::PartTypeRepository::seedDefaultTypes(*db), "second seedDefaultTypes call failed");
 		TEST_COMPARE(PartManager::PartTypeRepository::listTypes(*db).size(), static_cast<size_t>(18));
+	}
+
+	TEST_FUNCTION(electronicTypesGetTheFourDefaultFileSlots)
+	{
+		TEST_START;
+
+		auto db = freshDb("PartManager_TST_PartTypeRepository_slots.db");
+		TEST_ASSERT_M(PartManager::PartTypeRepository::seedDefaultTypes(*db), "seedDefaultTypes failed");
+
+		int resistorId = 0;
+		int ceramicId = 0;
+		for (const PartManager::PartType& type : PartManager::PartTypeRepository::listTypes(*db))
+		{
+			if (type.name == "Resistor") resistorId = type.id;
+			if (type.name == "Ceramic Capacitor") ceramicId = type.id;
+		}
+		TEST_ASSERT_M(resistorId != 0 && ceramicId != 0, "Resistor and Ceramic Capacitor must be seeded");
+
+		// Datasheet, symbol, footprint, 3D model - and only the datasheet required.
+		std::vector<PartManager::PartTypeFileSlot> resistorSlots =
+			PartManager::PartTypeRepository::effectiveFileSlots(*db, resistorId);
+		TEST_COMPARE(resistorSlots.size(), static_cast<size_t>(4));
+		int requiredCount = 0;
+		for (const PartManager::PartTypeFileSlot& slot : resistorSlots)
+		{
+			if (slot.required) ++requiredCount;
+		}
+		TEST_COMPARE(requiredCount, 1);
+		TEST_COMPARE(resistorSlots.front().role, std::string("datasheet"));
+		TEST_ASSERT_M(resistorSlots.front().required, "the datasheet slot must be the required one");
+
+		// A subtype inherits its parent's four rather than declaring four more of its own.
+		TEST_COMPARE(PartManager::PartTypeRepository::listOwnFileSlots(*db, ceramicId).size(),
+			static_cast<size_t>(0));
+		TEST_COMPARE(PartManager::PartTypeRepository::effectiveFileSlots(*db, ceramicId).size(),
+			static_cast<size_t>(4));
+
+		// Idempotent, which is what makes it safe as a migration step on a database that has
+		// already been through it once.
+		TEST_ASSERT_M(PartManager::PartTypeRepository::seedDefaultFileSlots(*db), "re-seed failed");
+		TEST_COMPARE(PartManager::PartTypeRepository::listOwnFileSlots(*db, resistorId).size(),
+			static_cast<size_t>(4));
 	}
 #endif
 

@@ -114,6 +114,15 @@ namespace PartManager
 			// adopts what is there instead of duplicating it.
 			TagRepository::seedDefaultTags(db);
 		}
+		if (storedSchemaVersion < 9 && db.isOpen())
+		{
+			// v8 -> v9: no table changes — the default file slots for electronic types (§2/§11).
+			// Same reasoning as the tag families above: `part_type_file_slot` has only ever been
+			// filled at *creation*, and it was never filled at all, so every existing database has
+			// types that declare no files. Idempotent and per-role, so a slot the user already
+			// added under one of these roles is adopted rather than duplicated.
+			PartTypeRepository::seedDefaultFileSlots(db);
+		}
 		return SchemaCompatibility::migrated;
 	}
 #endif

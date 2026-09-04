@@ -83,6 +83,43 @@ namespace PartManager
 	// "+ Tag" menu offers. Input order is preserved, matching is by tag id.
 	std::vector<Tag> availableTagsToAdd(const std::vector<Tag>& allTags, const std::vector<Tag>& partTags);
 
+	// Why a proposed attribute key (or file-slot role) cannot be used. An enum rather than a
+	// message, so the rule lives here — widget-free and unit-tested — and the type template
+	// editor is the only place that has to know how to phrase it in the user's language.
+	enum class AttributeKeyProblem
+	{
+		None,
+		Empty,
+		BadFormat,   // must match [a-z][a-z0-9_]*
+		Duplicate    // checked against the EFFECTIVE set, so an inherited key collides too
+	};
+
+	// **`key` is chosen once and never again.** It is the key a part's value is stored under in
+	// the `attributes` JSON *and* the name of the `attr_<key>` fast-filter column (§2), so a
+	// rename would leave every existing part's value under a name nothing reads any more —
+	// silently, since neither the JSON nor the column is validated on read. This is the guard on
+	// the single moment the key is still free to choose.
+	AttributeKeyProblem attributeKeyProblem(const std::string& key,
+		const std::vector<PartTypeAttribute>& effectiveAttributes);
+	// The same rule for a file slot's `role`, against the type's effective slots. The role itself
+	// is picked from the fixed PartFileRole vocabulary rather than typed, so BadFormat cannot
+	// happen in the editor — it is still reported, because nothing stops another caller.
+	AttributeKeyProblem fileSlotRoleProblem(const std::string& role,
+		const std::vector<PartTypeFileSlot>& effectiveFileSlots);
+
+	// What stops a type from being deleted: its own parts would be left pointing at a template
+	// that no longer exists (their `attributes` JSON is only readable against it), and its child
+	// types would lose the ancestor they inherit from (§2b). Both zero => deleting is safe.
+	struct TypeDeletionBlock
+	{
+		int partCount = 0;
+		int childTypeCount = 0;
+		bool blocked() const { return partCount > 0 || childTypeCount > 0; }
+	};
+
+	// `partCount` is the caller's — PartEditorController::partCountOfType(), so this stays pure.
+	TypeDeletionBlock typeDeletionBlock(const std::vector<PartType>& types, int typeId, int partCount);
+
 	// Repository wrapper shared by PartEditorDialog, NewPartDialog and ManageTagsDialog.
 	// Holds the caller's DatabaseHandle without owning it — MainWindow's controller does.
 	class PartEditorController
@@ -237,6 +274,31 @@ namespace PartManager
 		bool updateTagCategory(const TagCategory& category) const;
 		bool deleteTagCategory(int categoryId) const;
 		bool setTagCategory(int tagId, int categoryId, bool recolour = true) const;
+
+		// Type template editor (§2, §11) — the write half of the templates `types()`,
+		// `attributesFor()` and `fileSlotsFor()` above read. Here rather than in the dialog so
+		// the editor never builds a query itself (§12a).
+		int createType(const PartType& type) const;
+		bool updateType(const PartType& type) const;
+		// Deletes unconditionally — typeDeletionBlock() is what decides whether the caller may.
+		bool deleteType(int typeId) const;
+
+		// One row of `part_type_attribute` / `part_type_file_slot` on this type alone. Editing an
+		// inherited row means creating an override row on the type instead (§2b), which is an
+		// insert here like any other. `createAttribute` may ALTER `part` to add the attr_<key>
+		// column — see PartTypeRepository's header note.
+		int createAttribute(const PartTypeAttribute& attribute) const;
+		bool updateAttribute(const PartTypeAttribute& attribute) const;
+		bool deleteAttribute(int attributeId) const;
+		int createFileSlot(const PartTypeFileSlot& slot) const;
+		bool updateFileSlot(const PartTypeFileSlot& slot) const;
+		bool deleteFileSlot(int fileSlotId) const;
+
+		// Parts of exactly this type, descendants excluded — what the editor's "used by n parts"
+		// line shows and what typeDeletionBlock() is asked about. Counted through
+		// PartRepository::listParts() rather than an aggregate of its own, the same way the
+		// category tree's counts are (MainWindowController::categoryTree()).
+		int partCountOfType(int typeId) const;
 
 	private:
 		DatabaseHandle* m_handle;

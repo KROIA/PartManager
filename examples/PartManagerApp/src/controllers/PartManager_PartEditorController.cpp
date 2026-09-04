@@ -166,6 +166,72 @@ namespace PartManager
 		return available;
 	}
 
+	AttributeKeyProblem attributeKeyProblem(const std::string& key,
+		const std::vector<PartTypeAttribute>& effectiveAttributes)
+	{
+		if (key.empty())
+		{
+			return AttributeKeyProblem::Empty;
+		}
+		// Lowercase/underscore only, because the key is pasted straight into an `attr_<key>`
+		// column name. SearchQuery restricts the identifiers it will build a query from to
+		// [A-Za-z0-9_]; staying inside that is what keeps the concatenation safe.
+		if (key[0] < 'a' || key[0] > 'z')
+		{
+			return AttributeKeyProblem::BadFormat;
+		}
+		for (char c : key)
+		{
+			const bool allowed = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_';
+			if (!allowed)
+			{
+				return AttributeKeyProblem::BadFormat;
+			}
+		}
+		// The effective set, not the type's own rows: colliding with an inherited key would
+		// create an override of an attribute the user did not mean to touch, and the ancestor's
+		// row would silently stop being what the New Part form renders.
+		for (const PartTypeAttribute& attribute : effectiveAttributes)
+		{
+			if (attribute.key == key)
+			{
+				return AttributeKeyProblem::Duplicate;
+			}
+		}
+		return AttributeKeyProblem::None;
+	}
+
+	AttributeKeyProblem fileSlotRoleProblem(const std::string& role,
+		const std::vector<PartTypeFileSlot>& effectiveFileSlots)
+	{
+		if (role.empty())
+		{
+			return AttributeKeyProblem::Empty;
+		}
+		for (const PartTypeFileSlot& slot : effectiveFileSlots)
+		{
+			if (slot.role == role)
+			{
+				return AttributeKeyProblem::Duplicate;
+			}
+		}
+		return AttributeKeyProblem::None;
+	}
+
+	TypeDeletionBlock typeDeletionBlock(const std::vector<PartType>& types, int typeId, int partCount)
+	{
+		TypeDeletionBlock block;
+		block.partCount = partCount;
+		for (const PartType& type : types)
+		{
+			if (type.parentTypeId == typeId && type.id != typeId)
+			{
+				++block.childTypeCount;
+			}
+		}
+		return block;
+	}
+
 	PartEditorController::PartEditorController(DatabaseHandle* handle)
 		: m_handle(handle)
 	{
@@ -764,6 +830,66 @@ namespace PartManager
 		return db && TagRepository::setTagCategory(*db, tagId, categoryId, recolour);
 	}
 
+	int PartEditorController::createType(const PartType& type) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db ? PartTypeRepository::insertType(*db, type) : NoParentType;
+	}
+
+	bool PartEditorController::updateType(const PartType& type) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db && PartTypeRepository::updateType(*db, type);
+	}
+
+	bool PartEditorController::deleteType(int typeId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db && PartTypeRepository::deleteType(*db, typeId);
+	}
+
+	int PartEditorController::createAttribute(const PartTypeAttribute& attribute) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db ? PartTypeRepository::insertAttribute(*db, attribute) : 0;
+	}
+
+	bool PartEditorController::updateAttribute(const PartTypeAttribute& attribute) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db && PartTypeRepository::updateAttribute(*db, attribute);
+	}
+
+	bool PartEditorController::deleteAttribute(int attributeId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db && PartTypeRepository::deleteAttribute(*db, attributeId);
+	}
+
+	int PartEditorController::createFileSlot(const PartTypeFileSlot& slot) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db ? PartTypeRepository::insertFileSlot(*db, slot) : 0;
+	}
+
+	bool PartEditorController::updateFileSlot(const PartTypeFileSlot& slot) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db && PartTypeRepository::updateFileSlot(*db, slot);
+	}
+
+	bool PartEditorController::deleteFileSlot(int fileSlotId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db && PartTypeRepository::deleteFileSlot(*db, fileSlotId);
+	}
+
+	int PartEditorController::partCountOfType(int typeId) const
+	{
+		SQLiteWrapper::SQLite* db = connectionOf(m_handle);
+		return db ? static_cast<int>(PartRepository::listParts(*db, typeId).size()) : 0;
+	}
+
 #else
 
 	std::vector<PartType> PartEditorController::types() const { return std::vector<PartType>(); }
@@ -803,6 +929,16 @@ namespace PartManager
 	bool PartEditorController::updateTagCategory(const TagCategory&) const { return false; }
 	bool PartEditorController::deleteTagCategory(int) const { return false; }
 	bool PartEditorController::setTagCategory(int, int, bool) const { return false; }
+	int PartEditorController::createType(const PartType&) const { return NoParentType; }
+	bool PartEditorController::updateType(const PartType&) const { return false; }
+	bool PartEditorController::deleteType(int) const { return false; }
+	int PartEditorController::createAttribute(const PartTypeAttribute&) const { return 0; }
+	bool PartEditorController::updateAttribute(const PartTypeAttribute&) const { return false; }
+	bool PartEditorController::deleteAttribute(int) const { return false; }
+	int PartEditorController::createFileSlot(const PartTypeFileSlot&) const { return 0; }
+	bool PartEditorController::updateFileSlot(const PartTypeFileSlot&) const { return false; }
+	bool PartEditorController::deleteFileSlot(int) const { return false; }
+	int PartEditorController::partCountOfType(int) const { return 0; }
 
 #endif
 
