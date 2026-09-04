@@ -44,6 +44,7 @@ public:
 		ADD_TEST(TST_KicadLibrary::handEditedSymbolsSurviveRegeneration);
 		ADD_TEST(TST_KicadLibrary::footprintReferenceUsesTheLibraryNickname);
 		ADD_TEST(TST_KicadLibrary::partsWithoutKicadFilesAreSkippedNotInvented);
+		ADD_TEST(TST_KicadLibrary::aChildCategoryInheritsRelevanceFromItsRoot);
 		ADD_TEST(TST_KicadLibrary::aFootprintOnlyPartDerivesItsSymbolFromThePads);
 #endif
 	}
@@ -641,6 +642,66 @@ private:
 		TEST_COMPARE(seventh.staleItemsRemoved, 1);
 		TEST_COMPARE(seventh.preserved.size(), static_cast<size_t>(0));
 		TEST_ASSERT_M(!std::filesystem::exists(library), "forcing must remove the orphan");
+
+		db.close();
+		std::filesystem::remove_all(folder);
+	}
+
+	// A child category (e.g. "Neopixel 5050 WS2812B" filed under "LED") must export without its
+	// own kicad_relevant checkbox ticked: the tree is flattened per root category, so relevance and
+	// category both inherit from the nearest flagged ancestor.
+	TEST_FUNCTION(aChildCategoryInheritsRelevanceFromItsRoot)
+	{
+		TEST_START;
+
+		std::filesystem::path folder =
+			std::filesystem::temp_directory_path() / "PartManager_TST_KicadChildCategory";
+		std::filesystem::remove_all(folder);
+		std::filesystem::create_directories(folder);
+
+		SQLiteWrapper::SQLite db((folder / "test.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+		PartManager::KicadEditTracker::createSchema(db);
+
+		PartManager::PartType root;
+		root.name = "LED";
+		root.domain = "electronic";
+		root.kicadRelevant = true;
+		root.kicadCategory = "LEDs";
+		const int rootId = PartManager::PartTypeRepository::insertType(db, root);
+
+		// The child never sets kicadRelevant or kicadCategory itself — both must come from the root.
+		PartManager::PartType child;
+		child.name = "Neopixel 5050 WS2812B";
+		child.domain = "electronic";
+		child.parentTypeId = rootId;
+		const int childId = PartManager::PartTypeRepository::insertType(db, child);
+
+		PartManager::Part part;
+		part.partTypeId = childId;
+		part.name = "WS2812B-5050";
+		const int partId = PartManager::PartRepository::insertPart(db, part);
+
+		const std::string filestore = (folder / "filestore").string();
+		PartManager::FileStore store(filestore);
+		std::string error;
+		TEST_ASSERT_M(store.attachFile(db, partId, PartManager::PartFileRole::KicadSymbol,
+			writeSymbolFile(folder, "WS2812B-5050").string(), &error) != 0, error);
+
+		const std::string libs = (folder / "kicad_libs").string();
+		const PartManager::KicadGenerationResult result =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_ASSERT_M(result.ok, result.errorMessage);
+		TEST_COMPARE(result.symbolsGenerated, 1);
+		TEST_ASSERT_M(result.skippedForNoCategory.empty(),
+			"the child must resolve the root's category, not be treated as uncategorized");
+
+		const std::string library = readFile(
+			std::filesystem::path(libs) / "symbols" / "LEDs.kicad_sym");
+		TEST_ASSERT_M(library.find("\"WS2812B-5050\"") != std::string::npos,
+			"a part filed under a child category must still land in its root's library: " + library);
 
 		db.close();
 		std::filesystem::remove_all(folder);

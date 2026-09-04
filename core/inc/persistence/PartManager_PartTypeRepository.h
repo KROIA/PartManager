@@ -72,6 +72,10 @@ namespace PartManager
 		static std::vector<PartTypeFileSlot> effectiveFileSlots(SQLiteWrapper::SQLite& db, int typeId);
 		// Nearest ancestor (starting at typeId itself) with a non-empty kicad_category.
 		static std::string effectiveKicadCategory(SQLiteWrapper::SQLite& db, int typeId);
+		// True if typeId or any ancestor has kicad_relevant set — a child category (e.g. "Neopixel
+		// 5050 WS2812B" under "LED") exports without needing the flag ticked on every leaf, only on
+		// the root that defines the family.
+		static bool effectiveKicadRelevant(SQLiteWrapper::SQLite& db, int typeId);
 		// Nearest ancestor (starting at typeId itself) with a non-empty domain.
 		static std::string effectiveDomain(SQLiteWrapper::SQLite& db, int typeId);
 

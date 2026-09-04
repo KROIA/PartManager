@@ -46,8 +46,10 @@
 // **unless its hash says a human edited it**, in which case it is kept on disk,
 // still tracked, and surfaced as `stale` so the user decides.
 //
-// **Only parts whose type is `kicad_relevant` are generated**, and a type with
-// no `kicad_category` inherits its nearest ancestor's (§2b). A part whose type
+// **Only parts whose type is `kicad_relevant`, own or inherited, are generated**
+// (§2b) — a child category needs the flag on some ancestor, not on itself, so
+// the whole tree under a flagged root exports. A type with no `kicad_category`
+// of its own likewise inherits its nearest ancestor's. A part whose type
 // resolves to no category at all is skipped and counted, not silently dropped.
 // @see docs/design/ARCHITECTURE.md §5a, §2b
 // @see PartManager_KicadSymbolWriter.h, PartManager_KicadEditTracker.h

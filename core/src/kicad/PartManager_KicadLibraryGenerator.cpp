@@ -338,7 +338,10 @@ namespace PartManager
 
 		for (const PartType& type : PartTypeRepository::listTypes(db))
 		{
-			if (!type.kicadRelevant)
+			// A child category (e.g. "Neopixel 5050 WS2812B" under "LED") inherits relevance from
+			// its nearest kicad_relevant ancestor — the tree is flattened per root category so every
+			// exportable part underneath it is generated, not just parts on the flagged type itself.
+			if (!PartTypeRepository::effectiveKicadRelevant(db, type.id))
 			{
 				continue;
 			}

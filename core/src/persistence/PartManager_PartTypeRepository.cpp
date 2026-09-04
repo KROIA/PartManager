@@ -429,6 +429,27 @@ namespace PartManager
 		return std::string();
 	}
 
+	bool PartTypeRepository::effectiveKicadRelevant(SQLiteWrapper::SQLite& db, int typeId)
+	{
+		int current = typeId;
+		std::unordered_set<int> visited;
+		while (current != NoParentType && visited.find(current) == visited.end())
+		{
+			visited.insert(current);
+			PartType type;
+			if (!findType(db, current, type))
+			{
+				break;
+			}
+			if (type.kicadRelevant)
+			{
+				return true;
+			}
+			current = type.parentTypeId;
+		}
+		return false;
+	}
+
 	std::string PartTypeRepository::effectiveDomain(SQLiteWrapper::SQLite& db, int typeId)
 	{
 		int current = typeId;
