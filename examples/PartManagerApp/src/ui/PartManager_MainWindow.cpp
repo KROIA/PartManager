@@ -659,18 +659,20 @@ namespace PartManager
 		quit->setShortcut(QKeySequence::Quit);
 		connect(quit, &QAction::triggered, this, &MainWindow::close);
 
-		// Filled when it opens rather than now: createPopupMenu() reports the docks and toolbars
-		// as they stand, and the actions in it are the docks' own toggleViewAction()s, so they go
-		// on ticking themselves after being moved across. Building it once would freeze the list
-		// as it was at startup.
+		// Only the panel that is genuinely optional. Qt's own createPopupMenu() lists every dock and
+		// toolbar, and of the three it found, two could not be switched off in any useful sense:
+		// the ribbon is the whole command surface and its entry was even blank (a toolbar's toggle
+		// is named after its windowTitle, and the ribbon has none), and the component browser is
+		// re-docked by eventFilter() the moment anything closes it, so its tick could never come
+		// off. A menu entry that does nothing is worse than a menu that is one line long.
+		// The action is the dock's own toggleViewAction(), so it keeps ticking itself.
 		QMenu* viewMenu = menuBar()->addMenu(tr("&View"));
 		connect(viewMenu, &QMenu::aboutToShow, this, [this, viewMenu]()
 			{
 				viewMenu->clear();
-				QScopedPointer<QMenu> panels(createPopupMenu());
-				if (!panels.isNull())
+				if (m_partlistDock != nullptr)
 				{
-					viewMenu->addActions(panels->actions());
+					viewMenu->addAction(m_partlistDock->toggleViewAction());
 				}
 			});
 
