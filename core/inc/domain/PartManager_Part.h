@@ -25,6 +25,12 @@ namespace PartManager
 		std::string manufacturer;           // who makes it, e.g. "Murata"
 		std::string mpn;                    // Manufacturer Part Number, the vendor's own order code
 		std::string description;            // free-text notes
+		// This part's *own* extra search words, one per line — the ones its category does not
+		// already give it (§7a). Free text matches these as well as name/mpn/manufacturer/
+		// description, so "Ohm" can find a resistor whose name says none of that. The category's
+		// list is not copied in here: it applies through the type at search time, so editing a
+		// category's words reaches every part already filed under it.
+		std::string searchKeywords;
 		std::string package;               // 'SOIC-8', 'M3x10', ...
 		std::string attributes = "{}";      // raw JSON, validated against part_type_attribute at save time
 		int datasheetFileId = 0;            // FK -> PartFile::id; 0 => none

@@ -110,6 +110,7 @@ namespace PartManager
 			type.kicadCategory = row[4];
 			type.parentTypeId = std::atoi(row[5].c_str());
 			type.description = row[6];
+			type.searchKeywords = row.size() > 7 ? row[7] : std::string();
 			return type;
 		}
 
@@ -176,7 +177,8 @@ namespace PartManager
 			"kicad_relevant INTEGER NOT NULL DEFAULT 0,"
 			"kicad_category TEXT,"
 			"parent_type_id INTEGER REFERENCES part_type(id),"
-			"description TEXT"
+			"description TEXT,"
+			"search_keywords TEXT"
 			");") && ok;
 		ok = db.execute(
 			"CREATE TABLE IF NOT EXISTS part_type_attribute ("
@@ -210,20 +212,20 @@ namespace PartManager
 	int PartTypeRepository::insertType(SQLiteWrapper::SQLite& db, const PartType& type)
 	{
 		bool ok = db.executeWithParams(
-			"INSERT INTO part_type (name, domain, kicad_relevant, kicad_category, parent_type_id, description) "
-			"VALUES (?, ?, ?, ?, ?, ?);",
+			"INSERT INTO part_type (name, domain, kicad_relevant, kicad_category, parent_type_id, description, search_keywords) "
+			"VALUES (?, ?, ?, ?, ?, ?, ?);",
 			{ type.name, type.domain, type.kicadRelevant ? "1" : "0", type.kicadCategory,
-			  std::to_string(type.parentTypeId), type.description });
+			  std::to_string(type.parentTypeId), type.description, type.searchKeywords });
 		return ok ? static_cast<int>(db.getLastInsertRowId()) : NoParentType;
 	}
 
 	bool PartTypeRepository::updateType(SQLiteWrapper::SQLite& db, const PartType& type)
 	{
 		return db.executeWithParams(
-			"UPDATE part_type SET name=?, domain=?, kicad_relevant=?, kicad_category=?, parent_type_id=?, description=? "
+			"UPDATE part_type SET name=?, domain=?, kicad_relevant=?, kicad_category=?, parent_type_id=?, description=?, search_keywords=? "
 			"WHERE id=?;",
 			{ type.name, type.domain, type.kicadRelevant ? "1" : "0", type.kicadCategory,
-			  std::to_string(type.parentTypeId), type.description, std::to_string(type.id) });
+			  std::to_string(type.parentTypeId), type.description, type.searchKeywords, std::to_string(type.id) });
 	}
 
 	bool PartTypeRepository::deleteType(SQLiteWrapper::SQLite& db, int typeId)
@@ -234,7 +236,7 @@ namespace PartManager
 	bool PartTypeRepository::findType(SQLiteWrapper::SQLite& db, int typeId, PartType& outType)
 	{
 		std::vector<std::vector<std::string>> rows = db.fetchAll(
-			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description "
+			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description,search_keywords "
 			"FROM part_type WHERE id=" + std::to_string(typeId) + ";");
 		if (rows.empty())
 		{
@@ -248,7 +250,7 @@ namespace PartManager
 	{
 		std::vector<PartType> result;
 		for (const std::vector<std::string>& row : db.fetchAll(
-			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description FROM part_type ORDER BY id;"))
+			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description,search_keywords FROM part_type ORDER BY id;"))
 		{
 			result.push_back(rowToType(row));
 		}
@@ -683,7 +685,76 @@ namespace PartManager
 		addAttr(sensorId, "output_type", "Output Type", "", AttributeDataType::Enum, false,
 			{ "Analog", "Digital", "PWM", "I2C", "SPI" });
 
-		return seedDefaultFileSlots(db);
+		return seedDefaultFileSlots(db) && seedDefaultSearchKeywords(db);
+	}
+
+	bool PartTypeRepository::seedDefaultSearchKeywords(SQLiteWrapper::SQLite& db)
+	{
+		// The words you would actually type looking for one of these, in both languages the app
+		// runs in — a German user hunting a resistor types "Widerstand" as readily as "R", and the
+		// list is the only place either of those words exists. Short and deliberately not
+		// exhaustive: a keyword that matches too much is worse than a missing one, and the list is
+		// editable per type and per part.
+		// Only *empty* lists are filled, so a list the user has edited is never overwritten.
+		struct Defaults { const char* type; const char* keywords; };
+		static const Defaults defaults[] = {
+			{ "Resistor",            "R\nRes\nOhm\nWiderstand\nresistor" },
+			{ "Capacitor",           "C\nCap\nFarad\nKondensator\ncapacitor" },
+			{ "Ceramic Capacitor",   "MLCC\nceramic\nKeramik\nX7R\nC0G\nNP0" },
+			{ "Inductor",            "L\nCoil\nSpule\nDrossel\nHenry\ninductor\nchoke" },
+			{ "Power Regulator",     "LDO\nRegler\nSpannungsregler\nregulator\nbuck\nboost\nVREG" },
+			{ "Transistor",          "Q\nTransistor\ntransistor" },
+			{ "MOSFET",              "FET\nMOSFET\nN-Channel\nP-Channel" },
+			{ "Diode",               "D\nDiode\ndiode\nrectifier\nGleichrichter\nSchottky" },
+			{ "LED",                 "LED\nlight\nLicht\nLeuchtdiode\ncolour\ncolor\nFarbe" },
+			{ "Connector",           "J\nConnector\nStecker\nBuchse\nheader\nPfostenleiste\nsocket" },
+			{ "Crystal / Oscillator","Y\nQuarz\nCrystal\nXTAL\nOszillator\noscillator" },
+			{ "Microcontroller",     "U\nMCU\nMicrocontroller\nMikrocontroller\ncontroller\nCPU" },
+			{ "Op-Amp",              "U\nOpAmp\nOPV\nOperationsverstaerker\namplifier\nVerstaerker" },
+			{ "Logic IC",            "U\nLogic\nLogik\ngate\nGatter\n74HC\nCMOS\nTTL" },
+			{ "Switch",              "SW\nSwitch\nSchalter\nTaster\nbutton\nKnopf" },
+			{ "Relay",               "K\nRelay\nRelais" },
+			{ "Fuse",                "F\nFuse\nSicherung\nPTC" },
+			{ "Sensor",              "Sensor\nsensor\nFuehler\ndetector\nDetektor" },
+		};
+
+		for (PartType type : listTypes(db))
+		{
+			if (!type.searchKeywords.empty())
+			{
+				continue;
+			}
+			for (const Defaults& row : defaults)
+			{
+				if (type.name == row.type)
+				{
+					type.searchKeywords = row.keywords;
+					updateType(db, type);
+					break;
+				}
+			}
+		}
+		return true;
+	}
+
+	bool PartTypeRepository::ensureSearchKeywordColumns(SQLiteWrapper::SQLite& db)
+	{
+		// CREATE TABLE IF NOT EXISTS does nothing to a table that is already there, so an existing
+		// database needs the column added by hand — the same shape as ensureAttrColumn().
+		auto ensureColumn = [&db](const char* table, const char* column)
+		{
+			for (const std::vector<std::string>& row :
+				db.fetchAll(std::string("PRAGMA table_info(") + table + ");"))
+			{
+				if (row.size() > 1 && row[1] == column)
+				{
+					return true;
+				}
+			}
+			return db.execute(std::string("ALTER TABLE ") + table + " ADD COLUMN " + column + " TEXT;");
+		};
+		bool ok = ensureColumn("part_type", "search_keywords");
+		return ensureColumn("part", "search_keywords") && ok;
 	}
 
 	bool PartTypeRepository::seedDefaultFileSlots(SQLiteWrapper::SQLite& db)

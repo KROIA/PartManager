@@ -26,9 +26,12 @@ public:
 		ADD_TEST(TST_SearchEngine::parseTagGroupsOrTogether);
 		ADD_TEST(TST_SearchEngine::tagTermsAreRewrittenWithoutTouchingTheRest);
 		ADD_TEST(TST_SearchEngine::parseMalformedQueriesFailCleanly);
+		ADD_TEST(TST_SearchEngine::keywordsMatchByLinePrefix);
+		ADD_TEST(TST_SearchEngine::keywordsAreInheritedDownTheTypeChain);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_SearchEngine::numericComparisonsAgainstAttrColumns);
 		ADD_TEST(TST_SearchEngine::freeTextTagsAndScope);
+		ADD_TEST(TST_SearchEngine::freeTextFindsAPartByItsCategorysKeywords);
 		ADD_TEST(TST_SearchEngine::malformedOrUnknownAttributeYieldsNothing);
 #endif
 	}
@@ -40,6 +43,71 @@ private:
 	{
 		const double tolerance = std::fabs(b) * 0.005;
 		return std::fabs(a - b) <= (tolerance > 1e-15 ? tolerance : 1e-15);
+	}
+
+	// Tests — §7a search words (no database)
+	TEST_FUNCTION(keywordsMatchByLinePrefix)
+	{
+		TEST_START;
+
+		const std::string list = "R\nRes\nOhm\nWiderstand";
+		TEST_ASSERT_M(PartManager::SearchEngine::keywordListMatches(list, "r"),
+			"\"r\" must match the keyword \"R\"");
+		TEST_ASSERT_M(PartManager::SearchEngine::keywordListMatches(list, "ohm"),
+			"a whole keyword must match");
+		TEST_ASSERT_M(PartManager::SearchEngine::keywordListMatches(list, "wider"),
+			"a prefix of a keyword must match");
+		// The reason this is a prefix rule and not a substring one: every list contains letters.
+		TEST_ASSERT_M(!PartManager::SearchEngine::keywordListMatches(list, "hm"),
+			"\"hm\" is inside \"Ohm\" but starts no keyword, so it must not match");
+		TEST_ASSERT_M(!PartManager::SearchEngine::keywordListMatches(list, "resistor"),
+			"a term longer than every keyword must not match");
+		TEST_ASSERT_M(!PartManager::SearchEngine::keywordListMatches("", "r"),
+			"an empty list matches nothing");
+		TEST_ASSERT_M(!PartManager::SearchEngine::keywordListMatches(list, ""),
+			"an empty term matches nothing, or every part would match it");
+	}
+
+	TEST_FUNCTION(keywordsAreInheritedDownTheTypeChain)
+	{
+		TEST_START;
+
+		std::vector<PartManager::PartType> types;
+		PartManager::PartType capacitor;
+		capacitor.id = 1;
+		capacitor.name = "Capacitor";
+		capacitor.searchKeywords = "C\nCap";
+		types.push_back(capacitor);
+
+		PartManager::PartType ceramic;
+		ceramic.id = 2;
+		ceramic.name = "Ceramic Capacitor";
+		ceramic.parentTypeId = 1;
+		ceramic.searchKeywords = "MLCC";
+		types.push_back(ceramic);
+
+		// A cycle must not hang the walk — the same guard every other parent_type_id walk has.
+		PartManager::PartType loopA;
+		loopA.id = 3;
+		loopA.parentTypeId = 4;
+		loopA.searchKeywords = "A";
+		types.push_back(loopA);
+		PartManager::PartType loopB;
+		loopB.id = 4;
+		loopB.parentTypeId = 3;
+		loopB.searchKeywords = "B";
+		types.push_back(loopB);
+
+		const std::string inherited = PartManager::SearchEngine::inheritedKeywords(types, 2);
+		TEST_COMPARE(inherited, std::string("C\nCap\nMLCC"));
+		TEST_ASSERT_M(PartManager::SearchEngine::keywordListMatches(inherited, "cap"),
+			"a subtype must answer to its parent's words");
+		TEST_ASSERT_M(PartManager::SearchEngine::keywordListMatches(inherited, "mlcc"),
+			"...and to its own");
+		TEST_ASSERT_M(!PartManager::SearchEngine::keywordListMatches(
+			PartManager::SearchEngine::inheritedKeywords(types, 1), "mlcc"),
+			"the parent must not inherit its child's words");
+		TEST_COMPARE(PartManager::SearchEngine::inheritedKeywords(types, 3), std::string("B\nA"));
 	}
 
 	// Tests — parsing (no database)
@@ -333,6 +401,51 @@ private:
 			static_cast<size_t>(1));
 		TEST_ASSERT_M(!containsPart(PartManager::SearchEngine::search(db, "voltage>=0"), fixture.r10kId),
 			"a resistor has no voltage attribute, so it must not match a voltage term");
+	}
+
+	TEST_FUNCTION(freeTextFindsAPartByItsCategorysKeywords)
+	{
+		TEST_START;
+
+		Fixture fixture = makeFixture("PartManager_TST_SearchEngine_keywords.db");
+		SQLiteWrapper::SQLite& db = *fixture.db;
+
+		// Nothing in either resistor's name, mpn, manufacturer or description says "Ohm" — the
+		// category's word list is the only place it exists.
+		PartManager::PartType resistor;
+		TEST_ASSERT_M(PartManager::PartTypeRepository::findType(db, fixture.resistorTypeId, resistor),
+			"the fixture's Resistor type must be readable");
+		resistor.searchKeywords = "R\nRes\nOhm\nWiderstand";
+		TEST_ASSERT_M(PartManager::PartTypeRepository::updateType(db, resistor), "updateType failed");
+
+		std::vector<PartManager::Part> hits = PartManager::SearchEngine::search(db, "ohm");
+		TEST_COMPARE(hits.size(), static_cast<size_t>(2));
+		TEST_ASSERT_M(containsPart(hits, fixture.r10kId) && containsPart(hits, fixture.r220Id),
+			"both resistors must be found by their category's keyword");
+		TEST_ASSERT_M(!containsPart(hits, fixture.c100nId),
+			"the capacitor's category has no such keyword, so it must not match");
+
+		// A part's own words are additive, not a replacement for the category's.
+		PartManager::Part c100n;
+		TEST_ASSERT_M(PartManager::PartRepository::findPart(db, fixture.c100nId, c100n),
+			"the fixture's capacitor must be readable");
+		c100n.searchKeywords = "decoupling\nblock";
+		TEST_ASSERT_M(PartManager::PartRepository::updatePart(db, c100n), "updatePart failed");
+
+		hits = PartManager::SearchEngine::search(db, "decoupl");
+		TEST_COMPARE(hits.size(), static_cast<size_t>(1));
+		TEST_ASSERT_M(containsPart(hits, fixture.c100nId), "a part's own keyword must match it");
+
+		// The attribute values are searched too, as the JSON they are stored in.
+		hits = PartManager::SearchEngine::search(db, "capacitance");
+		TEST_COMPARE(hits.size(), static_cast<size_t>(1));
+		TEST_ASSERT_M(containsPart(hits, fixture.c100nId),
+			"free text must reach the stored attributes");
+
+		// ...and a tag name, without the `tag:` prefix.
+		hits = PartManager::SearchEngine::search(db, "precis");
+		TEST_COMPARE(hits.size(), static_cast<size_t>(1));
+		TEST_ASSERT_M(containsPart(hits, fixture.r220Id), "free text must reach the tag names");
 	}
 
 	TEST_FUNCTION(freeTextTagsAndScope)

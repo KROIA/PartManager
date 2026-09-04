@@ -85,6 +85,13 @@ namespace PartManager
 		// user's own slots, labels and required flags alone. Called by seedDefaultTypes() for a
 		// new database and by the v9 migration for one that predates it.
 		static bool seedDefaultFileSlots(SQLiteWrapper::SQLite& db);
+		// Fills in the §7a default search words for the built-in types — "R", "Res", "Ohm",
+		// "Widerstand" for a Resistor. Only *empty* lists are written, so an edited one is never
+		// overwritten, which is also what makes this safe to re-run as a migration step.
+		static bool seedDefaultSearchKeywords(SQLiteWrapper::SQLite& db);
+		// Adds `search_keywords` to `part_type` and `part` when they predate it. CREATE TABLE IF
+		// NOT EXISTS cannot, so an existing database needs the ALTER — see the v10 migration.
+		static bool ensureSearchKeywordColumns(SQLiteWrapper::SQLite& db);
 #endif
 
 	};

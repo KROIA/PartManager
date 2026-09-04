@@ -90,6 +90,7 @@ namespace PartManager
 			part.isActive = std::atoi(row[12].c_str()) != 0;
 			part.createdAt = row[13];
 			part.updatedAt = row[14];
+			part.searchKeywords = row.size() > 15 ? row[15] : std::string();
 			return part;
 		}
 
@@ -160,7 +161,8 @@ namespace PartManager
 			"storage_location TEXT,"
 			"is_active INTEGER NOT NULL DEFAULT 1,"
 			"created_at TEXT NOT NULL DEFAULT (datetime('now')),"
-			"updated_at TEXT NOT NULL DEFAULT (datetime('now'))"
+			"updated_at TEXT NOT NULL DEFAULT (datetime('now')),"
+			"search_keywords TEXT"
 			");") && ok;
 		ok = db.execute(
 			"CREATE TABLE IF NOT EXISTS part_file ("
@@ -181,11 +183,12 @@ namespace PartManager
 	{
 		bool ok = db.executeWithParams(
 			"INSERT INTO part (part_type_id, name, manufacturer, mpn, description, package, attributes, "
-			"datasheet_file_id, stock_qty, stock_min_qty, storage_location, is_active) "
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
+			"datasheet_file_id, stock_qty, stock_min_qty, storage_location, is_active, search_keywords) "
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
 			{ std::to_string(part.partTypeId), part.name, part.manufacturer, part.mpn, part.description,
 			  part.package, part.attributes, std::to_string(part.datasheetFileId), std::to_string(part.stockQty),
-			  std::to_string(part.stockMinQty), part.storageLocation, part.isActive ? "1" : "0" });
+			  std::to_string(part.stockMinQty), part.storageLocation, part.isActive ? "1" : "0",
+			  part.searchKeywords });
 		if (!ok)
 		{
 			return 0;
@@ -202,12 +205,12 @@ namespace PartManager
 	{
 		bool ok = db.executeWithParams(
 			"UPDATE part SET part_type_id=?, name=?, manufacturer=?, mpn=?, description=?, package=?, attributes=?, "
-			"datasheet_file_id=?, stock_qty=?, stock_min_qty=?, storage_location=?, is_active=?, "
+			"datasheet_file_id=?, stock_qty=?, stock_min_qty=?, storage_location=?, is_active=?, search_keywords=?, "
 			"updated_at=datetime('now') WHERE id=?;",
 			{ std::to_string(part.partTypeId), part.name, part.manufacturer, part.mpn, part.description,
 			  part.package, part.attributes, std::to_string(part.datasheetFileId), std::to_string(part.stockQty),
 			  std::to_string(part.stockMinQty), part.storageLocation, part.isActive ? "1" : "0",
-			  std::to_string(part.id) });
+			  part.searchKeywords, std::to_string(part.id) });
 		if (ok)
 		{
 			writeSearchableAttrColumns(db, part.id, part.partTypeId, part.attributes);
@@ -239,7 +242,7 @@ namespace PartManager
 	{
 		std::vector<std::vector<std::string>> rows = db.fetchAll(
 			"SELECT id,part_type_id,name,manufacturer,mpn,description,package,attributes,datasheet_file_id,"
-			"stock_qty,stock_min_qty,storage_location,is_active,created_at,updated_at "
+			"stock_qty,stock_min_qty,storage_location,is_active,created_at,updated_at,search_keywords "
 			"FROM part WHERE id=" + std::to_string(partId) + ";");
 		if (rows.empty())
 		{
@@ -253,7 +256,7 @@ namespace PartManager
 	{
 		std::string query =
 			"SELECT id,part_type_id,name,manufacturer,mpn,description,package,attributes,datasheet_file_id,"
-			"stock_qty,stock_min_qty,storage_location,is_active,created_at,updated_at FROM part";
+			"stock_qty,stock_min_qty,storage_location,is_active,created_at,updated_at,search_keywords FROM part";
 		if (partTypeId != 0)
 		{
 			query += " WHERE part_type_id=" + std::to_string(partTypeId);

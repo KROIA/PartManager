@@ -28,6 +28,11 @@ namespace PartManager
 		std::string kicadCategory;         // groups types into one KiCad library file, e.g. 'Resistors'; empty = unset
 		int parentTypeId = NoParentType;   // FK -> PartType::id to inherit attributes/file-slots from (§2b); NoParentType => root type
 		std::string description;           // free text
+		// The default search words every part of this type answers to, one per line — "R", "Res",
+		// "Ohm" for a resistor (§7a). Inherited down the §2b chain and never copied onto a part,
+		// so editing this reaches the parts already filed under the type; a part adds its own in
+		// Part::searchKeywords rather than overriding these.
+		std::string searchKeywords;
 	};
 
 }

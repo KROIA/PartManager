@@ -237,6 +237,7 @@ namespace PartManager
 		connect(m_ui->kicadCategoryEdit, &QLineEdit::textEdited, this, &TypeTemplateDialog::onTypeFieldEdited);
 		connect(m_ui->kicadRelevantCheck, &QCheckBox::toggled, this, &TypeTemplateDialog::onTypeFieldEdited);
 		connect(m_ui->descriptionEdit, &QPlainTextEdit::textChanged, this, &TypeTemplateDialog::onTypeFieldEdited);
+		connect(m_ui->searchKeywordsEdit, &QPlainTextEdit::textChanged, this, &TypeTemplateDialog::onTypeFieldEdited);
 		connect(m_ui->domainCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
 			&TypeTemplateDialog::onTypeFieldEdited);
 		connect(m_ui->parentCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
@@ -321,6 +322,7 @@ namespace PartManager
 		m_ui->kicadRelevantCheck->setChecked(type.kicadRelevant);
 		m_ui->kicadCategoryEdit->setText(toQt(type.kicadCategory));
 		m_ui->descriptionEdit->setPlainText(toQt(type.description));
+		m_ui->searchKeywordsEdit->setPlainText(toQt(type.searchKeywords));
 
 		// A type cannot descend from itself, directly or through a chain — the §2b walk would
 		// then never reach a root. typeIdWithDescendants() is the same subtree the main window
@@ -365,6 +367,7 @@ namespace PartManager
 		type.kicadCategory = m_ui->kicadCategoryEdit->text().trimmed().toStdString();
 		type.parentTypeId = m_ui->parentCombo->currentData().toInt();
 		type.description = m_ui->descriptionEdit->toPlainText().toStdString();
+		type.searchKeywords = m_ui->searchKeywordsEdit->toPlainText().toStdString();
 		if (!m_controller.updateType(type))
 		{
 			return;
@@ -613,6 +616,7 @@ namespace PartManager
 		m_ui->kicadCategoryEdit->setEnabled(hasType && type.kicadRelevant);
 		m_ui->parentCombo->setEnabled(hasType);
 		m_ui->descriptionEdit->setEnabled(hasType);
+		m_ui->searchKeywordsEdit->setEnabled(hasType);
 		m_ui->addAttributeButton->setEnabled(hasType);
 		m_ui->addFileSlotButton->setEnabled(hasType);
 

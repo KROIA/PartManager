@@ -18,6 +18,8 @@
 //   v9: no table change — seeds the default file slots (datasheet, KiCad
 //       symbol, footprint, 3D model) onto the electronic root types, which no
 //       existing database has because they were never seeded at all.
+//   v10: `search_keywords` on `part_type` and `part` (§7a), ALTERed in, plus
+//       the built-in types' default word lists. Only empty lists are filled.
 // @see docs/design/ARCHITECTURE.md §1c
 #pragma once
 
@@ -32,7 +34,7 @@ namespace PartManager
 {
 
 	// The schema (table/column structure) version this build of PartManager understands.
-	constexpr int CurrentSchemaVersion = 9;
+	constexpr int CurrentSchemaVersion = 10;
 
 	// Outcome of comparing a database's stored schema_version against CurrentSchemaVersion.
 	enum class SchemaCompatibility

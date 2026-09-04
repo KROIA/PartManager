@@ -123,6 +123,16 @@ namespace PartManager
 			// added under one of these roles is adopted rather than duplicated.
 			PartTypeRepository::seedDefaultFileSlots(db);
 		}
+		if (storedSchemaVersion < 10 && db.isOpen())
+		{
+			// v9 -> v10: `search_keywords` on `part_type` and on `part` (§7a). The column has to be
+			// ALTERed in — createSchema()'s CREATE TABLE IF NOT EXISTS does nothing to a table that
+			// already exists — and the built-in types are given their default word lists, without
+			// which the feature does nothing on a database that already has all its categories.
+			// Only empty lists are filled, so this cannot overwrite an edited one.
+			PartTypeRepository::ensureSearchKeywordColumns(db);
+			PartTypeRepository::seedDefaultSearchKeywords(db);
+		}
 		return SchemaCompatibility::migrated;
 	}
 #endif

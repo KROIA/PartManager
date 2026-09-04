@@ -5,6 +5,7 @@
 #include "widgets/PartManager_AttributeFormWidget.h"
 #include "widgets/PartManager_KicadPreviewWidget.h"
 #include "widgets/PartManager_TypeIconPainter.h"
+#include "search/PartManager_SearchEngine.h"
 
 #include <fstream>
 #include <iterator>
@@ -145,6 +146,7 @@ namespace PartManager
 		connect(m_ui->mpnEdit, &QLineEdit::textChanged, this, &PartEditorDialog::scheduleSave);
 		connect(m_ui->packageEdit, &QLineEdit::textChanged, this, &PartEditorDialog::scheduleSave);
 		connect(m_ui->descriptionEdit, &QPlainTextEdit::textChanged, this, &PartEditorDialog::scheduleSave);
+		connect(m_ui->searchKeywordsEdit, &QPlainTextEdit::textChanged, this, &PartEditorDialog::scheduleSave);
 		// The quantity is the one field that is not a plain autosave: it becomes a §3 correction,
 		// and it commits on focus-loss/Enter rather than per keystroke so typing "12" logs one
 		// adjustment to 12 instead of one to 1 and another to 12.
@@ -224,6 +226,25 @@ namespace PartManager
 		m_ui->mpnEdit->setText(toQt(m_part.mpn));
 		m_ui->packageEdit->setText(toQt(m_part.package));
 		m_ui->descriptionEdit->setPlainText(toQt(m_part.description));
+
+		// §7a: this part's *own* extra search words, and — read-only underneath — the ones it
+		// already answers to through its category. Showing the inherited list is what stops the
+		// field being filled in with words the part already matches on.
+		m_ui->searchKeywordsEdit->setPlainText(toQt(m_part.searchKeywords));
+		m_ui->searchKeywordsEdit->setToolTip(
+			tr("Extra words a search matches this part on, one per line. The category's own words "
+			   "already apply and do not need repeating here."));
+		{
+			const std::string inherited = SearchEngine::inheritedKeywords(
+				m_controller.types(), m_part.partTypeId);
+			QString shown = toQt(inherited);   // user data
+			shown.replace(QLatin1Char('\n'), QStringLiteral(", "));
+			m_ui->inheritedKeywordsLabel->setText(shown.isEmpty()
+				? tr("This category declares no search words yet — add them in Edit Type Templates "
+					 "to give every part in it the same ones.")
+				: tr("From the category: %1").arg(shown));
+		}
+
 		// The log is the source of truth, `part.stock_qty` only its cache (§3) — so the field shows
 		// the log's number, and m_part follows it. A database whose cache had drifted (an import
 		// that wrote the column directly) is then corrected by the next autosave rather than
@@ -799,6 +820,7 @@ namespace PartManager
 		m_part.mpn = m_ui->mpnEdit->text().toStdString();
 		m_part.package = m_ui->packageEdit->text().toStdString();
 		m_part.description = m_ui->descriptionEdit->toPlainText().toStdString();
+		m_part.searchKeywords = m_ui->searchKeywordsEdit->toPlainText().toStdString();
 		// Not read off the spin box here: the quantity is only ever changed by commitStockQuantity(),
 		// which logs it (§3). m_part.stockQty already holds what the log says, so the write below
 		// re-states the cache instead of overwriting it.

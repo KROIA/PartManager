@@ -27,6 +27,7 @@
 
 #include "PartManager_global.h"
 #include "domain/PartManager_Part.h"
+#include "domain/PartManager_PartType.h"
 #include "search/PartManager_SearchQuery.h"
 #include <string>
 #include <vector>
@@ -42,6 +43,17 @@ namespace PartManager
 	{
 		SearchEngine() = delete;
 	public:
+		// True when `term` is a prefix of any line in `keywordList` (§7a's search words). Prefix
+		// and not substring: a one- or two-letter keyword is the whole point of the list ("R",
+		// "Res", "C"), and a substring rule would make typing "r" match every part whose keywords
+		// contain the letter anywhere — which is all of them. `term` is expected lowercase, as
+		// SearchQuery::parse() leaves it; the list is lowercased here.
+		static bool keywordListMatches(const std::string& keywordList, const std::string& term);
+		// The search words a part of `typeId` answers to through its type: the type's own list and
+		// every ancestor's, root first, newline-joined (§2b). Cycle-safe, like every other walk
+		// over `parent_type_id`. Takes the whole type list so a caller in a loop reads the table
+		// once rather than once per type.
+		static std::string inheritedKeywords(const std::vector<PartType>& types, int typeId);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		// Matching parts, ordered by id. partTypeId 0 = search across all types (§7a tree filter);
 		// any other value scopes to that one type (§7a table filter). An empty query matches every
