@@ -134,6 +134,10 @@ namespace PartManager
 		// One silkscreen shape, walked into segments and drawn as thin boxes on the board's top
 		// face. Curves are stepped: at 0.12 mm wide the chords are shorter than the line.
 		void addSilkscreen(const KicadShape& shape, Qt3DRender::QMaterial* material);
+		// Raises the 3D page, after putting the window container where the layout wants it. See
+		// the definition: a stacked page keeps a stale geometry while it is hidden, and a native
+		// window shows that stale size for a frame when it is raised.
+		void showScenePage();
 		// Raises the text page. Leaves the progress strip alone — a STEP file being converted
 		// shows both, an explanation and a bar.
 		void showMessage(const QString& message);
@@ -157,6 +161,8 @@ namespace PartManager
 		QString noConverterMessage() const;
 
 		QStackedWidget* m_stack = nullptr;
+		// The QWindow container holding the Qt3D surface — the stack's second page.
+		QWidget* m_sceneContainer = nullptr;
 		QLabel* m_messageLabel = nullptr;
 		QWidget* m_progressStrip = nullptr;
 		QLabel* m_progressLabel = nullptr;

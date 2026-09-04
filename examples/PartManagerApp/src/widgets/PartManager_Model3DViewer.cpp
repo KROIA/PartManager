@@ -14,6 +14,7 @@
 #include <Qt3DRender/QMesh>
 #include <Qt3DRender/QPointLight>
 
+#include "widgets/PartManager_KicadModelTransform.h"
 #include "model3d/PartManager_MeshBounds.h"
 #include "model3d/PartManager_StepColors.h"
 #include "model3d/PartManager_StepConverter.h"
@@ -216,9 +217,25 @@ namespace PartManager
 		// gestures wanted.
 		m_window->installEventFilter(this);
 
-		QWidget* container = QWidget::createWindowContainer(m_window, m_stack);
-		container->setMinimumSize(120, 100);
-		m_stack->addWidget(container);
+		m_sceneContainer = QWidget::createWindowContainer(m_window, m_stack);
+		m_sceneContainer->setMinimumSize(120, 100);
+		m_stack->addWidget(m_sceneContainer);
+	}
+
+	void Model3DViewer::showScenePage()
+	{
+		// QStackedLayout only lays out the page that is up, so the container keeps whatever
+		// geometry it had when it was last raised. Raising it again therefore shows the native
+		// Qt3D surface at that stale size for a frame or two before the layout catches up — which
+		// on a panel that has since been made narrower is a viewport visibly wider than the panel,
+		// spilling over the part table. Giving it the right geometry *before* it is shown is the
+		// whole fix: a native child window is not repainted by its parent, so no amount of
+		// setUpdatesEnabled() around the caller can suppress it.
+		if (m_sceneContainer != nullptr)
+		{
+			m_sceneContainer->setGeometry(m_stack->contentsRect());
+		}
+		m_stack->setCurrentIndex(PageScene);
 	}
 
 	void Model3DViewer::setCacheBuilder(MeshCacheBuilder* builder)
@@ -481,7 +498,7 @@ namespace PartManager
 					if (m_bounds.ok || status == Qt3DRender::QMesh::Ready)
 					{
 						frameModel();
-						m_stack->setCurrentIndex(PageScene);
+						showScenePage();
 					}
 					else
 					{
@@ -496,7 +513,7 @@ namespace PartManager
 		// the render loop and the render loop only runs while the window is exposed, so a
 		// container left on an unselected page never loads anything and the panel waits for a
 		// Ready that cannot arrive. This is the difference between a viewer and a hang.
-		m_stack->setCurrentIndex(PageScene);
+		showScenePage();
 		showProgress(tr("Loading %1…").arg(QFileInfo(m_loadingMesh).fileName()));
 		m_loadWatchdog->start(LoadTimeoutMs);
 	}
@@ -724,9 +741,9 @@ namespace PartManager
 		// offsets a rotated model lands the same way in both.
 		const QVector3D scale(static_cast<float>(placement.scaleX),
 			static_cast<float>(placement.scaleY), static_cast<float>(placement.scaleZ));
-		const QQuaternion rotation = QQuaternion::fromEulerAngles(
-			static_cast<float>(placement.rotateX), static_cast<float>(placement.rotateY),
-			static_cast<float>(placement.rotateZ));
+		// Not fromEulerAngles(): it composes Z, X, Y, and KiCad composes X, Y, Z. See
+		// PartManager_KicadModelTransform.h — a two-axis rotation lands on a different face.
+		const QQuaternion rotation = kicadModelRotation(placement);
 		// Y flips for the same reason the pads' does: the offset is written in the footprint's
 		// coordinates, which measure Y downward, and this scene is the board's, which does not.
 		const QVector3D translation(static_cast<float>(placement.offsetX),

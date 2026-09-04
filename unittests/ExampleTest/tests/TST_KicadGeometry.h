@@ -3,6 +3,7 @@
 #include "UnitTest.h"
 #include "kicad/PartManager_KicadGeometry.h"
 #include "kicad/PartManager_KicadSymbolWriter.h"
+#include "widgets/PartManager_KicadModelTransform.h"
 #include <cmath>
 #include <string>
 
@@ -23,6 +24,7 @@ public:
 		ADD_TEST(TST_KicadGeometry::throughHolePadsCarryTheirHole);
 		ADD_TEST(TST_KicadGeometry::aTurnedPadKeepsItsAngle);
 		ADD_TEST(TST_KicadGeometry::aFootprintSaysWhereItsModelGoes);
+		ADD_TEST(TST_KicadGeometry::aTwoAxisModelRotationComposesTheWayKicadDoes);
 		ADD_TEST(TST_KicadGeometry::theModelPathIsRewrittenToWhereTheModelActuallyIs);
 		ADD_TEST(TST_KicadGeometry::anArcSweepsThroughItsMiddlePoint);
 		ADD_TEST(TST_KicadGeometry::rubbishInNothingOut);
@@ -377,6 +379,57 @@ private:
 		// Rewriting twice is the same as rewriting once: the generator runs on every regenerate
 		// and the §5c edit tracker would report a file that keeps changing as edited by hand.
 		TEST_COMPARE(PartManager::KicadGeometry::withModelPath(rewritten, target), rewritten);
+	}
+
+	// The rotation KiCad draws is Z after Y after X. QQuaternion::fromEulerAngles() is Z, then
+	// X, then Y, which agrees with KiCad on any single axis and disagrees the moment a footprint
+	// turns about two — CAY16-331J8LF's "(rotate (xyz 90 0 -90))" laid the resistor array on its
+	// side beside the board while KiCad's own 3D view had it flat on the pads.
+	TEST_FUNCTION(aTwoAxisModelRotationComposesTheWayKicadDoes)
+	{
+		TEST_START;
+
+		const PartManager::KicadDrawing array = PartManager::KicadGeometry::footprint(
+			"(module \"RESAR\" (layer F.Cu)\n"
+			"  (model CAY16-331J8LF.stp\n"
+			"    (at (xyz 0 0 0))\n"
+			"    (scale (xyz 1 1 1))\n"
+			"    (rotate (xyz 90 0 -90))\n"
+			"  )\n"
+			")\n");
+		TEST_ASSERT(array.model3D.present);
+		// The parser stores KiCad's clockwise angles negated.
+		TEST_COMPARE(array.model3D.rotateX, -90.0);
+		TEST_COMPARE(array.model3D.rotateZ, 90.0);
+
+		// Rx(-90) first, then Rz(90): the model's axes land as (x, y, z) -> (-z, x, -y).
+		const QQuaternion rotation = PartManager::kicadModelRotation(array.model3D);
+		const auto turns = [&rotation](const QVector3D& from, const QVector3D& to)
+		{
+			return (rotation.rotatedVector(from) - to).length() < 1e-4f;
+		};
+		TEST_ASSERT_M(turns(QVector3D(1, 0, 0), QVector3D(0, 1, 0)), "model X must become world Y");
+		TEST_ASSERT_M(turns(QVector3D(0, 1, 0), QVector3D(0, 0, -1)), "model Y must become world -Z");
+		TEST_ASSERT_M(turns(QVector3D(0, 0, 1), QVector3D(-1, 0, 0)), "model Z must become world -X");
+
+		// fromEulerAngles() sends the model's Z to -Y instead, which is the bug this pins: the
+		// two orders must not be confused again just because they agree one axis at a time.
+		const QVector3D wrong = QQuaternion::fromEulerAngles(
+			static_cast<float>(array.model3D.rotateX), static_cast<float>(array.model3D.rotateY),
+			static_cast<float>(array.model3D.rotateZ)).rotatedVector(QVector3D(0, 0, 1));
+		TEST_ASSERT_M((wrong - QVector3D(-1, 0, 0)).length() > 1e-3f,
+			"this case has to be one the two orders actually disagree on");
+
+		// One axis on its own is the same either way, which is why this went unnoticed.
+		const PartManager::KicadDrawing single = PartManager::KicadGeometry::footprint(
+			"(footprint \"X\" (layer \"F.Cu\")\n"
+			"  (model \"X.step\" (offset (xyz 0 0 0)) (scale (xyz 1 1 1))\n"
+			"    (rotate (xyz 0 0 90)))\n"
+			")\n");
+		const QVector3D byUs = PartManager::kicadModelRotation(single.model3D)
+			.rotatedVector(QVector3D(1, 0, 0));
+		TEST_ASSERT_M((byUs - QVector3D(0, -1, 0)).length() < 1e-4f,
+			"a single-axis rotation still has to come out unchanged");
 	}
 
 	TEST_FUNCTION(aFootprintSaysWhereItsModelGoes)
