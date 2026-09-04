@@ -108,12 +108,6 @@ Begriffe werden UND-verknüpft: Freitext (Leerzeichen in &quot;Anführungszeiche
         <translation>Diese Tabelle filtern...</translation>
     </message>
     <message>
-        <source>Filters the rows of the selected category only.
-Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an attribute comparison like resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</source>
-        <translation type="vanished">Filtert nur die Zeilen der ausgewählten Kategorie.
-Begriffe werden UND-verknüpft: Freitext (Leerzeichen in &quot;Anführungszeichen&quot;), tag:name oder ein Attributvergleich wie resistance&gt;1k (= != &lt; &lt;= &gt; &gt;=).</translation>
-    </message>
-    <message>
         <source>PREVIEW</source>
         <translation>VORSCHAU</translation>
     </message>
@@ -164,6 +158,18 @@ Ein Komma ODER-verknüpft Tags innerhalb eines Begriffs: tag:I2C,SPI trifft auf 
     <message>
         <source>Opens this part&apos;s stored datasheet in your PDF viewer.</source>
         <translation>Öffnet das gespeicherte Datenblatt dieses Bauteils im PDF-Betrachter.</translation>
+    </message>
+    <message>
+        <source>All categories</source>
+        <translation>Alle Kategorien</translation>
+    </message>
+    <message>
+        <source>Searches every category instead of the selected one (Ctrl+F).
+The table then shows a Category column saying where each part lives.
+Clearing the box or pressing Escape in it goes back to the selected category.</source>
+        <translation>Durchsucht jede Kategorie statt nur der ausgewählten (Strg+F).
+Die Tabelle zeigt dann eine Spalte „Kategorie“, die angibt, wo jedes Bauteil liegt.
+Das Feld zu leeren oder darin Escape zu drücken kehrt zur ausgewählten Kategorie zurück.</translation>
     </message>
 </context>
 <context>
@@ -224,10 +230,6 @@ Ein Komma ODER-verknüpft Tags innerhalb eines Begriffs: tag:I2C,SPI trifft auf 
         <translation>Tags verwalten</translation>
     </message>
     <message>
-        <source>Tags are a shared vocabulary — every part picks from this list.</source>
-        <translation type="vanished">Tags sind ein gemeinsames Vokabular — jedes Bauteil wählt aus dieser Liste.</translation>
-    </message>
-    <message>
         <source>No tags yet — &quot;New Tag...&quot; creates the first one.</source>
         <translation>Noch keine Tags — „Neues Tag…“ legt das erste an.</translation>
     </message>
@@ -246,10 +248,6 @@ Ein Komma ODER-verknüpft Tags innerhalb eines Begriffs: tag:I2C,SPI trifft auf 
     <message>
         <source>Delete</source>
         <translation>Löschen</translation>
-    </message>
-    <message>
-        <source>Removes the tag from every part that carries it.</source>
-        <translation type="vanished">Entfernt den Tag von jedem Bauteil, das ihn trägt.</translation>
     </message>
     <message>
         <source>Close</source>
@@ -525,10 +523,6 @@ Mouser füllt das aus seiner Spalte &quot;Package / Case&quot; aus.</translation
     <message>
         <source>Open Cart on Mouser</source>
         <translation>Warenkorb bei Mouser öffnen</translation>
-    </message>
-    <message>
-        <source>Mark as Submitted</source>
-        <translation type="vanished">Als abgeschickt markieren</translation>
     </message>
     <message>
         <source>Confirm Arrival…</source>
@@ -1301,10 +1295,6 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
         <translation>Noch keine Bibliotheken erzeugt.</translation>
     </message>
     <message>
-        <source>Libraries: %1</source>
-        <translation type="vanished">Bibliotheken: %1</translation>
-    </message>
-    <message>
         <source>Install in KiCad</source>
         <translation>In KiCad installieren</translation>
     </message>
@@ -1371,14 +1361,6 @@ Fortfahren?</translation>
         <translation>Installiert</translation>
     </message>
     <message>
-        <source>The libraries are in KiCad&apos;s global tables. Open KiCad and they are in the symbol and footprint choosers — no restart of PartManager needed.</source>
-        <translation type="vanished">Die Bibliotheken stehen in KiCads globalen Tabellen. KiCad öffnen und sie sind in der Symbol- und Footprint-Auswahl — PartManager muss nicht neu gestartet werden.</translation>
-    </message>
-    <message>
-        <source>The libraries are in that project&apos;s tables. They appear when the project is open, and nowhere else.</source>
-        <translation type="vanished">Die Bibliotheken stehen in den Tabellen dieses Projekts. Sie erscheinen, wenn das Projekt geöffnet ist, und sonst nirgends.</translation>
-    </message>
-    <message>
         <source>In KiCad they are called: %1</source>
         <translation>In KiCad heißen sie: %1</translation>
     </message>
@@ -1389,6 +1371,26 @@ Fortfahren?</translation>
     <message>
         <source>The libraries are in that project&apos;s tables and pinned, so they sit at the top of the choosers under &quot;%1&quot; when the project is open.</source>
         <translation>Die Bibliotheken stehen in den Tabellen dieses Projekts und sind angeheftet — sie stehen unter „%1“ ganz oben in der Auswahl, wenn das Projekt geöffnet ist.</translation>
+    </message>
+    <message>
+        <source>No KiCad symbol or footprint attached, so not generated at all: %1</source>
+        <translation>Kein KiCad-Symbol und kein Footprint angehängt, daher gar nicht erzeugt: %1</translation>
+    </message>
+    <message>
+        <source>The part behind this no longer has a KiCad symbol or footprint attached, so PartManager does not generate it any more. Your edit is kept because it is yours; removing it is the only thing left to decide.</source>
+        <translation>An dem Bauteil dahinter hängt kein KiCad-Symbol und kein Footprint mehr, daher erzeugt PartManager es nicht mehr. Ihre Änderung bleibt erhalten, weil sie Ihnen gehört; zu entscheiden bleibt nur noch, ob sie entfernt wird.</translation>
+    </message>
+    <message>
+        <source>Remove It</source>
+        <translation>Entfernen</translation>
+    </message>
+    <message>
+        <source>“%1” will be removed from the library. Its part has no KiCad symbol or footprint attached any more, so PartManager will not put it back.</source>
+        <translation>„%1“ wird aus der Bibliothek entfernt. An seinem Bauteil hängt kein KiCad-Symbol und kein Footprint mehr, daher legt PartManager es nicht wieder an.</translation>
+    </message>
+    <message>
+        <source>Footprint generated but no symbol: none is attached, and the footprint&apos;s pads carry no pin numbers to derive one from: %1</source>
+        <translation>Footprint erzeugt, aber kein Symbol: Es ist keines angehängt, und die Pads des Footprints tragen keine Pin-Nummern, aus denen sich eines ableiten ließe: %1</translation>
     </message>
 </context>
 <context>
@@ -1525,10 +1527,6 @@ Fortfahren?</translation>
         <translation>Aktualisieren</translation>
     </message>
     <message>
-        <source>List / Grid</source>
-        <translation>Liste / Raster</translation>
-    </message>
-    <message>
         <source>3D Viewer</source>
         <translation>3D-Betrachter</translation>
     </message>
@@ -1625,6 +1623,45 @@ Fortfahren?</translation>
     <message>
         <source>Opens this part&apos;s datasheet in your PDF viewer.</source>
         <translation>Öffnet das Datenblatt dieses Bauteils im PDF-Betrachter.</translation>
+    </message>
+    <message>
+        <source>Switch Database...</source>
+        <translation>Datenbank wechseln...</translation>
+    </message>
+    <message>
+        <source>Panels</source>
+        <translation>Bereiche</translation>
+    </message>
+    <message>
+        <source>Help</source>
+        <translation>Hilfe</translation>
+    </message>
+    <message>
+        <source>About PartManager</source>
+        <translation>Über PartManager</translation>
+    </message>
+    <message>
+        <source>PartManager has no built-in user manual yet.
+
+The project page carries the README, which is currently the whole of the documentation.</source>
+        <translation>PartManager hat noch kein eingebautes Benutzerhandbuch.
+
+Die Projektseite enthält die README, die derzeit die gesamte Dokumentation ausmacht.</translation>
+    </message>
+    <message>
+        <source>Open Project Page</source>
+        <translation>Projektseite öffnen</translation>
+    </message>
+    <message>
+        <source>&lt;b&gt;PartManager&lt;/b&gt; %1&lt;p&gt;A local inventory for electronic components.&lt;/p&gt;&lt;p&gt;Qt %2&lt;br&gt;Database: %3&lt;/p&gt;&lt;p&gt;Licensed under the MIT licence.&lt;/p&gt;</source>
+        <translation>&lt;b&gt;PartManager&lt;/b&gt; %1&lt;p&gt;Eine lokale Bestandsverwaltung für elektronische Bauteile.&lt;/p&gt;&lt;p&gt;Qt %2&lt;br&gt;Datenbank: %3&lt;/p&gt;&lt;p&gt;Lizenziert unter der MIT-Lizenz.&lt;/p&gt;</translation>
+    </message>
+    <message numerus="yes">
+        <source>All categories — %n part(s)</source>
+        <translation>
+            <numerusform>Alle Kategorien — %n Bauteil</numerusform>
+            <numerusform>Alle Kategorien — %n Bauteile</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -1723,10 +1760,6 @@ PartManager führt sie nicht mehr auf. Ihr Ordner, ihre Bauteile und alle Dateie
     <message>
         <source>Rename Tag</source>
         <translation>Tag umbenennen</translation>
-    </message>
-    <message>
-        <source>Could not rename tag</source>
-        <translation type="vanished">Tag konnte nicht umbenannt werden</translation>
     </message>
     <message>
         <source>Tag colour</source>
@@ -2414,26 +2447,8 @@ Ein Übertragen jetzt könnte auf bereits vorhandene Mengen aufaddieren. Trotzde
         </translation>
     </message>
     <message>
-        <source>Mark as submitted</source>
-        <translation type="vanished">Als abgeschickt markieren</translation>
-    </message>
-    <message>
         <source>Mouser order number (optional):</source>
         <translation>Mouser-Bestellnummer (optional):</translation>
-    </message>
-    <message>
-        <source>Confirm arrival</source>
-        <translation type="vanished">Eingang bestätigen</translation>
-    </message>
-    <message>
-        <source>How many of “%1” have arrived in total?
-(%2 ordered, %3 already booked in)</source>
-        <translation type="vanished">Wie viele von „%1“ sind insgesamt eingetroffen?
-(%2 bestellt, %3 bereits verbucht)</translation>
-    </message>
-    <message>
-        <source>Unit price actually paid (0 to skip):</source>
-        <translation type="vanished">Tatsächlich bezahlter Stückpreis (0 zum Überspringen):</translation>
     </message>
     <message>
         <source>Could not record the arrival</source>
@@ -3057,16 +3072,8 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
         <translation>— nicht zugeordnet —</translation>
     </message>
     <message>
-        <source>Or drag the part straight out of the table above.</source>
-        <translation type="vanished">Oder ziehen Sie das Bauteil direkt aus der Tabelle oben herunter.</translation>
-    </message>
-    <message>
         <source>—</source>
         <translation>—</translation>
-    </message>
-    <message>
-        <source>This line points at no part yet. Drag one out of the table above, or pick it in the Part column — until then it cannot be ordered and is left out of “Order Missing Parts”.</source>
-        <translation type="vanished">Diese Zeile zeigt noch auf kein Bauteil. Ziehen Sie eines aus der Tabelle oben herunter oder wählen Sie es in der Spalte „Bauteil“ — bis dahin kann sie nicht bestellt werden und bleibt bei „Fehlende Teile bestellen“ außen vor.</translation>
     </message>
     <message numerus="yes">
         <source>Short by %n unit(s): the list needs %1 and stock holds %2.</source>
@@ -3437,6 +3444,166 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
     </message>
 </context>
 <context>
+    <name>PartManager::TypeTemplateDialog</name>
+    <message>
+        <source>A searchable number gets its own column on the part table, so filtering on it stays fast. Unticking this later leaves that column in place — it is simply unused.</source>
+        <translation>Eine durchsuchbare Zahl bekommt eine eigene Spalte in der Bauteiltabelle, damit das Filtern danach schnell bleibt. Wird das Häkchen später entfernt, bleibt diese Spalte bestehen — sie wird dann einfach nicht mehr genutzt.</translation>
+    </message>
+    <message>
+        <source>The key a part&apos;s value is stored under. It is fixed once the attribute exists: renaming it would leave every value already entered under a name nothing reads.</source>
+        <translation>Der Schlüssel, unter dem der Wert eines Bauteils gespeichert wird. Er steht fest, sobald das Attribut existiert: ihn umzubenennen würde jeden bereits eingetragenen Wert unter einem Namen zurücklassen, den nichts mehr liest.</translation>
+    </message>
+    <message>
+        <source>(none — a root type)</source>
+        <translation>(keiner — ein Wurzeltyp)</translation>
+    </message>
+    <message numerus="yes">
+        <source>Used by %n part(s) of exactly this type.</source>
+        <translation>
+            <numerusform>Wird von %n Bauteil genau dieses Typs verwendet.</numerusform>
+            <numerusform>Wird von %n Bauteilen genau dieses Typs verwendet.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>New Type</source>
+        <translation>Neuer Typ</translation>
+    </message>
+    <message>
+        <source>Type name:</source>
+        <translation>Typname:</translation>
+    </message>
+    <message>
+        <source>Could not create type</source>
+        <translation>Typ konnte nicht erstellt werden</translation>
+    </message>
+    <message>
+        <source>The type could not be created.</source>
+        <translation>Der Typ konnte nicht erstellt werden.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n part(s) still use it</source>
+        <translation>
+            <numerusform>%n Bauteil verwendet ihn noch</numerusform>
+            <numerusform>%n Bauteile verwenden ihn noch</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n type(s) inherit from it</source>
+        <translation>
+            <numerusform>%n Typ erbt von ihm</numerusform>
+            <numerusform>%n Typen erben von ihm</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Cannot delete type</source>
+        <translation>Typ kann nicht gelöscht werden</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; cannot be deleted: %2. Move or delete those first.</source>
+        <translation>„%1“ kann nicht gelöscht werden: %2. Verschieben oder löschen Sie diese zuerst.</translation>
+    </message>
+    <message>
+        <source>Delete type</source>
+        <translation>Typ löschen</translation>
+    </message>
+    <message>
+        <source>Delete &quot;%1&quot; and the attributes and file slots it declares?</source>
+        <translation>„%1“ mitsamt den Attributen und Dateislots löschen, die dieser Typ deklariert?</translation>
+    </message>
+    <message>
+        <source>The file role this slot expects. It is fixed once the slot exists, so a file already attached under it keeps being found.</source>
+        <translation>Die Dateirolle, die dieser Slot erwartet. Sie steht fest, sobald der Slot existiert, damit eine bereits darunter angehängte Datei weiterhin gefunden wird.</translation>
+    </message>
+    <message>
+        <source>Tooltip — select an attribute to write the hint the New Part screen shows for it.</source>
+        <translation>Tooltip — wählen Sie ein Attribut aus, um den Hinweis zu schreiben, den die Maske „Neues Bauteil“ dafür anzeigt.</translation>
+    </message>
+    <message>
+        <source>Tooltip for &quot;%1&quot; — shown as the ⓘ hint on the New Part screen.</source>
+        <translation>Tooltip für „%1“ — wird als ⓘ-Hinweis in der Maske „Neues Bauteil“ angezeigt.</translation>
+    </message>
+    <message>
+        <source>Add attribute</source>
+        <translation>Attribut hinzufügen</translation>
+    </message>
+    <message>
+        <source>Key (lowercase letters, digits and underscores; cannot be changed later):</source>
+        <translation>Schlüssel (Kleinbuchstaben, Ziffern und Unterstriche; später nicht mehr änderbar):</translation>
+    </message>
+    <message>
+        <source>Invalid key</source>
+        <translation>Ungültiger Schlüssel</translation>
+    </message>
+    <message>
+        <source>The key cannot be empty.</source>
+        <translation>Der Schlüssel darf nicht leer sein.</translation>
+    </message>
+    <message>
+        <source>The key must start with a lowercase letter and contain only lowercase letters, digits and underscores.</source>
+        <translation>Der Schlüssel muss mit einem Kleinbuchstaben beginnen und darf nur Kleinbuchstaben, Ziffern und Unterstriche enthalten.</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is already an attribute of this type, or of one it inherits from.</source>
+        <translation>„%1“ ist bereits ein Attribut dieses Typs oder eines Typs, von dem er erbt.</translation>
+    </message>
+    <message>
+        <source>Could not add attribute</source>
+        <translation>Attribut konnte nicht hinzugefügt werden</translation>
+    </message>
+    <message>
+        <source>The attribute could not be created.</source>
+        <translation>Das Attribut konnte nicht erstellt werden.</translation>
+    </message>
+    <message>
+        <source>Remove attribute</source>
+        <translation>Attribut entfernen</translation>
+    </message>
+    <message>
+        <source>Remove &quot;%1&quot; from this type? Values parts already carry under it are kept in the database but are no longer shown.</source>
+        <translation>„%1“ aus diesem Typ entfernen? Werte, die Bauteile bereits darunter tragen, bleiben in der Datenbank erhalten, werden aber nicht mehr angezeigt.</translation>
+    </message>
+    <message>
+        <source>Enum options</source>
+        <translation>Enum-Optionen</translation>
+    </message>
+    <message>
+        <source>The values &quot;%1&quot; may take, one per line:</source>
+        <translation>Die Werte, die „%1“ annehmen darf, einer pro Zeile:</translation>
+    </message>
+    <message>
+        <source>Add file slot</source>
+        <translation>Dateislot hinzufügen</translation>
+    </message>
+    <message>
+        <source>File role (cannot be changed later):</source>
+        <translation>Dateirolle (später nicht mehr änderbar):</translation>
+    </message>
+    <message>
+        <source>Role already used</source>
+        <translation>Rolle bereits vergeben</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is already a file slot of this type, or of one it inherits from.</source>
+        <translation>„%1“ ist bereits ein Dateislot dieses Typs oder eines Typs, von dem er erbt.</translation>
+    </message>
+    <message>
+        <source>Could not add file slot</source>
+        <translation>Dateislot konnte nicht hinzugefügt werden</translation>
+    </message>
+    <message>
+        <source>The file slot could not be created.</source>
+        <translation>Der Dateislot konnte nicht erstellt werden.</translation>
+    </message>
+    <message>
+        <source>Remove file slot</source>
+        <translation>Dateislot entfernen</translation>
+    </message>
+    <message>
+        <source>Remove &quot;%1&quot; from this type? Files already attached to parts are kept.</source>
+        <translation>„%1“ aus diesem Typ entfernen? Bereits an Bauteile angehängte Dateien bleiben erhalten.</translation>
+    </message>
+</context>
+<context>
     <name>PartlistImportDialog</name>
     <message>
         <source>Import CSV / BOM</source>
@@ -3586,14 +3753,6 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
         <translation>Beschreibung</translation>
     </message>
     <message>
-        <source>Add Line</source>
-        <translation type="vanished">Zeile hinzufügen</translation>
-    </message>
-    <message>
-        <source>Remove Line</source>
-        <translation type="vanished">Zeile entfernen</translation>
-    </message>
-    <message>
         <source>Order Missing Parts…</source>
         <translation>Fehlende Teile bestellen…</translation>
     </message>
@@ -3620,32 +3779,6 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
 </context>
 <context>
     <name>QObject</name>
-    <message>
-        <source>One-time KiCad setup — after this, every regeneration is invisible to KiCad:
-
-1. KiCad → Preferences → Configure Paths: add the variable
-     %1  =  %2
-
-2. Preferences → Manage Symbol Libraries → Global: add
-     ${%1}/symbols/&lt;Category&gt;.kicad_sym  for each library below
-
-3. Preferences → Manage Footprint Libraries → Global: add
-     ${%1}/footprints/&lt;Category&gt;.pretty
-
-The generated partmanager-sym-lib-table and partmanager-fp-lib-table in the folder above list every entry, so they can be pasted in rather than typed.</source>
-        <translation type="vanished">Einmalige KiCad-Einrichtung — danach ist jedes Neuerzeugen für KiCad unsichtbar:
-
-1. KiCad → Einstellungen → Pfade konfigurieren: Variable hinzufügen
-     %1  =  %2
-
-2. Einstellungen → Symbolbibliotheken verwalten → Global: hinzufügen
-     ${%1}/symbols/&lt;Kategorie&gt;.kicad_sym  für jede Bibliothek unten
-
-3. Einstellungen → Footprint-Bibliotheken verwalten → Global: hinzufügen
-     ${%1}/footprints/&lt;Kategorie&gt;.pretty
-
-Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im Ordner oben führen jeden Eintrag auf, sodass er eingefügt statt abgetippt werden kann.</translation>
-    </message>
     <message>
         <source>(no database open)</source>
         <translation>(keine Datenbank offen)</translation>
@@ -3895,6 +4028,38 @@ The generated partmanager-sym-lib-table and partmanager-fp-lib-table in the fold
 
 Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im Ordner oben listen jeden Eintrag auf, sodass er eingefügt statt getippt werden kann.</translation>
     </message>
+    <message>
+        <source>(no unit)</source>
+        <translation>(keine Einheit)</translation>
+    </message>
+    <message>
+        <source>Number</source>
+        <translation>Zahl</translation>
+    </message>
+    <message>
+        <source>Dimension</source>
+        <translation>Dimension</translation>
+    </message>
+    <message>
+        <source>Text</source>
+        <translation>Text</translation>
+    </message>
+    <message>
+        <source>Bool</source>
+        <translation>Bool</translation>
+    </message>
+    <message>
+        <source>Enum</source>
+        <translation>Enum</translation>
+    </message>
+    <message>
+        <source>Inherited from &quot;%1&quot;. Change it there, or add a row with the same key here to override it.</source>
+        <translation>Von „%1“ geerbt. Ändern Sie es dort, oder fügen Sie hier eine Zeile mit demselben Schlüssel hinzu, um es zu überschreiben.</translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation>Kategorie</translation>
+    </message>
 </context>
 <context>
     <name>SettingsDialog</name>
@@ -4044,6 +4209,145 @@ Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im 
     <message>
         <source>Optional — why this happened</source>
         <translation>Optional — Grund dafür</translation>
+    </message>
+</context>
+<context>
+    <name>TypeTemplateDialog</name>
+    <message>
+        <source>Type Templates</source>
+        <translation>Typvorlagen</translation>
+    </message>
+    <message>
+        <source>A type template decides which fields and which files a part of that type has. A type placed under another one inherits everything the parent declares and can add to it.</source>
+        <translation>Eine Typvorlage bestimmt, welche Felder und welche Dateien ein Bauteil dieses Typs hat. Ein Typ, der unter einem anderen eingeordnet wird, erbt alles, was der übergeordnete Typ deklariert, und kann es ergänzen.</translation>
+    </message>
+    <message>
+        <source>TYPES</source>
+        <translation>TYPEN</translation>
+    </message>
+    <message>
+        <source>New Type...</source>
+        <translation>Neuer Typ...</translation>
+    </message>
+    <message>
+        <source>Delete Type</source>
+        <translation>Typ löschen</translation>
+    </message>
+    <message>
+        <source>Refused while parts still use the type, or while another type inherits from it.</source>
+        <translation>Wird abgelehnt, solange noch Bauteile den Typ verwenden oder ein anderer Typ von ihm erbt.</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Name</translation>
+    </message>
+    <message>
+        <source>Domain</source>
+        <translation>Bereich</translation>
+    </message>
+    <message>
+        <source>KiCad</source>
+        <translation>KiCad</translation>
+    </message>
+    <message>
+        <source>Parts of this type get a KiCad symbol and footprint</source>
+        <translation>Bauteile dieses Typs erhalten ein KiCad-Symbol und einen Footprint</translation>
+    </message>
+    <message>
+        <source>KiCad category</source>
+        <translation>KiCad-Kategorie</translation>
+    </message>
+    <message>
+        <source>The library file the generated symbols land in. Left empty, the parent type&apos;s category is used.</source>
+        <translation>Die Bibliotheksdatei, in der die erzeugten Symbole landen. Bleibt sie leer, wird die Kategorie des übergeordneten Typs verwendet.</translation>
+    </message>
+    <message>
+        <source>Parent type</source>
+        <translation>Übergeordneter Typ</translation>
+    </message>
+    <message>
+        <source>Every attribute and file slot of the parent applies here too. The type itself and the types below it are not offered.</source>
+        <translation>Jedes Attribut und jeder Dateislot des übergeordneten Typs gilt auch hier. Der Typ selbst und die Typen darunter werden nicht angeboten.</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Beschreibung</translation>
+    </message>
+    <message>
+        <source>ATTRIBUTES</source>
+        <translation>ATTRIBUTE</translation>
+    </message>
+    <message>
+        <source>Req.</source>
+        <translation>Pflicht</translation>
+    </message>
+    <message>
+        <source>Key</source>
+        <translation>Schlüssel</translation>
+    </message>
+    <message>
+        <source>Label</source>
+        <translation>Bezeichnung</translation>
+    </message>
+    <message>
+        <source>Unit</source>
+        <translation>Einheit</translation>
+    </message>
+    <message>
+        <source>Datatype</source>
+        <translation>Datentyp</translation>
+    </message>
+    <message>
+        <source>Searchable</source>
+        <translation>Durchsuchbar</translation>
+    </message>
+    <message>
+        <source>Order</source>
+        <translation>Reihenfolge</translation>
+    </message>
+    <message>
+        <source>Add attribute...</source>
+        <translation>Attribut hinzufügen...</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Entfernen</translation>
+    </message>
+    <message>
+        <source>Move up</source>
+        <translation>Nach oben</translation>
+    </message>
+    <message>
+        <source>Move down</source>
+        <translation>Nach unten</translation>
+    </message>
+    <message>
+        <source>Options...</source>
+        <translation>Optionen...</translation>
+    </message>
+    <message>
+        <source>The values an Enum attribute may take, one per line.</source>
+        <translation>Die Werte, die ein Enum-Attribut annehmen darf, einer pro Zeile.</translation>
+    </message>
+    <message>
+        <source>FILE SLOTS</source>
+        <translation>DATEISLOTS</translation>
+    </message>
+    <message>
+        <source>Role</source>
+        <translation>Rolle</translation>
+    </message>
+    <message>
+        <source>Add file slot...</source>
+        <translation>Dateislot hinzufügen...</translation>
+    </message>
+    <message>
+        <source>Every change here is saved the moment it is made — Close just leaves the editor.</source>
+        <translation>Jede Änderung hier wird sofort gespeichert — Schließen verlässt lediglich den Editor.</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Schließen</translation>
     </message>
 </context>
 </TS>

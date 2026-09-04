@@ -145,6 +145,13 @@ namespace PartManager
 	// what comes out of here, it can never invent a column.
 	std::vector<PartColumn> deriveColumns(const std::vector<PartTypeAttribute>& effectiveAttributes);
 
+	// §7b columns for the all-categories scope (§7a): the built-ins plus a "type" column naming
+	// the category each row came from, and deliberately no attributes — the rows span every type,
+	// so a `resistance` column would be blank on almost all of them. Not a special case in the
+	// table: it is an ordinary PartColumn list, so sorting, widths and the glyph columns work as
+	// they do for a category.
+	std::vector<PartColumn> allCategoryColumns();
+
 	// Lays a saved §7b layout over the derived columns. An empty `config` (the untouched state,
 	// and every database that predates the table) returns `derived` unchanged.
 	//
@@ -218,8 +225,12 @@ namespace PartManager
 		// Rows for one category, including every descendant type's parts (see header note).
 		// A non-empty filterText keeps only the rows the §7a query matches; text that fails to
 		// parse matches nothing, same as SearchEngine.
+		//
+		// `allCategories` drops the type scope entirely (§7a's Ctrl+F search): `typeId` is then
+		// ignored and the same query runs over every part in the database. Only the scope changes
+		// — it is the same grammar through the same SearchEngine.
 		std::vector<PartRow> partsFor(int typeId, const std::vector<PartColumn>& columns,
-			const QString& filterText = QString()) const;
+			const QString& filterText = QString(), bool allCategories = false) const;
 
 		// §7c preview panel content for one part. A partId of 0, or one that no longer resolves,
 		// comes back as the empty PartPreview the panel renders as its empty state.

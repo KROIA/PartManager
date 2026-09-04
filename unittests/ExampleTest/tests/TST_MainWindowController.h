@@ -2,11 +2,22 @@
 
 #include "UnitTest.h"
 #include "controllers/PartManager_MainWindowController.h"
+#include "persistence/PartManager_PartRepository.h"
+#include "persistence/PartManager_PartTypeRepository.h"
 #include <algorithm>
+#include <filesystem>
+
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+#include "SQLite.h"
+#endif
 
 // The Home tab's widget-free logic (§7a tree assembly + stock aggregation, §7b column
 // derivation, §2a display formatting). The widgets around it need a live QApplication
 // and are not exercised here.
+//
+// The §7a all-categories search scope is the one case that needs a real database — a scope
+// is only observable against actual rows in more than one category, so it runs against a
+// throwaway database in %TEMP%, never the user's own.
 class TST_MainWindowController : public UnitTest::Test
 {
 	TEST_CLASS(TST_MainWindowController)
@@ -26,6 +37,10 @@ public:
 		ADD_TEST(TST_MainWindowController::emptyColumnConfigFallsBackToDerived);
 		ADD_TEST(TST_MainWindowController::savedColumnConfigReordersHidesAndResizes);
 		ADD_TEST(TST_MainWindowController::columnConfigSurvivesAddedAndRemovedAttributes);
+		ADD_TEST(TST_MainWindowController::allCategoryColumnsNameTheCategory);
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		ADD_TEST(TST_MainWindowController::allCategoriesSearchCrossesCategoryBoundaries);
+#endif
 	}
 
 private:
@@ -443,6 +458,107 @@ private:
 			TEST_ASSERT_M(column.key != QString("tolerance"), "a deleted attribute must not stay a column");
 		}
 	}
+
+	// A cross-category result is unreadable without the category on every row, and the column
+	// carrying it has to be an ordinary §7b column or none of the table's machinery reaches it.
+	TEST_FUNCTION(allCategoryColumnsNameTheCategory)
+	{
+		TEST_START;
+
+		std::vector<PartManager::PartColumn> columns = PartManager::allCategoryColumns();
+
+		// The built-ins plus one: name, type, manufacturer, mpn, package, files, stock_qty.
+		TEST_COMPARE(columns.size(), static_cast<size_t>(7));
+		TEST_COMPARE(columns[0].key.toStdString(), std::string("name"));
+		TEST_COMPARE(columns[1].key.toStdString(), std::string("type"));
+		TEST_ASSERT_M(!columns[1].isAttribute, "the category column is a built-in, not an attribute");
+		TEST_ASSERT_M(columns[1].visible, "the category column is what makes the result readable");
+
+		// No per-type attributes: the rows span every type, so such a column would be blank on
+		// nearly all of them.
+		for (const PartManager::PartColumn& column : columns)
+		{
+			TEST_ASSERT_M(!column.isAttribute, "an all-categories table declares no attributes");
+		}
+	}
+
+#if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+	// The whole point of the Ctrl+F scope: the same query, the same grammar, run over the
+	// database instead of the selected category — and the scoped search still not doing that.
+	TEST_FUNCTION(allCategoriesSearchCrossesCategoryBoundaries)
+	{
+		TEST_START;
+
+		const std::filesystem::path parent =
+			std::filesystem::temp_directory_path() / "PartManager_TST_MainWindowController_scope";
+		std::error_code ec;
+		std::filesystem::remove_all(parent, ec);
+		std::filesystem::create_directories(parent, ec);
+
+		std::string error;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			PartManager::DatabaseHandle::createNew(parent.string(), "Scope", error);
+		TEST_ASSERT_M(handle != nullptr, "createNew failed: " + error);
+
+		// Names nothing the seeded templates use, so the counts below are exactly these rows.
+		const int alphaId = addType(handle->connection(), "ScopeAlpha");
+		const int betaId = addType(handle->connection(), "ScopeBeta");
+		TEST_ASSERT(alphaId != PartManager::NoParentType && betaId != PartManager::NoParentType);
+		TEST_ASSERT(addPart(handle->connection(), alphaId, "SCOPEMARK-alpha") != 0);
+		TEST_ASSERT(addPart(handle->connection(), betaId, "SCOPEMARK-beta") != 0);
+
+		PartManager::MainWindowController controller(std::move(handle));
+
+		// Scoped to ScopeAlpha, which is what a click in the tree gives you: its own part only.
+		const std::vector<PartManager::PartColumn> scoped = controller.columnsFor(alphaId);
+		std::vector<PartManager::PartRow> scopedRows =
+			controller.partsFor(alphaId, scoped, "SCOPEMARK");
+		TEST_COMPARE(scopedRows.size(), static_cast<size_t>(1));
+		TEST_COMPARE(scopedRows[0].typeName.toStdString(), std::string("ScopeAlpha"));
+
+		// Same query, same selected category, all-categories scope on: the part in the other
+		// category comes back too.
+		const std::vector<PartManager::PartColumn> all = PartManager::allCategoryColumns();
+		std::vector<PartManager::PartRow> allRows =
+			controller.partsFor(alphaId, all, "SCOPEMARK", true);
+		TEST_COMPARE(allRows.size(), static_cast<size_t>(2));
+
+		// And each row says where it lives — the Category column is filled from the row's type,
+		// not left blank the way an unknown built-in key would be.
+		std::vector<std::string> categories;
+		for (const PartManager::PartRow& row : allRows)
+		{
+			TEST_ASSERT_M(row.cells.size() == static_cast<int>(all.size()),
+				"every all-categories column has a cell");
+			categories.push_back(row.cells.at(1).toStdString());
+		}
+		std::sort(categories.begin(), categories.end());
+		TEST_COMPARE(categories[0], std::string("ScopeAlpha"));
+		TEST_COMPARE(categories[1], std::string("ScopeBeta"));
+
+		// An empty box in all-categories scope is "every part in the database", not "nothing" —
+		// the seeded templates carry no parts, so the two above are still the whole answer.
+		TEST_COMPARE(controller.partsFor(alphaId, all, QString(), true).size(),
+			static_cast<size_t>(2));
+	}
+
+	static int addType(SQLiteWrapper::SQLite& db, const std::string& name)
+	{
+		PartManager::PartType type;
+		type.name = name;
+		type.domain = "electronic";
+		type.parentTypeId = PartManager::NoParentType;
+		return PartManager::PartTypeRepository::insertType(db, type);
+	}
+
+	static int addPart(SQLiteWrapper::SQLite& db, int typeId, const std::string& name)
+	{
+		PartManager::Part part;
+		part.partTypeId = typeId;
+		part.name = name;
+		return PartManager::PartRepository::insertPart(db, part);
+	}
+#endif
 
 };
 

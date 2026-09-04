@@ -183,6 +183,19 @@ namespace PartManager
 		return columns;
 	}
 
+	std::vector<PartColumn> allCategoryColumns()
+	{
+		std::vector<PartColumn> columns = deriveColumns(std::vector<PartTypeAttribute>());
+
+		PartColumn type;
+		type.key = QStringLiteral("type");
+		type.label = QObject::tr("Category");
+		// Straight after the name: in a cross-category result "what kind of thing is this" is the
+		// question the row raises, and the answer has to be where the eye already is.
+		columns.insert(columns.begin() + 1, type);
+		return columns;
+	}
+
 	std::vector<PartColumn> applyColumnConfig(const std::vector<PartColumn>& derived,
 		const std::vector<PartTypeListColumn>& config)
 	{
@@ -511,7 +524,7 @@ namespace PartManager
 	}
 
 	std::vector<PartRow> MainWindowController::partsFor(int typeId, const std::vector<PartColumn>& columns,
-		const QString& filterText) const
+		const QString& filterText, bool allCategories) const
 	{
 		std::vector<PartRow> rows;
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
@@ -572,7 +585,14 @@ namespace PartManager
 			typeNameById[type.id] = toQt(type.name);
 		}
 
-		for (int id : typeIdWithDescendants(PartTypeRepository::listTypes(db), typeId))
+		// An all-categories search has no type scope at all, and 0 is exactly that to both
+		// listParts() and searchIds() — so the loop below runs once over the whole database
+		// rather than once per type.
+		const std::vector<int> scope = allCategories
+			? std::vector<int>{ 0 }
+			: typeIdWithDescendants(PartTypeRepository::listTypes(db), typeId);
+
+		for (int id : scope)
 		{
 			// The table filter is scoped to the selected category, but that category includes
 			// its descendants — so the id set is collected per descendant type, not once.
@@ -602,7 +622,10 @@ namespace PartManager
 
 				for (const PartColumn& column : columns)
 				{
-					row.cells.append(formatCell(part, column));
+					// The all-categories "type" column reads the name already looked up above;
+					// formatCell() takes a Part, which carries the type id but not its name.
+					row.cells.append(column.key == QLatin1String("type")
+						? row.typeName : formatCell(part, column));
 				}
 				rows.push_back(row);
 			}
@@ -611,6 +634,7 @@ namespace PartManager
 		Q_UNUSED(typeId);
 		Q_UNUSED(columns);
 		Q_UNUSED(filterText);
+		Q_UNUSED(allCategories);
 #endif
 		return rows;
 	}

@@ -8,7 +8,10 @@
 // else — splitter, tree, table, filter boxes, preview chrome — is in the .ui.
 // The window holds no business logic: it asks MainWindowController for nodes and
 // rows and renders them.
-// @see docs/design/ARCHITECTURE.md §7, §7a, §7b
+// Right-clicking anywhere the child widgets do not claim opens §1b's Help / About / Switch
+// Database menu — the one place the promise that a database can be swapped without restarting
+// is kept.
+// @see docs/design/ARCHITECTURE.md §1b, §7, §7a, §7b
 // @see PartManager_MainWindowController.h, PartManager_TagChipDelegate.h
 #pragma once
 
@@ -41,6 +44,13 @@ namespace PartManager
 		explicit MainWindow(std::unique_ptr<DatabaseHandle> handle, QWidget* parent = nullptr);
 		~MainWindow() override;
 
+		// §1b: the database the context menu's Switch Database picked, or null on a normal quit.
+		// The window closes itself after a switch and main() builds a new one on what comes back
+		// out of here — an in-process restart rather than a live handle swap, because every open
+		// dialog, the mesh builder and the partlist panel hold a raw DatabaseHandle* taken from
+		// this one, and none of them would notice it being exchanged underneath them.
+		std::unique_ptr<DatabaseHandle> takeSwitchTarget();
+
 	private slots:
 		// Placeholder for every ribbon button until the screens behind them exist.
 		void onNotImplemented();
@@ -66,6 +76,8 @@ namespace PartManager
 		void onManageOrders();
 		// Parts tab's Manage Tags button (§2d).
 		void onManageTags();
+		// Parts tab's Edit Type Templates button (§2, §11) — what a part type declares.
+		void onEditTypeTemplates();
 		// Home tab's Stock group (§7): both write one stock_transaction for the selected part (§3).
 		void onRestock();
 		void onTakeOut();
@@ -84,6 +96,14 @@ namespace PartManager
 		// Parts tab's Settings button (§9). Ends the session when a backup was restored, because
 		// the file the handle was opened against is no longer the one on disk.
 		void onSettings();
+		// Context menu's Switch Database (§1b) — the selector again, then close and let main()
+		// rebuild the window on whatever it opened.
+		void onSwitchDatabase();
+		// Context menu's Help. There is no user manual to open, so this says so and offers the
+		// project page rather than pretending to a help system.
+		void onHelp();
+		// Context menu's About — version, Qt, the open database, the licence.
+		void onAbout();
 		// §9a: takes a snapshot when one is due. Fires on a timer while the app runs; the check
 		// is cheap (a directory listing) so a short tick is fine and the interval stays honest
 		// even if the machine slept through a due time.
@@ -93,6 +113,9 @@ namespace PartManager
 		// §9a: the "always on clean shutdown" snapshot. Also the only one a user who never leaves
 		// the app running for six hours would ever get.
 		void closeEvent(QCloseEvent* event) override;
+		// §1b's "reachable anytime" menu. Reached only when no child widget claimed the click —
+		// the partlist rows take Qt::CustomContextMenu, which accepts the event and stops it here.
+		void contextMenuEvent(QContextMenuEvent* event) override;
 		// Turns the browser dock's ✕ into "put it back": the dock has a close button so a floating
 		// window can be dismissed the way every floating window can, but closing the browser
 		// outright would leave the main window empty with no way to bring it back.
@@ -118,6 +141,10 @@ namespace PartManager
 
 		// Re-renders the currently selected category, after an edit changed what it shows.
 		void refreshCurrentCategory();
+
+		// The §10 partlist flush and the §9a shutdown snapshot. Shared by closeEvent() and the
+		// database switch, which is a shutdown of this database in every way that matters.
+		void flushPendingWork();
 
 		// Builds the Home/Parts tabs of §7 into the .ui file's ribbonToolBar.
 		void buildRibbon();
@@ -167,6 +194,9 @@ namespace PartManager
 		// §9a. Owned by the window (Qt parent), so it stops when the window goes.
 		QTimer* m_backupTimer = nullptr;
 		QString m_currentTypeName;
+		// §1b, see takeSwitchTarget(). Non-null only between the user picking another database
+		// and main() taking it back out.
+		std::unique_ptr<DatabaseHandle> m_switchTarget;
 		// The columns behind the table's current header — a dragged divider only reports a
 		// section index, so this is what turns that back into a column key (§7b).
 		std::vector<PartColumn> m_currentColumns;

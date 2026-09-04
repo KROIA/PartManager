@@ -3,6 +3,7 @@
 
 #include "controllers/PartManager_PartEditorController.h"
 #include "ui/PartManager_ColumnsDialog.h"
+#include "ui/PartManager_DatabaseSelectorDialog.h"
 #include "ui/PartManager_ManageTagsDialog.h"
 #include "ui/PartManager_MouserSearchDialog.h"
 #include "ui/PartManager_NewPartDialog.h"
@@ -17,6 +18,7 @@
 #include "ui/PartManager_Model3DDialog.h"
 #include "ui/PartManager_SettingsDialog.h"
 #include "ui/PartManager_StockDialog.h"
+#include "ui/PartManager_TypeTemplateDialog.h"
 #include "widgets/PartManager_TagChipDelegate.h"
 #include "widgets/PartManager_TagFilterButton.h"
 #include "widgets/PartManager_TypeIconPainter.h"
@@ -24,8 +26,12 @@
 #include "backup/PartManager_BackupManager.h"
 #include "search/PartManager_SearchQuery.h"
 #include "settings/PartManager_Settings.h"
+#include "PartManager_info.h"
 
+#include <QAction>
 #include <QApplication>
+#include <QCheckBox>
+#include <QContextMenuEvent>
 #include <QDesktopServices>
 #include <QDockWidget>
 #include <QBrush>
@@ -33,12 +39,16 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPixmap>
 #include <QPixmapCache>
 #include <QPushButton>
+#include <QScopedPointer>
+#include <QScopeGuard>
 #include <QScrollArea>
 #include <QTableWidgetItem>
 #include <QTimer>
@@ -78,6 +88,14 @@ namespace PartManager
 		// Big enough that a folded page corner and a pad row are actually distinguishable at a
 		// glance; the row is 34 px tall, so this is what fits without stretching the grid.
 		constexpr int AttachmentGlyphSize = 18;
+
+		// The category tree's glyph. One tree row tall — bigger and the rows grow, which turns the
+		// whole tree into a list of icons with names attached rather than the other way round.
+		constexpr int CategoryGlyphSize = 16;
+
+		// Where Help sends anyone looking for documentation. There is no user manual in the app
+		// and none shipped beside it, so this is the honest answer rather than an empty viewer.
+		const char* const ProjectUrl = "https://github.com/KROIA/PartManager";
 
 		// A cell's numeric value for sorting, when it has one. Without it "10" sorts before "9",
 		// which on a Stock column is not a quirk but a wrong answer.
@@ -171,6 +189,9 @@ namespace PartManager
 		m_ui->statusBar->showMessage(m_controller.pmdbPath());
 
 		setupFilters();
+		// The category glyphs are drawn at exactly this size (see addCategoryItem), so saying it
+		// here stops Qt scaling them back up to its own default.
+		m_ui->categoryTree->setIconSize(QSize(CategoryGlyphSize, CategoryGlyphSize));
 		m_ui->partTable->setItemDelegateForColumn(0, new TagChipDelegate(this));
 		// Rows are sized for the thumbnail whether or not a given part has one, so the grid does
 		// not jump about as images are attached.
@@ -242,8 +263,14 @@ namespace PartManager
 		m_meshBuilder = new MeshCacheBuilder(m_controller.handle(), this);
 		m_modelPreview = new Model3DViewer(m_ui->previewPanel);
 		m_modelPreview->setCacheBuilder(m_meshBuilder);
-		m_modelPreview->setMinimumHeight(110);
-		m_modelPreview->setMaximumHeight(170);
+		// A *fixed* height, not a 110..170 range. The range let the panel's vertical layout hand
+		// the viewer a different height for every part — a part with six detail rows squeezes it,
+		// one with two lets it grow — and resizing this widget resizes a native child window,
+		// which Windows repaints by stretching the last frame before Qt3D has drawn a new one.
+		// That stretch is the flash: a viewport briefly wider and taller than the panel holding
+		// it. Nothing else in the panel can be resized into a visual artifact, so nothing else
+		// needs pinning; this one does.
+		m_modelPreview->setFixedHeight(170);
 		m_modelPreview->setToolTip(tr("The 3D model this part places on the board. Drag to orbit."));
 		// +2: the photo, then the symbol/footprint row that was just inserted after it.
 		m_ui->previewLayout->insertWidget(
@@ -430,7 +457,7 @@ namespace PartManager
 			preferences.backupRetentionCount);
 	}
 
-	void MainWindow::closeEvent(QCloseEvent* event)
+	void MainWindow::flushPendingWork()
 	{
 		// The partlist panel is a widget, not a dialog, so nothing else flushes its §10 debounce.
 		if (m_partlistPanel != nullptr)
@@ -447,7 +474,98 @@ namespace PartManager
 			BackupManager::createSnapshot(m_controller.handle()->databaseFilePath(),
 				preferences.backupFolder, preferences.backupRetentionCount);
 		}
+	}
+
+	void MainWindow::closeEvent(QCloseEvent* event)
+	{
+		flushPendingWork();
 		QMainWindow::closeEvent(event);
+	}
+
+	void MainWindow::contextMenuEvent(QContextMenuEvent* event)
+	{
+		QMenu menu(this);
+		connect(menu.addAction(tr("Switch Database...")), &QAction::triggered,
+			this, &MainWindow::onSwitchDatabase);
+
+		// QMainWindow's own dock/toolbar toggles, which are what this handler would otherwise be
+		// taking away — they are the only way back to a dock the user closed. Owned here rather
+		// than by the menu: addMenu() does not adopt it, and createPopupMenu() hands over a new one.
+		QScopedPointer<QMenu> panels(createPopupMenu());
+		if (!panels.isNull())
+		{
+			panels->setTitle(tr("Panels"));
+			menu.addMenu(panels.data());
+		}
+
+		menu.addSeparator();
+		connect(menu.addAction(tr("Help")), &QAction::triggered, this, &MainWindow::onHelp);
+		connect(menu.addAction(tr("About PartManager")), &QAction::triggered,
+			this, &MainWindow::onAbout);
+
+		menu.exec(event->globalPos());
+		event->accept();
+	}
+
+	std::unique_ptr<DatabaseHandle> MainWindow::takeSwitchTarget()
+	{
+		return std::move(m_switchTarget);
+	}
+
+	void MainWindow::onSwitchDatabase()
+	{
+		// The startup selector again, not a second list to keep in step with it (§1b).
+		DatabaseSelectorDialog selector(this);
+		if (selector.exec() != QDialog::Accepted)
+		{
+			return;
+		}
+		std::unique_ptr<DatabaseHandle> chosen = selector.takeHandle();
+		if (chosen == nullptr || m_controller.handle() == nullptr
+			|| chosen->pmdbPath() == m_controller.handle()->pmdbPath())
+		{
+			// Picking the database that is already open is a no-op, not a restart: rebuilding the
+			// window would throw away the selection, the sort order and the dock layout for nothing.
+			return;
+		}
+
+		// close() runs closeEvent(), which is where the §10 flush and the §9a shutdown snapshot
+		// live — a switch is a shutdown of this database in every way that matters. main() then
+		// finds the new handle in takeSwitchTarget() and builds a window on it.
+		m_switchTarget = std::move(chosen);
+		close();
+	}
+
+	void MainWindow::onHelp()
+	{
+		// There is no user manual, in the app or beside it. A help browser pointed at
+		// documentation that does not exist would be worse than saying so plainly.
+		QMessageBox box(QMessageBox::Information, tr("Help"),
+			tr("PartManager has no built-in user manual yet.\n\n"
+			   "The project page carries the README, which is currently the whole of the "
+			   "documentation."),
+			QMessageBox::Close, this);
+		QPushButton* open = box.addButton(tr("Open Project Page"), QMessageBox::AcceptRole);
+		box.exec();
+		if (box.clickedButton() == open)
+		{
+			QDesktopServices::openUrl(QUrl(QString::fromLatin1(ProjectUrl)));
+		}
+	}
+
+	void MainWindow::onAbout()
+	{
+		// Version, Qt build and the open database: the three things anyone reporting a problem is
+		// asked for. The database path is user data, so it is an argument, not part of the text.
+		QMessageBox::about(this, tr("About PartManager"),
+			tr("<b>PartManager</b> %1"
+			   "<p>A local inventory for electronic components.</p>"
+			   "<p>Qt %2<br>Database: %3</p>"
+			   "<p>Licensed under the MIT licence.</p>")
+			.arg(QStringLiteral("%1.%2.%3").arg(LibraryInfo::versionMajor)
+					.arg(LibraryInfo::versionMinor).arg(LibraryInfo::versionPatch),
+				QString::fromLatin1(qVersion()),
+				m_controller.pmdbPath().toHtmlEscaped()));
 	}
 
 	bool MainWindow::eventFilter(QObject* watched, QEvent* event)
@@ -464,6 +582,16 @@ namespace PartManager
 			}
 			m_browserDock->show();
 			m_browserDock->raise();
+			return true;
+		}
+		if (watched == m_ui->tableFilterEdit && event->type() == QEvent::KeyPress
+			&& static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape)
+		{
+			// The way back out of an all-categories search: empties the box and drops the scope,
+			// leaving the tree selection — which was never touched — showing its category again.
+			// QLineEdit ignores Escape itself, so nothing is being taken away here.
+			m_ui->tableFilterEdit->clear();
+			m_ui->allCategoriesCheck->setChecked(false);
 			return true;
 		}
 		return QMainWindow::eventFilter(watched, event);
@@ -484,6 +612,44 @@ namespace PartManager
 		};
 		wire(m_ui->treeFilterEdit, &MainWindow::reloadCategories);
 		wire(m_ui->tableFilterEdit, &MainWindow::refreshCurrentCategory);
+
+		// §7a's third scope: the same box, the same grammar, run over every part instead of the
+		// selected category. A checkbox rather than clearing the tree selection, because the
+		// selection is then still sitting there to come back to — and the tick stays visible while
+		// the box is empty, which "the tree happens to have nothing selected" would not be.
+		connect(m_ui->allCategoriesCheck, &QCheckBox::toggled,
+			this, &MainWindow::refreshCurrentCategory);
+		// Emptying the box is the other way out, so the scope cannot outlive the search that
+		// wanted it. (Escape is handled in eventFilter(), which also drops the focus back.)
+		connect(m_ui->tableFilterEdit, &QLineEdit::textChanged, this, [this](const QString& text)
+		{
+			if (text.isEmpty())
+			{
+				m_ui->allCategoriesCheck->setChecked(false);
+			}
+		});
+		m_ui->tableFilterEdit->installEventFilter(this);
+		// Clicking a category is the other obvious way back, so it drops the scope and re-runs the
+		// same query inside that category — the drill-down a cross-category result invites.
+		// itemClicked, not itemSelectionChanged: rebuilding the tree re-selects the current item
+		// programmatically, and an open search must not lose its scope because a part was edited.
+		connect(m_ui->categoryTree, &QTreeWidget::itemClicked, this, [this](QTreeWidgetItem*, int)
+		{
+			m_ui->allCategoriesCheck->setChecked(false);
+		});
+
+		// Ctrl+F is "search everything": it switches the scope and puts the cursor in the box in
+		// one keystroke, which is the whole reason the shortcut exists — the box was already
+		// reachable with the mouse.
+		QAction* findAction = new QAction(this);
+		findAction->setShortcut(QKeySequence::Find);
+		connect(findAction, &QAction::triggered, this, [this]()
+		{
+			m_ui->allCategoriesCheck->setChecked(true);
+			m_ui->tableFilterEdit->setFocus();
+			m_ui->tableFilterEdit->selectAll();
+		});
+		addAction(findAction);
 
 		// §2d's tag picker sits beside the table box and writes into it, rather than filtering on
 		// its own: one pipeline, and the user can see and hand-edit what the ticks produced.
@@ -588,6 +754,15 @@ namespace PartManager
 		item->setData(0, TypeIdRole, node.typeId);
 		item->setData(0, TypeNameRole, node.name);
 
+		// The same glyphs the part table paints for a part with no photo — one set of icons for
+		// the whole window, not a second one drawn here. A type that classifies as Generic gets
+		// none: an initials box in front of every unrecognised category would be a column of
+		// look-alike boxes saying nothing the name beside it does not already say.
+		if (TypeIconStyle::forType(node.name.toStdString()).glyph != TypeGlyph::Generic)
+		{
+			item->setIcon(0, TypeIconPainter::icon(node.name, CategoryGlyphSize, devicePixelRatioF()));
+		}
+
 		for (const CategoryNode& child : node.children)
 		{
 			addCategoryItem(child, item);
@@ -614,7 +789,8 @@ namespace PartManager
 
 	void MainWindow::refreshCurrentCategory()
 	{
-		if (m_currentTypeId != NoParentType)
+		// An all-categories search does not need a category, which is the point of it.
+		if (m_currentTypeId != NoParentType || m_ui->allCategoriesCheck->isChecked())
 		{
 			showParts(m_currentTypeId, m_currentTypeName);
 		}
@@ -813,6 +989,15 @@ namespace PartManager
 		refreshCurrentCategory();
 	}
 
+	void MainWindow::onEditTypeTemplates()
+	{
+		TypeTemplateDialog dialog(m_controller.handle(), this);
+		dialog.exec();
+		// The types themselves are the §7a tree, and a type's attributes are the §7b columns of
+		// whichever category is open — both have to be re-read, not just repainted.
+		reloadCategories();
+	}
+
 	int MainWindow::selectedPartId(QString* outName) const
 	{
 		// Same cell the part id and the chips ride on — the table selects whole rows.
@@ -903,6 +1088,12 @@ namespace PartManager
 	void MainWindow::onColumnResized(int logicalIndex, int oldSize, int newSize)
 	{
 		Q_UNUSED(oldSize);
+		// The all-categories table is not any category's layout, so a divider dragged there must
+		// not be written back over the selected category's saved widths.
+		if (m_ui->allCategoriesCheck->isChecked())
+		{
+			return;
+		}
 		if (m_currentTypeId == NoParentType
 			|| logicalIndex < 0 || logicalIndex >= static_cast<int>(m_currentColumns.size()))
 		{
@@ -934,9 +1125,14 @@ namespace PartManager
 			m_tagFilter->setSelectedGroups(SearchQuery::parse(filter.toStdString()).tagGroups);
 		}
 
-		m_currentColumns = m_controller.columnsFor(typeId);
+		// §7a's all-categories scope: a different column set (the built-ins plus Category, no
+		// per-type attributes) over a search that ignores `typeId` entirely. Everything below —
+		// sorting, thumbnails, the glyph strip, the saved widths — is unchanged, because it is
+		// still an ordinary column list.
+		const bool allCategories = m_ui->allCategoriesCheck->isChecked();
+		m_currentColumns = allCategories ? allCategoryColumns() : m_controller.columnsFor(typeId);
 		const std::vector<PartColumn>& columns = m_currentColumns;
-		std::vector<PartRow> rows = m_controller.partsFor(typeId, columns, filter);
+		std::vector<PartRow> rows = m_controller.partsFor(typeId, columns, filter, allCategories);
 
 		// Sorting off while the table is filled: with it on, every setItem() re-sorts what is
 		// already there and the rows land in an order that has nothing to do with the loop below.
@@ -1047,7 +1243,11 @@ namespace PartManager
 		}
 		highlightSortedColumn();
 
-		m_ui->partsHeaderLabel->setText(tr("%1 — %n part(s)", "", static_cast<int>(rows.size())).arg(typeName));
+		// The header says which scope produced these rows, so a cross-category result is never
+		// mistaken for the category the tree still has highlighted.
+		m_ui->partsHeaderLabel->setText(allCategories
+			? tr("All categories — %n part(s)", "", static_cast<int>(rows.size()))
+			: tr("%1 — %n part(s)", "", static_cast<int>(rows.size())).arg(typeName));
 
 		// Reselect the same part if it is still in the list — it may have been filtered out, or
 		// deleted, in which case the preview correctly falls back to its empty state. The id comes
@@ -1101,6 +1301,15 @@ namespace PartManager
 
 	void MainWindow::updatePreview()
 	{
+		// The panel is rebuilt field by field — rows torn out of the form layout one at a time,
+		// a picture swapped, the KiCad rows shown or hidden — and every one of those relayouts
+		// repaints on its own, which reads as the panel flashing through half-built states. One
+		// repaint at the end instead. The guard, not a plain pair of calls, because the empty
+		// state returns early.
+		m_ui->previewPanel->setUpdatesEnabled(false);
+		const auto repaintOnce = qScopeGuard([this]()
+			{ m_ui->previewPanel->setUpdatesEnabled(true); });
+
 		const int partId = selectedPartId();
 		if (partId != 0)
 		{
@@ -1204,6 +1413,11 @@ namespace PartManager
 		{
 			QLabel* value = new QLabel(field.value, m_ui->previewContent); // already display-ready
 			value->setWordWrap(true);
+			// Ignored, so a long value wraps instead of widening the panel. A word-wrapped label
+			// still reports its longest *word* as a minimum width, and one part number without a
+			// space in it was enough to push the whole preview panel — and everything in it —
+			// wider the moment that part was selected.
+			value->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 			value->setTextInteractionFlags(Qt::TextSelectableByMouse);
 			m_ui->previewFormLayout->addRow(tr("%1:").arg(field.label), value);
 		}
@@ -1246,9 +1460,8 @@ namespace PartManager
 		addButton(stockGroup, tr("Take Out"), QStringLiteral(":/icons/take-out.png"), &MainWindow::onTakeOut);
 		addButton(viewGroup, tr("Refresh"), QStringLiteral(":/icons/refresh.png"), &MainWindow::reloadCategories);
 		addButton(viewGroup, tr("Customize Columns"), QStringLiteral(":/icons/tabelle.png"), &MainWindow::onCustomizeColumns);
-		addButton(viewGroup, tr("List / Grid"), QStringLiteral(":/icons/view-list.png"), &MainWindow::onNotImplemented);
 		addButton(viewGroup, tr("3D Viewer"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onView3DModel);
-		addButton(manageGroup, tr("Edit Type Templates"), QStringLiteral(":/icons/edit-type-template.png"), &MainWindow::onNotImplemented);
+		addButton(manageGroup, tr("Edit Type Templates"), QStringLiteral(":/icons/edit-type-template.png"), &MainWindow::onEditTypeTemplates);
 		addButton(manageGroup, tr("Manage Tags"), QStringLiteral(":/icons/manage-tags.png"), &MainWindow::onManageTags);
 		addButton(manageGroup, tr("Settings"), QStringLiteral(":/icons/settings.png"), &MainWindow::onSettings);
 		addButton(manageGroup, tr("Import from Mouser"), QStringLiteral(":/icons/mouser-search.png"), &MainWindow::onNewPartFromMouser);

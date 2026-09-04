@@ -109,6 +109,18 @@ Terms are ANDed: free text (use &quot;quotes&quot; for spaces), tag:name, or an 
            </spacer>
           </item>
           <item>
+           <widget class="QCheckBox" name="allCategoriesCheck">
+            <property name="text">
+             <string>All categories</string>
+            </property>
+            <property name="toolTip">
+             <string>Searches every category instead of the selected one (Ctrl+F).
+The table then shows a Category column saying where each part lives.
+Clearing the box or pressing Escape in it goes back to the selected category.</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QLineEdit" name="tableFilterEdit">
             <property name="maximumSize">
              <size>

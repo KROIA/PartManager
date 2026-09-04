@@ -62,7 +62,20 @@ int main(int argc, char* argv[])
 		handle = selector.takeHandle();
 	}
 
-	PartManager::MainWindow window(std::move(handle));
-	window.show();
-	return app.exec();
+	// §1b: Switch Database closes the window and hands back the database it opened, and the next
+	// turn of this loop builds a fresh window on it. An in-process restart rather than swapping
+	// the handle underneath the running window: every dialog, the mesh cache builder and the
+	// partlist panel hold a raw DatabaseHandle* taken from it, and none of them would notice.
+	while (handle)
+	{
+		PartManager::MainWindow window(std::move(handle));
+		window.show();
+		const int code = app.exec();
+		handle = window.takeSwitchTarget();
+		if (!handle)
+		{
+			return code;
+		}
+	}
+	return 0;
 }
