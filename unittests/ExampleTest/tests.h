@@ -53,5 +53,7 @@
 #include "tests/TST_CategoryReconcileGui.h"
 #include "tests/TST_LlmPartToolset.h"
 #include "tests/TST_LlmKicadToolset.h"
+#include "tests/TST_PdfText.h"
+#include "tests/TST_LlmDatasheetToolset.h"
 #include "tests/TST_LlmMigration.h"
 //#include "test_nasted.h"

@@ -4,6 +4,7 @@
 
 #include "database/PartManager_DatabaseHandle.h"
 #include "domain/PartManager_Part.h"
+#include "llm/PartManager_DatasheetToolset.h"
 #include "llm/PartManager_KicadToolset.h"
 #include "llm/PartManager_LlmTool.h"
 #include "llm/PartManager_MouserToolset.h"
@@ -341,6 +342,11 @@ namespace PartManager
 		// §14f: the KiCad tools are safe to leave on beside the others because none of them takes
 		// a filesystem path — a file only ever arrives from another part in the same database.
 		registerLlmTools(*m_impl->client, KicadToolset::tools(context));
+		// §14g: the datasheet tools are reads only, and they obey the same §14f rule — the model
+		// names a part, never a file. A datasheet that cannot be read (a scan, an encrypted file)
+		// is answered as exactly that, because the failure this feature must not have is an empty
+		// answer the model fills in from its own memory of what the part does.
+		registerLlmTools(*m_impl->client, DatasheetToolset::tools(context));
 
 		// §14f: the filesystem built-ins (read_text_file, write_text_file, list_directory) are
 		// deliberately absent — the assistant reaches parts through typed tools and nothing else,
