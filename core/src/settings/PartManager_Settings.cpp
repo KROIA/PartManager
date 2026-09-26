@@ -68,6 +68,14 @@ namespace PartManager
 				, backupRetentionCount("backupRetentionCount", 20)
 				, backupFolder("backupFolder", QString())
 				, hideEmptyCategories("hideEmptyCategories", false)
+				, llmProvider("llmProvider", QStringLiteral("ollama"))
+				, llmOllamaUrl("llmOllamaUrl", QString())
+				, llmOllamaModel("llmOllamaModel", QString())
+				, llmClaudeEndpoint("llmClaudeEndpoint", QString())
+				, llmClaudeModel("llmClaudeModel", QString())
+				, llmSystemPrompt("llmSystemPrompt", QString())
+				, llmShowToolCalls("llmShowToolCalls", true)
+				, llmFontSizePercent("llmFontSizePercent", 100)
 			{
 				addSetting(language);
 				addSetting(theme);
@@ -78,6 +86,14 @@ namespace PartManager
 				addSetting(backupRetentionCount);
 				addSetting(backupFolder);
 				addSetting(hideEmptyCategories);
+				addSetting(llmProvider);
+				addSetting(llmOllamaUrl);
+				addSetting(llmOllamaModel);
+				addSetting(llmClaudeEndpoint);
+				addSetting(llmClaudeModel);
+				addSetting(llmSystemPrompt);
+				addSetting(llmShowToolCalls);
+				addSetting(llmFontSizePercent);
 			}
 
 			AppSettings::Setting language;
@@ -89,6 +105,14 @@ namespace PartManager
 			AppSettings::Setting backupRetentionCount;
 			AppSettings::Setting backupFolder;
 			AppSettings::Setting hideEmptyCategories;
+			AppSettings::Setting llmProvider;
+			AppSettings::Setting llmOllamaUrl;
+			AppSettings::Setting llmOllamaModel;
+			AppSettings::Setting llmClaudeEndpoint;
+			AppSettings::Setting llmClaudeModel;
+			AppSettings::Setting llmSystemPrompt;
+			AppSettings::Setting llmShowToolCalls;
+			AppSettings::Setting llmFontSizePercent;
 		};
 
 		// Keys inside one remembered-mapping QVariantMap.
@@ -224,11 +248,27 @@ namespace PartManager
 			MinBackupRetentionCount, MaxBackupRetentionCount);
 		preferences.backupFolder = group.backupFolder.getValue().toString().toStdString();
 
+		// §14b. The four url/model strings are deliberately *not* defaulted here: empty means
+		// "use whatever the default is now", which is what lets a changed environment variable be
+		// followed rather than overridden by a stale copy of itself.
+		preferences.llmProvider = group.llmProvider.getValue().toString().toStdString();
+		preferences.llmOllamaUrl = group.llmOllamaUrl.getValue().toString().toStdString();
+		preferences.llmOllamaModel = group.llmOllamaModel.getValue().toString().toStdString();
+		preferences.llmClaudeEndpoint = group.llmClaudeEndpoint.getValue().toString().toStdString();
+		preferences.llmClaudeModel = group.llmClaudeModel.getValue().toString().toStdString();
+		preferences.llmSystemPrompt = group.llmSystemPrompt.getValue().toString().toStdString();
+		preferences.llmShowToolCalls = group.llmShowToolCalls.getValue().toBool();
+		preferences.llmFontSizePercent = clamped(group.llmFontSizePercent.getValue().toInt(),
+			MinLlmFontSizePercent, MaxLlmFontSizePercent);
+
 		// An empty string is what a never-written setting reads back as on some AppSettings
 		// versions; the struct's own defaults are the right answer then, not "no language".
 		if (preferences.language.empty()) { preferences.language = "en"; }
 		if (preferences.theme.empty())    { preferences.theme = ThemeName::System; }
 		if (preferences.currency.empty()) { preferences.currency = "CHF"; }
+		// The provider is the one LLM string with a vocabulary rather than a default, so it gets
+		// the same guard: an empty value is "never chosen", which is Ollama (§14b).
+		if (preferences.llmProvider.empty()) { preferences.llmProvider = "ollama"; }
 #else
 		PM_CONSOLE("PartManager::Settings: AppSettings library not available, preferences are not persisted\n");
 #endif
@@ -250,6 +290,15 @@ namespace PartManager
 		group.backupRetentionCount.setValue(clamped(preferences.backupRetentionCount,
 			MinBackupRetentionCount, MaxBackupRetentionCount));
 		group.backupFolder.setValue(QString::fromStdString(preferences.backupFolder));
+		group.llmProvider.setValue(QString::fromStdString(preferences.llmProvider));
+		group.llmOllamaUrl.setValue(QString::fromStdString(preferences.llmOllamaUrl));
+		group.llmOllamaModel.setValue(QString::fromStdString(preferences.llmOllamaModel));
+		group.llmClaudeEndpoint.setValue(QString::fromStdString(preferences.llmClaudeEndpoint));
+		group.llmClaudeModel.setValue(QString::fromStdString(preferences.llmClaudeModel));
+		group.llmSystemPrompt.setValue(QString::fromStdString(preferences.llmSystemPrompt));
+		group.llmShowToolCalls.setValue(preferences.llmShowToolCalls);
+		group.llmFontSizePercent.setValue(clamped(preferences.llmFontSizePercent,
+			MinLlmFontSizePercent, MaxLlmFontSizePercent));
 		instance().save();
 #else
 		PM_UNUSED(preferences);

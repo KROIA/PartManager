@@ -2021,6 +2021,14 @@ Fortfahren?</translation>
         <source>Name the standard KiCad library symbol and footprint if there is one, say what the pin order is, and tell me what to check before I trust it.</source>
         <translation>Nenne das Symbol und den Footprint aus der KiCad-Standardbibliothek, falls es sie gibt, sag mir die Pin-Reihenfolge und was ich prüfen sollte, bevor ich mich darauf verlasse.</translation>
     </message>
+    <message>
+        <source>Claude is switched off: neither %1 nor %2 is set in the environment.</source>
+        <translation>Claude ist abgeschaltet: weder %1 noch %2 ist in der Umgebung gesetzt.</translation>
+    </message>
+    <message>
+        <source>Claude needs a key. Type one into the assistant settings, or set %1 (or %2) in the environment.</source>
+        <translation>Claude braucht einen Schlüssel. Trage einen in den Assistenten-Einstellungen ein oder setze %1 (oder %2) in der Umgebung.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::MainWindow</name>

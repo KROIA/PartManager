@@ -9,6 +9,7 @@
 #include "llm/PartManager_LlmTool.h"
 #include "llm/PartManager_MouserToolset.h"
 #include "llm/PartManager_PartToolset.h"
+#include "settings/PartManager_Settings.h"
 
 #include <BuiltinTools.h>
 #include <ChatDockWidget.h>
@@ -46,6 +47,54 @@ namespace PartManager
 		// built-in correction and puts the choice back where §14b left it.
 		const char* const PreferredModel = "gpt-oss:20b";
 		const char* const FallbackModel = "qwen3:8b";
+
+		// §14b. Not the default, but what Claude starts from when it is chosen. The URL is only
+		// reached when the environment names no gateway of its own — see below.
+		const char* const ClaudeDefaultModel = "claude-sonnet-5";
+		const char* const AnthropicDefaultChatUrl = "https://api.anthropic.com/v1/messages";
+
+		// §14f and §9: the key the environment supplies, and the only key that survives a restart —
+		// nothing writes one to the settings file. Never logged, never printed, not even its
+		// length. ANTHROPIC_FOUNDRY_API_KEY comes first because a machine that has both is on the
+		// gateway; ANTHROPIC_API_KEY is the plain Anthropic account.
+		QString anthropicApiKey()
+		{
+			const QString gatewayKey = qEnvironmentVariable("ANTHROPIC_FOUNDRY_API_KEY");
+			return gatewayKey.isEmpty() ? qEnvironmentVariable("ANTHROPIC_API_KEY") : gatewayKey;
+		}
+
+		// Trailing slashes off — "…//v1/messages" is something a gateway is entitled to 404 on —
+		// and then the Messages path on, unless the URL already ends in it.
+		//
+		// This is the one place that knows the difference between a gateway *base* and a chat
+		// endpoint, because the settings field cannot tell them apart and neither can the user:
+		// ANTHROPIC_FOUNDRY_BASE_URL carries no path (QtLLM's own FoundryDemo appends the same
+		// suffix), the field opens showing a URL *with* the path, so a base URL pasted over it
+		// looks like the same kind of thing and is not — and nothing says otherwise until the
+		// first prompt fails on a path the gateway does not serve. Every Anthropic Messages
+		// endpoint ends in /messages, so one that already does is left exactly as typed: a gateway
+		// on a non-standard path stays reachable, it just has to name the path.
+		QString normalizedChatUrl(QString url)
+		{
+			while (url.endsWith(QLatin1Char('/')))
+			{
+				url.chop(1);
+			}
+			if (url.isEmpty() || url.endsWith(QStringLiteral("/messages")))
+			{
+				return url;
+			}
+			return url + QStringLiteral("/v1/messages");
+		}
+
+		// Only a *default*: the endpoint field stays editable, and a URL the user types there is
+		// remembered and wins over this. It goes through the same normalization either way.
+		QString anthropicDefaultEndpoint()
+		{
+			const QString baseUrl = qEnvironmentVariable("ANTHROPIC_FOUNDRY_BASE_URL");
+			return normalizedChatUrl(baseUrl.isEmpty()
+				? QString::fromLatin1(AnthropicDefaultChatUrl) : baseUrl);
+		}
 
 		// §14f. Off by default in QtLLM, both required here: a local model was observed looping
 		// on a tool call, and the cap is what ends that rather than the user's patience. Twelve
@@ -127,6 +176,50 @@ namespace PartManager
 		// Claude model list must not be second-guessed against gpt-oss:20b.
 		bool usingOllama = true;
 
+		// Kept per provider rather than read back off the Client, because the Client only ever
+		// holds the current one. Carrying a single model across a provider switch is what sent
+		// gpt-oss:20b to Anthropic; claude-sonnet-5 sent to Ollama is just as wrong.
+		QString ollamaUrl;
+		QString ollamaModel;
+		// Always normalized: every assignment to it goes through normalizedChatUrl(), which is
+		// what lets savePreferences() compare it against the env default and get a like-for-like
+		// answer. A raw assignment added later would silently start persisting a value that should
+		// have stayed empty.
+		QString claudeEndpoint;
+		QString claudeModel;
+		// **A fallback is not a preference.** `ollamaModel` is whatever is live, which is what the
+		// dialog and the status line have to show — but resolveModel() also writes it when §14b's
+		// own fallback picks qwen3:8b on a machine that has no gpt-oss:20b. Persisting *that* would
+		// turn an automatic second choice into a pinned first one: the next Apply made for an
+		// unrelated reason would store it, and it would then outrank gpt-oss:20b even after the
+		// user pulls it, with nothing in the UI to say why. Only a model that came out of the
+		// dialog's combo sets this flag, and only this flag makes a model outrank §14b or reach
+		// the settings file.
+		bool ollamaModelIsUserChoice = false;
+
+		// A key typed into the settings dialog, for this session only. §14f still holds for the
+		// part that matters: it is never written to AppPreferences, so the next launch is back to
+		// whatever the environment says. Empty means "use the environment", which is what clearing
+		// the field has to mean — authenticating with a deliberate empty string helps nobody.
+		QString claudeApiKeyOverride;
+
+		// The key actually in force. Everything that needs one goes through here so the typed key
+		// and the environment cannot disagree between the client, the dialog and the status line.
+		QString claudeApiKey() const
+		{
+			return claudeApiKeyOverride.isEmpty() ? anthropicApiKey() : claudeApiKeyOverride;
+		}
+		// ChatDockWidget has setFontSizePercent() and no getter, so the value the settings dialog
+		// must show back has to be remembered here. showToolCalls() does have a getter; it is kept
+		// beside its neighbour so one struct holds everything that gets written to the settings.
+		int fontSizePercent = 100;
+		bool showToolCalls = true;
+
+		// Set only when a remembered Claude provider had to fall back for want of a key. Appended
+		// to every status line rather than shown once: the Ollama probe answers asynchronously and
+		// its "Ready — …" would otherwise be the last word, leaving no trace of why Claude is off.
+		QString providerFallbackNotice;
+
 		bool providerReachable = false;
 		bool modelResolved = false;
 		bool busy = false;
@@ -138,7 +231,8 @@ namespace PartManager
 		{
 			if (!chat.isNull())
 			{
-				chat->setStatusText(text);
+				chat->setStatusText(providerFallbackNotice.isEmpty()
+					? text : text + QLatin1Char(' ') + providerFallbackNotice);
 			}
 		}
 
@@ -160,6 +254,13 @@ namespace PartManager
 		// Reads back whatever the QtLLM settings dialog was left holding. Never its API-key
 		// field — see the note in openSettings().
 		void applySettings(QtLLM::SettingsDialog& dialog);
+		// Created on demand: starting on Claude must not start an Ollama server the user is not
+		// using, and switching to Ollama later must still find out whether one is there.
+		void ensureOllamaProbe();
+		// §14b. Everything the settings file holds about the assistant, written on every Apply.
+		// A value equal to the current default is written as empty, so a later change to
+		// ANTHROPIC_FOUNDRY_BASE_URL or to §14b's preferred model is followed rather than frozen.
+		void savePreferences() const;
 	};
 
 	void LlmController::Impl::onOllamaChecked(bool running)
@@ -208,9 +309,18 @@ namespace PartManager
 		}
 
 		QString chosen;
-		for (const char* const candidate : { PreferredModel, FallbackModel })
+		// A model the user picked is tried first: §14b's preference is what to do in the *absence*
+		// of a choice, not an override of one. Only a choice, though — the model this function
+		// last resolved on its own is deliberately not in front of PreferredModel, or the fallback
+		// it landed on would outrank gpt-oss:20b for good once the user finally pulls it.
+		const QStringList candidates{ ollamaModelIsUserChoice ? ollamaModel : QString(),
+			QString::fromLatin1(PreferredModel), QString::fromLatin1(FallbackModel) };
+		for (const QString& name : candidates)
 		{
-			const QString name = QString::fromLatin1(candidate);
+			if (name.isEmpty())
+			{
+				continue;
+			}
 			if (models.contains(name))
 			{
 				chosen = name;
@@ -247,55 +357,172 @@ namespace PartManager
 		}
 
 		modelResolved = true;
+		// Live, so the dialog and the status line show what is actually answering. Not a choice,
+		// so ollamaModelIsUserChoice stays as it was: if this is §14b's fallback it must not
+		// become the thing §14b is fallen back *from*.
+		ollamaModel = chosen;
 		client->setModel(chosen);
 		// The model id is not app chrome — it is the name the user typed into `ollama pull`.
 		status(LlmController::tr("Ready — %1.").arg(chosen));
 	}
 
+	void LlmController::Impl::ensureOllamaProbe()
+	{
+		if (ollama == nullptr)
+		{
+			ollama = new QtLLM::OllamaManager(QString::fromLatin1(OllamaBaseUrl), &owner);
+			QObject::connect(ollama, &QtLLM::OllamaManager::isRunningChecked, &owner,
+				[this](bool running) { onOllamaChecked(running); });
+		}
+		startAttempts = 0;
+		status(LlmController::tr("Looking for Ollama…"));
+		ollama->checkIsRunning();
+	}
+
+	void LlmController::Impl::savePreferences() const
+	{
+		// Read-modify-write rather than a fresh struct: the §9 preferences share this group, and
+		// the assistant's dialog has no business blanking the user's language or backup schedule.
+		AppPreferences preferences = Settings::getPreferences();
+		preferences.llmProvider = usingOllama ? "ollama" : "claude";
+		preferences.llmOllamaUrl = ollamaUrl == QString::fromLatin1(OllamaChatUrl)
+			? std::string() : ollamaUrl.toStdString();
+		// Only a model out of the dialog's combo is written. What resolveModel() settled on by
+		// itself is left empty — "whatever §14b says now" — so a machine that had to fall back to
+		// qwen3:8b goes back to gpt-oss:20b the moment it is pulled, instead of carrying the
+		// fallback forward as a preference nobody made and nothing explains.
+		preferences.llmOllamaModel = ollamaModelIsUserChoice
+			? ollamaModel.toStdString() : std::string();
+		preferences.llmClaudeEndpoint = claudeEndpoint == anthropicDefaultEndpoint()
+			? std::string() : claudeEndpoint.toStdString();
+		preferences.llmClaudeModel = claudeModel == QString::fromLatin1(ClaudeDefaultModel)
+			? std::string() : claudeModel.toStdString();
+		preferences.llmSystemPrompt = systemPrompt == chatSystemPrompt()
+			? std::string() : systemPrompt.toStdString();
+		preferences.llmShowToolCalls = showToolCalls;
+		preferences.llmFontSizePercent = fontSizePercent;
+		// No key goes in here and none ever will — §14f, and the note on AppPreferences.
+		Settings::setPreferences(preferences);
+	}
+
 	void LlmController::Impl::applySettings(QtLLM::SettingsDialog& dialog)
 	{
 		const bool wantOllama = dialog.provider() == QtLLM::SettingsDialog::Provider::Ollama;
-		if (wantOllama != usingOllama)
+		// The user has been to the dialog, so whatever the launch-time fallback had to say about
+		// a missing key is either no longer true or is about to be said again below.
+		providerFallbackNotice.clear();
+
+		// Filed against the provider the dialog is currently showing, not against the live one:
+		// the dialog has one model combo and one endpoint field between two providers, and that
+		// is precisely how gpt-oss:20b used to end up being sent to Anthropic.
+		const QString editedEndpoint = wantOllama ? dialog.ollamaUrl() : dialog.endpointUrl();
+		if (!editedEndpoint.isEmpty())
 		{
-			// setProvider() replaces the protocol, re-syncs the registered tools onto it and
-			// clears the history — two providers' message formats do not interleave. The Claude
-			// key is read here, from the environment, and never from dialog.apiKey().
-			usingOllama = wantOllama;
 			if (wantOllama)
 			{
-				client->setProvider(QtLLM::Provider::Ollama,
-					dialog.ollamaUrl().isEmpty()
-						? QString::fromLatin1(OllamaChatUrl) : dialog.ollamaUrl());
+				// Not normalized: an Ollama chat URL ends in /api/chat, a different shape entirely.
+				ollamaUrl = editedEndpoint;
 			}
 			else
 			{
-				client->setProvider(QtLLM::Provider::Claude, dialog.endpointUrl(),
-					qEnvironmentVariable("ANTHROPIC_API_KEY"));
+				claudeEndpoint = normalizedChatUrl(editedEndpoint);
+			}
+		}
+		// **The combo is only the user's while the provider combo stays put.** QtLLM's
+		// SettingsDialog::onProviderChanged() clears the model combo and writes its own text into
+		// it — "claude-haiku-4-5" for Claude and "llama3.2:latest" for Ollama. Read back as a
+		// choice, one switch to Ollama and back would pin llama3.2, the model §14b measured as
+		// unusable and deliberately left out of the fallback list precisely because it gets picked
+		// silently. So an Apply that changes the provider keeps the remembered model for the
+		// provider being switched to; changing the model takes a second Apply, by which point the
+		// text in the combo is the user's own.
+		const bool providerChanged = wantOllama != usingOllama;
+		if (!providerChanged && !dialog.model().isEmpty())
+		{
+			// And only a value that differs from what is already live is a decision. Apply pressed
+			// for the font size with the combo untouched must not turn whatever resolveModel() last
+			// settled on into a pinned choice — that is the whole distinction the flag exists for.
+			if (wantOllama)
+			{
+				ollamaModelIsUserChoice = ollamaModelIsUserChoice || dialog.model() != ollamaModel;
+			}
+			(wantOllama ? ollamaModel : claudeModel) = dialog.model();
+		}
+
+		// The field opens pre-filled from the environment, so an untouched dialog hands back the
+		// same string and nothing changes. A different one is the user overriding the environment
+		// for this session; a cleared one is them asking for the environment back.
+		claudeApiKeyOverride = dialog.apiKey();
+		// Resolved after that, and on every Apply rather than cached at launch: the environment
+		// may have gained the variable since, and this is the one place that can act on it
+		// without a restart.
+		const QString claudeKey = claudeApiKey();
+		if (providerChanged)
+		{
+			// setProvider() replaces the protocol, re-syncs the registered tools onto it and
+			// clears the history — two providers' message formats do not interleave.
+			usingOllama = wantOllama;
+			if (wantOllama)
+			{
+				client->setProvider(QtLLM::Provider::Ollama, ollamaUrl);
+			}
+			else
+			{
+				client->setProvider(QtLLM::Provider::Claude, claudeEndpoint, claudeKey);
 				providerReachable = true;
-				modelResolved = !client->model().isEmpty();
 			}
 			if (!chat.isNull())
 			{
 				chat->clearMessages();
 			}
+			if (wantOllama)
+			{
+				// Nothing has asked the server what it offers yet if the app started on Claude,
+				// and the answer is what resolveModel() needs to confirm a model.
+				ensureOllamaProbe();
+			}
 		}
-		else if (wantOllama && !dialog.ollamaUrl().isEmpty())
+		else
 		{
-			client->setEndpointUrl(dialog.ollamaUrl());
+			// Same provider, edited endpoint. setProvider() would clear the conversation for
+			// nothing, so the URL goes in on its own — and an edit made without switching
+			// providers used to be dropped entirely.
+			client->setEndpointUrl(wantOllama ? ollamaUrl : claudeEndpoint);
+			if (!wantOllama)
+			{
+				client->setApiKey(claudeKey);
+			}
 		}
 
-		if (!dialog.model().isEmpty())
+		const QString model = wantOllama ? ollamaModel : claudeModel;
+		if (!model.isEmpty())
 		{
-			client->setModel(dialog.model());
+			client->setModel(model);
 			modelResolved = true;
 		}
 		systemPrompt = dialog.systemPrompt();
 		client->setSystemPrompt(systemPrompt);
+		showToolCalls = dialog.showToolCalls();
+		fontSizePercent = dialog.fontSizePercent();
 		if (!chat.isNull())
 		{
-			chat->setShowToolCalls(dialog.showToolCalls());
-			chat->setFontSizePercent(dialog.fontSizePercent());
+			chat->setShowToolCalls(showToolCalls);
+			chat->setFontSizePercent(fontSizePercent);
 		}
+
+		if (!wantOllama && claudeKey.isEmpty())
+		{
+			// Said here rather than left to the first prompt, which would fail with an
+			// authentication error that names neither variable. Both ways out are offered: the
+			// dialog's field lasts the session, the environment lasts. The variable names are
+			// literals, not chrome — they are what the user has to type into their environment.
+			status(LlmController::tr(
+				"Claude needs a key. Type one into the assistant settings, or set %1 (or %2) in "
+				"the environment.")
+				.arg(QStringLiteral("ANTHROPIC_FOUNDRY_API_KEY"),
+					QStringLiteral("ANTHROPIC_API_KEY")));
+		}
+		savePreferences();
 	}
 
 	LlmController::LlmController(DatabaseHandle& handle, QWidget* dialogParent, QObject* parent)
@@ -303,11 +530,60 @@ namespace PartManager
 		, m_impl(new Impl(*this, handle))
 	{
 		m_impl->dialogParent = dialogParent;
-		m_impl->systemPrompt = chatSystemPrompt();
 
-		m_impl->client = new QtLLM::Client(QtLLM::Provider::Ollama,
-			QString::fromLatin1(OllamaChatUrl), QString(), this);
-		m_impl->client->setModel(QString::fromLatin1(PreferredModel));
+		// §14b. An empty setting is "whatever the default is now", never a stored empty value —
+		// which is what lets a changed ANTHROPIC_FOUNDRY_BASE_URL be followed rather than
+		// overridden by the copy of itself that was current when the dialog was last used.
+		const AppPreferences preferences = Settings::getPreferences();
+		m_impl->ollamaUrl = preferences.llmOllamaUrl.empty()
+			? QString::fromLatin1(OllamaChatUrl) : toQt(preferences.llmOllamaUrl);
+		// A stored model id can only have got there through the dialog — savePreferences() writes
+		// nothing else — so reading one back restores the choice, not just the string.
+		m_impl->ollamaModelIsUserChoice = !preferences.llmOllamaModel.empty();
+		m_impl->ollamaModel = preferences.llmOllamaModel.empty()
+			? QString::fromLatin1(PreferredModel) : toQt(preferences.llmOllamaModel);
+		// Normalized on the way in as well: a bare gateway base stored by an older build becomes
+		// the Messages endpoint here, and then matches the env default again, so the next Apply
+		// writes it back as empty and the setting heals itself.
+		m_impl->claudeEndpoint = preferences.llmClaudeEndpoint.empty()
+			? anthropicDefaultEndpoint() : normalizedChatUrl(toQt(preferences.llmClaudeEndpoint));
+		m_impl->claudeModel = preferences.llmClaudeModel.empty()
+			? QString::fromLatin1(ClaudeDefaultModel) : toQt(preferences.llmClaudeModel);
+		m_impl->systemPrompt = preferences.llmSystemPrompt.empty()
+			? chatSystemPrompt() : toQt(preferences.llmSystemPrompt);
+		m_impl->showToolCalls = preferences.llmShowToolCalls;
+		m_impl->fontSizePercent = preferences.llmFontSizePercent;
+
+		// A remembered Claude provider with no key in the environment would build a client that
+		// fails on the first prompt with an authentication error naming nothing the user can act
+		// on. Start on Ollama and say which variable is missing instead.
+		const QString claudeKey = anthropicApiKey();
+		const bool claudeKeyMissing = preferences.llmProvider == "claude" && claudeKey.isEmpty();
+		m_impl->usingOllama = preferences.llmProvider != "claude" || claudeKeyMissing;
+		if (claudeKeyMissing)
+		{
+			m_impl->providerFallbackNotice = tr(
+				"Claude is switched off: neither %1 nor %2 is set in the environment.")
+				.arg(QStringLiteral("ANTHROPIC_FOUNDRY_API_KEY"),
+					QStringLiteral("ANTHROPIC_API_KEY"));
+		}
+
+		if (m_impl->usingOllama)
+		{
+			m_impl->client = new QtLLM::Client(QtLLM::Provider::Ollama, m_impl->ollamaUrl,
+				QString(), this);
+			m_impl->client->setModel(m_impl->ollamaModel);
+		}
+		else
+		{
+			m_impl->client = new QtLLM::Client(QtLLM::Provider::Claude, m_impl->claudeEndpoint,
+				claudeKey, this);
+			m_impl->client->setModel(m_impl->claudeModel);
+			// Nothing to probe and nothing to resolve: a hosted provider is reachable or it is
+			// not, and that is what the first request finds out.
+			m_impl->providerReachable = true;
+			m_impl->modelResolved = true;
+		}
 		m_impl->client->setSystemPrompt(m_impl->systemPrompt);
 		// §14f: both of these are off by default in the library and both are required here.
 		m_impl->client->setValidateToolInput(true);
@@ -320,8 +596,10 @@ namespace PartManager
 		m_impl->chat->setWindowTitle(tr("Assistant"));
 		m_impl->chat->setClient(m_impl->client);
 		// §14: the user needs to see which tools touched their database. Not a debug aid here —
-		// it is the audit trail that makes an assistant with write access acceptable at all.
-		m_impl->chat->setShowToolCalls(true);
+		// it is the audit trail that makes an assistant with write access acceptable at all, which
+		// is why AppPreferences defaults it on and only an explicit tick turns it off.
+		m_impl->chat->setShowToolCalls(m_impl->showToolCalls);
+		m_impl->chat->setFontSizePercent(m_impl->fontSizePercent);
 		m_impl->chat->setAssistantName(tr("Assistant"));
 		m_impl->chat->setSendButtonText(tr("Send"));
 		m_impl->chat->setCancelButtonText(tr("Cancel"));
@@ -437,11 +715,17 @@ namespace PartManager
 		connect(m_impl->client, &QtLLM::Client::modelsAvailable,
 			this, [this](const QStringList& models) { m_impl->resolveModel(models); });
 
-		m_impl->ollama = new QtLLM::OllamaManager(QString::fromLatin1(OllamaBaseUrl), this);
-		connect(m_impl->ollama, &QtLLM::OllamaManager::isRunningChecked,
-			this, [this](bool running) { m_impl->onOllamaChecked(running); });
-		m_impl->status(tr("Looking for Ollama…"));
-		m_impl->ollama->checkIsRunning();
+		if (m_impl->usingOllama)
+		{
+			m_impl->ensureOllamaProbe();
+		}
+		else
+		{
+			// Skipped on purpose when the user is on Claude: the probe starts `ollama serve` when
+			// it finds nothing, and that is a server nobody asked for. The model id is the name
+			// Anthropic knows it by, so only the frame around it is translated.
+			m_impl->status(tr("Ready — %1.").arg(m_impl->claudeModel));
+		}
 	}
 
 	LlmController::~LlmController()
@@ -484,16 +768,29 @@ namespace PartManager
 		dialog.setProvider(m_impl->usingOllama
 			? QtLLM::SettingsDialog::Provider::Ollama
 			: QtLLM::SettingsDialog::Provider::Claude);
-		dialog.setOllamaUrl(QString::fromLatin1(OllamaChatUrl));
-		dialog.setModel(m_impl->client->model());
+		dialog.setOllamaUrl(m_impl->ollamaUrl);
+		// The endpoint field stays editable, so what it must show is the URL Claude would actually
+		// be talked to on — the remembered one, or the one ANTHROPIC_FOUNDRY_BASE_URL implies.
+		// Left blank, as it was, there was nothing to correct and nothing to see.
+		dialog.setEndpointUrl(m_impl->claudeEndpoint);
+		// One combo between two providers, so it has to hold the model belonging to the provider
+		// the dialog opens on. Filled from client->model() it showed gpt-oss:20b while Claude was
+		// selected, and Apply then sent that id to Anthropic.
+		dialog.setModel(m_impl->usingOllama ? m_impl->ollamaModel : m_impl->claudeModel);
 		dialog.setSystemPrompt(m_impl->systemPrompt);
-		dialog.setShowToolCalls(m_impl->chat.isNull() ? true : m_impl->chat->showToolCalls());
-		// §14f and §9: the library's dialog carries an API-key field of its own, and this
-		// deliberately neither fills it in nor reads it back. A Claude key comes from
-		// ANTHROPIC_API_KEY in the environment and from nowhere else, exactly as the Mouser keys
-		// do — a key typed into a settings dialog lands in a plain-text file in the user's data
-		// folder, which is the thing keeping it in the environment avoids.
-		dialog.setApiKey(QString());
+		dialog.setShowToolCalls(m_impl->showToolCalls);
+		dialog.setFontSizePercent(m_impl->fontSizePercent);
+		// §14f and §9: the field is pre-filled from ANTHROPIC_FOUNDRY_API_KEY, or failing that
+		// ANTHROPIC_API_KEY, so it opens showing the key that is actually in force rather than
+		// blank — including on a second visit, after a key has been typed. A typed key overrides
+		// the environment **for this session only**; clearing the field hands it back.
+		//
+		// What has not changed is the part §14f is about: nothing here is ever written to
+		// AppPreferences. A persisted key would land in a plain-text file in the user's data
+		// folder, which is exactly what keeping it in the environment avoids, so the next launch
+		// starts from the environment again. QtLLM's field is QLineEdit::Password echo, so this
+		// is a masked field and not a key on screen.
+		dialog.setApiKey(m_impl->claudeApiKey());
 		// Fills the Tools tab (every registered tool, enable/disable) and the usage charts. The
 		// Agents tab binds itself to AgentRegistry and needs no wiring.
 		dialog.setClient(m_impl->client);

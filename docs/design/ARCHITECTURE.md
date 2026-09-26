@@ -658,10 +658,66 @@ walked when the server does not offer the configured one, and the effective
 model is recorded in the result. `llama3.2` is deliberately *not* a fallback —
 it ships with almost every Ollama install and would be picked silently.
 
-Claude is supported by the same code (`QtLLM::Provider::Claude`, key from
-`ANTHROPIC_API_KEY` in the environment and nowhere else, §6's rule unchanged).
-It is not the default and there is no API-key field in Settings, for the same
-reason §9 has none for Mouser.
+Claude is supported by the same code (`QtLLM::Provider::Claude`, default model
+`claude-sonnet-5`, key from `ANTHROPIC_FOUNDRY_API_KEY` or `ANTHROPIC_API_KEY`
+in the environment). It is not the default provider. The assistant's settings
+dialog does have an API-key field — pre-filled from the environment, overriding
+it for the session, and never persisted; §14f has the rule and why it is not the
+same thing as §9's Mouser field.
+
+**How the provider is chosen and remembered.** The settings dialog's provider,
+endpoint, model, system prompt, font size and tool-call tick are persisted in
+`AppPreferences` (§9), so a user who switches to Claude once does not re-take
+that decision — or re-type that endpoint — on every launch. Three rules make
+that work:
+
+- **Per provider, not per client.** `QtLLM::Client` holds one endpoint and one
+  model at a time, and the dialog has one field and one combo between two
+  providers. The controller therefore keeps the Ollama url/model and the Claude
+  endpoint/model separately and fills the dialog from whichever provider is
+  selected. Filled from `client->model()` instead, switching to Claude sent
+  `gpt-oss:20b` to Anthropic.
+- **An endpoint is normalized wherever it is resolved** — from the environment,
+  from `AppPreferences`, or out of the dialog. Trailing slashes come off and
+  `/v1/messages` goes on unless the URL already ends in `/messages`. The field
+  opens showing a URL *with* the path, so a gateway base pasted over it looks
+  like the same kind of thing and is not, and nothing says otherwise until the
+  first prompt fails; "typed wins" must not mean "typed wrong wins silently".
+  A genuinely non-standard path is still honoured — it just has to name it.
+- **An empty setting means "whatever the default is now".** The Claude endpoint
+  defaults to `ANTHROPIC_FOUNDRY_BASE_URL` + `/v1/messages` (that variable
+  carries no path), or `https://api.anthropic.com/v1/messages` when it is unset.
+  A value the user types wins and is stored; a value equal to the current
+  default is stored as *empty*, so a later change to the environment is followed
+  rather than frozen. The Ollama url and both model ids follow the same rule.
+- **A fallback is not a preference.** The Ollama model id is only written when it
+  came out of the dialog's combo. The one the §14b walk settles on by itself is
+  left empty, and does not take the first-candidate slot on the next launch
+  either — otherwise a machine without `gpt-oss:20b` would resolve to `qwen3:8b`,
+  have it persisted by the next unrelated Apply, and go on preferring it after
+  `gpt-oss:20b` was finally pulled, with nothing in the UI to say why or how to
+  undo it.
+- **Nor is the combo a preference across a provider switch.**
+  `SettingsDialog::onProviderChanged()` clears the model combo and writes its own
+  text — `claude-haiku-4-5` for Claude, `llama3.2:latest` for Ollama. Read back
+  as a choice, one switch to Ollama and back would pin `llama3.2`, which is the
+  model §14b measured as unusable and left out of the fallback list for exactly
+  this reason: it gets picked silently. An Apply that changes the provider
+  therefore keeps the remembered model for the provider being switched to, and
+  changing the model is a second Apply.
+- **Claude without a key does not start.** If the remembered provider is Claude
+  and neither variable is set, the app starts on Ollama and the status line says
+  which two variables to set — a client built with an empty key fails on the
+  first prompt with an authentication error that names nothing actionable. On
+  Claude the `OllamaManager` probe is skipped entirely: it starts `ollama serve`
+  when it finds nothing, and that is a server the user did not ask for.
+
+An endpoint or model edit applies whether or not the provider changed.
+`Client::setProvider()` clears the conversation by design (two providers'
+message formats do not interleave), so an edit made while staying on the same
+provider goes in through `setEndpointUrl()`/`setApiKey()` instead — the key is
+re-read from the environment on every Apply, because it may have been set since
+launch.
 
 ### 14c. The toolsets
 
@@ -756,6 +812,17 @@ the longer the tool list gets).
 - **No tool takes an API key as a parameter**, so a model can neither read one
   nor be talked into echoing one into the chat. Keys stay in the environment
   (§6, §9).
+- **The Claude key is never persisted — that is the whole of the rule.** The
+  environment supplies it (`ANTHROPIC_FOUNDRY_API_KEY`, falling back to
+  `ANTHROPIC_API_KEY`), the settings dialog's field opens pre-filled with
+  whatever is in force, and a key typed there overrides the environment **for
+  that session**, held in the controller and nowhere else. `AppPreferences` has
+  no field it could be written to and is not getting one: a stored key lands in
+  a plain-text file in the user's data folder, which is exactly what the
+  environment avoids. The next launch therefore starts from the environment
+  again. The field is `QLineEdit::Password` echo, and the key is never logged —
+  not even its length. The *endpoint* beside it is not a secret: it is editable,
+  persisted and defaulted from the environment like any other preference (§14b).
 - `Client::setValidateToolInput(true)` is on, and the per-turn tool-call cap is
   set. Both are off by default in the library.
 - The filesystem built-in tools (`read_text_file`, `write_text_file`,

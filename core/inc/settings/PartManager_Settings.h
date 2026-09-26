@@ -3,7 +3,8 @@
 //
 // Two groups: the known-databases list core/database's DatabaseRegistry needs
 // (§1b), and the user preferences the Settings dialog edits (§9) — language,
-// theme, currency, KiCad output path, and the backup schedule (§9a).
+// theme, currency, KiCad output path, the backup schedule (§9a), and what the
+// §14 assistant was last set to.
 //
 // **The Mouser API keys are deliberately absent.** §9 lists an API-key field in
 // the Storage tab, but a key written here would land in a plain-text settings
@@ -60,6 +61,27 @@ namespace PartManager
 		// because it is per-user and not per-database: a user who never wants to see empty
 		// categories does not want to re-tick it in every database they open.
 		bool hideEmptyCategories = false;
+
+		// §14b. What the assistant's settings dialog was last left holding. Remembered because
+		// without it, choosing Claude was a decision the user had to re-take on every launch —
+		// and re-type the endpoint for.
+		//
+		// **There is no API-key field here either, and for the same reason as the Mouser keys
+		// above.** A Claude key is read from `ANTHROPIC_FOUNDRY_API_KEY`, falling back to
+		// `ANTHROPIC_API_KEY`, and from nowhere else; anything written into this struct ends up
+		// in a plain-text file in the user's data folder (§14f).
+		//
+		// An empty string means "whatever the default is now" rather than a stored empty value.
+		// That is what lets the endpoint follow a changed `ANTHROPIC_FOUNDRY_BASE_URL` instead of
+		// being frozen at the URL that variable held the day the dialog was last opened.
+		std::string llmProvider = "ollama";   // 'ollama' | 'claude'
+		std::string llmOllamaUrl;             // empty = the built-in localhost endpoint
+		std::string llmOllamaModel;           // empty = the §14b preferred model
+		std::string llmClaudeEndpoint;        // empty = derived from ANTHROPIC_FOUNDRY_BASE_URL
+		std::string llmClaudeModel;           // empty = the built-in Claude default
+		std::string llmSystemPrompt;          // empty = the built-in prompt
+		bool llmShowToolCalls = true;
+		int  llmFontSizePercent = 100;
 	};
 
 	// One remembered CSV/BOM column mapping (§5). Keyed by `headerSignature` — the file's own
@@ -119,6 +141,13 @@ namespace PartManager
 		static constexpr int MaxBackupIntervalHours = 24 * 7;
 		static constexpr int MinBackupRetentionCount = 1;
 		static constexpr int MaxBackupRetentionCount = 500;
+
+		// Clamped the same way, and to the range QtLLM's own font-size spin box is fixed at
+		// (`SettingsDialog.cpp`). The two must agree: a percentage outside the spin box's range
+		// cannot be shown back to the user, so it would silently become something else the next
+		// time the dialog is opened.
+		static constexpr int MinLlmFontSizePercent = 50;
+		static constexpr int MaxLlmFontSizePercent = 200;
 	};
 
 }

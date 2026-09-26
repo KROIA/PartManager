@@ -8,6 +8,9 @@
 #include "PartManager_AppStartup.h"
 #include <QApplication>
 #include <QCoreApplication>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <filesystem>
 
 class TST_Settings : public UnitTest::Test
@@ -20,6 +23,8 @@ public:
 		ADD_TEST(TST_Settings::settingsFileIsOutsideWorkingDirectory);
 		ADD_TEST(TST_Settings::knownDatabasesRoundTrip);
 		ADD_TEST(TST_Settings::preferencesRoundTripAndClamp);
+		ADD_TEST(TST_Settings::llmPreferencesRoundTrip);
+		ADD_TEST(TST_Settings::llmFontSizeIsClampedOnReadAndWrite);
 		ADD_TEST(TST_Settings::importMappingsAreRememberedByHeaderShape);
 		ADD_TEST(TST_Settings::germanTranslationIsActuallyInstalled);
 		ADD_TEST(TST_Settings::longToolTipsAreBrokenOverLines);
@@ -133,6 +138,121 @@ private:
 
 		// This suite writes to the user's real settings file, so it puts it back.
 		PartManager::Settings::setPreferences(original);
+	}
+
+	// §14b. What the assistant's settings dialog was left holding has to survive a restart, or
+	// choosing Claude is a decision the user re-takes — and an endpoint they re-type — every
+	// launch. Every field but the key: there is none, deliberately (§14f).
+	TEST_FUNCTION(llmPreferencesRoundTrip)
+	{
+		TEST_START;
+
+		const PartManager::AppPreferences original = PartManager::Settings::getPreferences();
+
+		PartManager::AppPreferences written = original;
+		written.llmProvider = "claude";
+		written.llmOllamaUrl = "http://nas.local:11434/api/chat";
+		written.llmOllamaModel = "qwen3:8b";
+		written.llmClaudeEndpoint = "https://example.invalid/api/anthropic/v1/messages";
+		written.llmClaudeModel = "claude-haiku-4-5";
+		written.llmSystemPrompt = "You answer in one sentence.";
+		written.llmShowToolCalls = false;
+		written.llmFontSizePercent = 130;
+		PartManager::Settings::setPreferences(written);
+
+		const PartManager::AppPreferences read = PartManager::Settings::getPreferences();
+		TEST_COMPARE(read.llmProvider, std::string("claude"));
+		TEST_COMPARE(read.llmOllamaUrl, std::string("http://nas.local:11434/api/chat"));
+		TEST_COMPARE(read.llmOllamaModel, std::string("qwen3:8b"));
+		TEST_COMPARE(read.llmClaudeEndpoint,
+			std::string("https://example.invalid/api/anthropic/v1/messages"));
+		TEST_COMPARE(read.llmClaudeModel, std::string("claude-haiku-4-5"));
+		TEST_COMPARE(read.llmSystemPrompt, std::string("You answer in one sentence."));
+		TEST_ASSERT_M(!read.llmShowToolCalls, "the tool-call tick must survive as unticked");
+		TEST_COMPARE(read.llmFontSizePercent, 130);
+
+		// An empty url/model/prompt means "whatever the default is now" and must read back as
+		// empty, not as the last value written — that is what lets the controller follow a changed
+		// ANTHROPIC_FOUNDRY_BASE_URL instead of being pinned to a stale copy of it.
+		written.llmClaudeEndpoint.clear();
+		written.llmOllamaModel.clear();
+		written.llmSystemPrompt.clear();
+		PartManager::Settings::setPreferences(written);
+		const PartManager::AppPreferences cleared = PartManager::Settings::getPreferences();
+		TEST_ASSERT_M(cleared.llmClaudeEndpoint.empty(), "a cleared endpoint must stay cleared");
+		TEST_ASSERT_M(cleared.llmOllamaModel.empty(), "a cleared model must stay cleared");
+		TEST_ASSERT_M(cleared.llmSystemPrompt.empty(), "a cleared prompt must stay cleared");
+		// The provider is the one LLM string with a vocabulary instead of a default, so an empty
+		// value falls back rather than reading back as "no provider".
+		written.llmProvider.clear();
+		PartManager::Settings::setPreferences(written);
+		TEST_COMPARE(PartManager::Settings::getPreferences().llmProvider, std::string("ollama"));
+
+		// This suite writes to the user's real settings file, so it puts it back.
+		PartManager::Settings::setPreferences(original);
+	}
+
+	// The font size has to agree with QtLLM's own spin box, which is fixed at 50-200 %: a value
+	// outside that range cannot be shown back to the user, so it would silently become something
+	// else the next time the dialog is opened. Clamped on write *and* on read, because the
+	// settings file is plain text in the user's data folder and can be edited by hand.
+	TEST_FUNCTION(llmFontSizeIsClampedOnReadAndWrite)
+	{
+		TEST_START;
+
+		const PartManager::AppPreferences original = PartManager::Settings::getPreferences();
+
+		PartManager::AppPreferences written = original;
+		written.llmFontSizePercent = 5;      // below the floor
+		PartManager::Settings::setPreferences(written);
+		TEST_COMPARE(PartManager::Settings::getPreferences().llmFontSizePercent,
+			PartManager::Settings::MinLlmFontSizePercent);
+
+		written.llmFontSizePercent = 5000;   // above the ceiling
+		PartManager::Settings::setPreferences(written);
+		TEST_COMPARE(PartManager::Settings::getPreferences().llmFontSizePercent,
+			PartManager::Settings::MaxLlmFontSizePercent);
+
+		// The read clamp needs a value the write clamp never produced, so it is put into the file
+		// directly — which is exactly the case it exists for.
+		TEST_ASSERT(writeRawPreference("llmFontSizePercent", 5000));
+		TEST_COMPARE(PartManager::Settings::getPreferences().llmFontSizePercent,
+			PartManager::Settings::MaxLlmFontSizePercent);
+		TEST_ASSERT(writeRawPreference("llmFontSizePercent", 0));
+		TEST_COMPARE(PartManager::Settings::getPreferences().llmFontSizePercent,
+			PartManager::Settings::MinLlmFontSizePercent);
+
+		PartManager::Settings::setPreferences(original);
+	}
+
+	// Patches one value straight into the settings JSON, bypassing the facade's write clamp. The
+	// caller is expected to restore the file through setPreferences() afterwards, which rewrites
+	// the whole document from what the last load() read.
+	static bool writeRawPreference(const char* key, int value)
+	{
+		const QString path = QString::fromStdString(PartManager::Settings::getSettingsFilePath());
+		QFile file(path);
+		if (!file.open(QIODevice::ReadOnly))
+		{
+			return false;
+		}
+		QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+		file.close();
+		if (!document.isObject())
+		{
+			return false;
+		}
+		QJsonObject root = document.object();
+		QJsonObject preferences = root.value(QStringLiteral("Preferences")).toObject();
+		preferences[QString::fromLatin1(key)] = value;
+		root[QStringLiteral("Preferences")] = preferences;
+		if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+		{
+			return false;
+		}
+		file.write(QJsonDocument(root).toJson());
+		file.close();
+		return true;
 	}
 
 	// §5: the column mapping a user corrects is filed under the file's header *shape*, so
