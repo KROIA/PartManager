@@ -243,6 +243,12 @@ namespace PartManager
 					shape.points = { anchor,
 						KicadPoint{ anchor.x + run * std::cos(angle), anchor.y + run * std::sin(angle) } };
 					if (const Node* number = node.find("number")) { shape.label = number->text(1); }
+					// A symbol's pins, unlike a library footprint's pads, normally *do* carry a
+					// name and an electrical type — "(pin passive line ... (name "VCC" ...))" — and
+					// §14's describe_kicad_symbol is the difference between telling a model the pin
+					// is called VCC and telling it the pin is called "1". The painter ignores both.
+					if (const Node* name = node.find("name")) { shape.pinName = name->text(1); }
+					shape.pinType = node.text(1);
 					out.push_back(std::move(shape));
 				}
 			}

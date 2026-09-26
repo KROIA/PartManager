@@ -4,6 +4,7 @@
 
 #include "database/PartManager_DatabaseHandle.h"
 #include "domain/PartManager_Part.h"
+#include "llm/PartManager_KicadToolset.h"
 #include "llm/PartManager_LlmTool.h"
 #include "llm/PartManager_MouserToolset.h"
 #include "llm/PartManager_PartToolset.h"
@@ -337,6 +338,9 @@ namespace PartManager
 		context.allowWrites = true;
 		registerLlmTools(*m_impl->client, PartToolset::tools(context));
 		registerLlmTools(*m_impl->client, MouserToolset::tools(context));
+		// §14f: the KiCad tools are safe to leave on beside the others because none of them takes
+		// a filesystem path — a file only ever arrives from another part in the same database.
+		registerLlmTools(*m_impl->client, KicadToolset::tools(context));
 
 		// §14f: the filesystem built-ins (read_text_file, write_text_file, list_directory) are
 		// deliberately absent — the assistant reaches parts through typed tools and nothing else,

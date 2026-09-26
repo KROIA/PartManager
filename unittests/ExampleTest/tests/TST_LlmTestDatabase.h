@@ -1,5 +1,6 @@
 #pragma once
 
+#include "llm/PartManager_KicadToolset.h"
 #include "llm/PartManager_MouserToolset.h"
 #include "llm/PartManager_PartToolset.h"
 
@@ -90,6 +91,17 @@ public:
 	std::vector<PartManager::LlmTool> readOnlyMouserTools() const
 	{
 		return PartManager::MouserToolset::tools(context(false));
+	}
+
+	// The §14 KiCad tools — what TST_LlmKicadToolset drives.
+	std::vector<PartManager::LlmTool> kicadTools() const
+	{
+		return PartManager::KicadToolset::tools(context(true));
+	}
+
+	std::vector<PartManager::LlmTool> readOnlyKicadTools() const
+	{
+		return PartManager::KicadToolset::tools(context(false));
 	}
 
 private:

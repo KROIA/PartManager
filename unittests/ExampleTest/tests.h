@@ -52,5 +52,6 @@
 #include "tests/TST_CategoryTransferGui.h"
 #include "tests/TST_CategoryReconcileGui.h"
 #include "tests/TST_LlmPartToolset.h"
+#include "tests/TST_LlmKicadToolset.h"
 #include "tests/TST_LlmMigration.h"
 //#include "test_nasted.h"
