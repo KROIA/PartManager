@@ -763,13 +763,42 @@ the longer the tool list gets).
   through typed tools; a general file-write tool adds nothing to that and removes
   the guarantee that the assistant can only touch parts.
 
-### 14g. Deliberately not built yet
+### 14g. Reading datasheets
 
-- **Reading datasheets to answer questions.** Nothing in the project extracts
-  text from a PDF, and adding that is its own slice (a hand-rolled
-  `FlateDecode` + `Tj/TJ` extractor in `core/`, which works on text PDFs and not
-  on scanned ones, is the candidate — it needs no new dependency because Qt
-  already carries zlib).
-- **Editing KiCad symbols and footprints through tools.** The geometry editors
-  do not exist yet in the app either (`TASKS.md`, Feature wishes), so there is
-  nothing for a tool to drive.
+`core/pdf/PdfText` pulls text out of a PDF, and `DatasheetToolset` is the three
+tools over it. **No new dependency**: Qt already carries zlib, and `FlateDecode`
+is the only filter the *text* streams in real datasheets use.
+
+`search_datasheet` is the primary tool, not `read_datasheet`. A datasheet runs to
+tens of pages and a local model's context does not, so the useful primitive is
+"find the passage and say which page", not "here is the document".
+
+**Measured over the 27 datasheets in the user's own `KicadFresh` filestore: 21
+extracted to text, 6 correctly identified as scans, 0 failures.** Filters across
+that corpus are `FlateDecode` (4333 streams), `DCTDecode` (26) and
+`CCITTFaxDecode` (6) — the last two are images, which is what a scanned page is.
+
+Two honest limits, both load-bearing:
+
+- **It extracts text, it does not reconstruct layout.** A two-column page
+  interleaves, and a pinout printed as a grid comes back as loose words. That is
+  why every answer carries its page number: the contract is "here is where it
+  says that", not "here is the table".
+- **A datasheet it cannot read says so.** A scan comes back `scanned: true` with
+  no text; an encrypted file is named as encrypted. This matters more than the
+  hit rate — a model that is handed an empty string answers from its own memory
+  of what an LM358 does, and inventing a specification is the worst thing this
+  feature could do.
+
+### 14h. Still not built
+
+- **Editing KiCad symbol and footprint *geometry* through tools.** The geometry
+  editors do not exist in the app either (`TASKS.md`, Feature wishes), so there
+  is nothing for a tool to drive. Note that the *other* reading of the request —
+  "change this part's footprint" — is built: `set_part_kicad_file` gives a part
+  the symbol, footprint or 3D model another part already carries.
+- **Deciding that two footprints may be shared** (`FeatureRequests.md` request 2).
+  `find_parts_sharing_a_footprint` answers which parts have the same pad layout,
+  and reports "identical" separately from merely compatible — but merging them
+  into one shared library artifact is an open design question, not something a
+  tool should settle on its own.
