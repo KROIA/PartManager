@@ -9,13 +9,19 @@
 // datasheets actually use — so the whole job is inflate plus a content-stream
 // parser, with no new dependency at all.
 //
-// **Measured before this was written** (2026-09-26, the 27 datasheets in the
-// user's `KicadFresh` filestore): 22 of 27 contain inflatable `FlateDecode`
-// streams carrying `BT`/`Tj`/`TJ` text operators. The filters present across the
-// whole corpus are `FlateDecode` (4333 streams), `DCTDecode` (26) and
-// `CCITTFaxDecode` (6) — the last two are images, which is what a scanned page
-// is. So roughly four datasheets in five are readable this way and the rest are
-// pictures of text.
+// **Measured** (2026-09-26, the 27 datasheets in the developer's own
+// `KicadFresh` filestore). A scan beforehand found 22 of 27 carrying inflatable
+// `FlateDecode` streams with `BT`/`Tj`/`TJ` text operators; running the finished
+// extractor over the same 27 gives **21 to text, 6 scans, 0 failures**. The two
+// numbers agree: 22 files contain a text stream, 21 yield text worth reading —
+// the odd one out has a 186-character text layer over a scanned page, which is
+// a scan with a caption, and is reported as `looksScanned`.
+//
+// The filters across the corpus are `FlateDecode` (4333 streams), `DCTDecode`
+// (26) and `CCITTFaxDecode` (6) — the last two are images, which is what a
+// scanned page is. So roughly four datasheets in five are readable this way and
+// the rest are pictures of text. **Nothing in the corpus failed to parse**, and
+// none was encrypted or used a filter this does not implement.
 //
 // **This is a text extractor, not a layout engine.** It recovers words and their
 // page, in content-stream order. It does *not* reconstruct columns, tables or

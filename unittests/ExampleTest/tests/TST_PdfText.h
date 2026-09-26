@@ -10,13 +10,12 @@
 // The §14g PDF text extractor, against PDFs this file builds byte by byte.
 //
 // **The fixtures are hand-written PDFs, not files on disk.** The corpus that shaped this feature
-// is `C:\Users\KRIA\Documents\PartManager\KicadFresh\filestore` — the user's own datasheets — and
-// a suite that read them would pass here and fail on every other machine (ORIENTATION §6, and the
-// same reason TST_LlmKicadToolset embeds its vendor files rather than reading `.claude/`). So each
-// case assembles the smallest PDF that carries the structure under test: an uncompressed content
-// stream, a `FlateDecode` one, a filter *chain*, a page tree hidden inside an `/ObjStm`, a page
-// that is nothing but a `DCTDecode` image, a `/ToUnicode` CMap, a file that is not a PDF, and one
-// whose trailer says `/Encrypt`.
+// is the developer's own `KicadFresh` filestore, and a suite that read it would pass here and fail
+// on every other machine (ORIENTATION §6, and the same reason TST_LlmKicadToolset embeds its vendor
+// files rather than reading `.claude/`). So each case assembles the smallest PDF that carries the
+// structure under test: an uncompressed content stream, a `FlateDecode` one, a filter *chain*, a
+// page tree hidden inside an `/ObjStm`, a page that is nothing but a `DCTDecode` image, a
+// `/ToUnicode` CMap, a file that is not a PDF, and one whose trailer says `/Encrypt`.
 //
 // The `FlateDecode` streams are real deflate: `qCompress` produces a zlib stream with a 4-byte
 // size header in front, and dropping those four bytes leaves exactly what a PDF `/FlateDecode`
