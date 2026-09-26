@@ -1068,12 +1068,13 @@ namespace PartManager
 		item->setData(0, TypeNameRole, node.name);
 
 		// The same glyphs the part table paints for a part with no photo — one set of icons for
-		// the whole window, not a second one drawn here. A type that classifies as Generic gets
+		// the whole window, not a second one drawn here. A type that *derives* as Generic gets
 		// none: an initials box in front of every unrecognised category would be a column of
-		// look-alike boxes saying nothing the name beside it does not already say.
-		if (TypeIconStyle::forType(node.name.toStdString()).glyph != TypeGlyph::Generic)
+		// look-alike boxes saying nothing the name beside it does not already say. One that was
+		// given its icon (§14c) is drawn whatever it is, Generic included — somebody chose it.
+		if (node.iconIsStored || node.icon.glyph != TypeGlyph::Generic)
 		{
-			item->setIcon(0, TypeIconPainter::icon(node.name, CategoryGlyphSize, devicePixelRatioF()));
+			item->setIcon(0, TypeIconPainter::icon(node.icon, CategoryGlyphSize, devicePixelRatioF()));
 		}
 
 		for (const CategoryNode& child : node.children)
@@ -1644,7 +1645,7 @@ namespace PartManager
 						// No photo is the normal state — a CSV import brings none at all — so the
 						// column falls back to a coloured glyph for the part's type rather than
 						// leaving a blank that makes every such row look alike.
-						thumbnail = TypeIconPainter::icon(row.typeName, ThumbnailSize,
+						thumbnail = TypeIconPainter::icon(row.typeIcon, ThumbnailSize,
 							devicePixelRatioF());
 					}
 					if (!thumbnail.isNull())
@@ -1811,7 +1812,7 @@ namespace PartManager
 			// photo still says what kind of thing it is instead of "[ no image ]".
 			m_ui->previewGraphicLabel->setText(QString());
 			m_ui->previewGraphicLabel->setPixmap(hasPart
-				? TypeIconPainter::icon(preview.typeName,
+				? TypeIconPainter::icon(preview.typeIcon,
 					m_ui->previewGraphicLabel->maximumHeight(), devicePixelRatioF())
 				: QPixmap());
 			m_ui->previewGraphicLabel->setToolTip(hasPart

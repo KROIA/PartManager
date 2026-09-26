@@ -5,7 +5,10 @@
 #include "tests/TST_LlmTestDatabase.h"
 
 #if QT_ENABLED && QTLLM_LIBRARY_AVAILABLE == 1 && SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+	#include "domain/PartManager_TypeIcon.h"
+	#include "persistence/PartManager_PartTypeRepository.h"
 	#include "units/PartManager_UnitTable.h"
+	#include "SQLite.h"
 	#include <QJsonArray>
 	#include <QJsonObject>
 	#include <QString>
@@ -38,6 +41,10 @@ public:
 		ADD_TEST(TST_LlmPartToolset::getCategoryResolvesInheritedAttributes);
 		ADD_TEST(TST_LlmPartToolset::tagsAreAppliedByNameAndUnknownOnesReported);
 		ADD_TEST(TST_LlmPartToolset::updatePartWritesOnlyTheKeysGiven);
+		ADD_TEST(TST_LlmPartToolset::createCategoryStoresTheGlyphItWasGiven);
+		ADD_TEST(TST_LlmPartToolset::aBogusGlyphOrColourIsRefusedWithTheAllowedValues);
+		ADD_TEST(TST_LlmPartToolset::setCategoryIconWritesTheShapeAndTheColour);
+		ADD_TEST(TST_LlmPartToolset::aCategoryWithNoStoredIconStillResolvesFromItsName);
 #endif
 	}
 
@@ -94,6 +101,17 @@ private:
 			.value("enum").toArray();
 	}
 
+	// What a category actually draws, straight off the row — the same call every painter in the
+	// app makes. Going through the repository rather than through get_category on purpose: the
+	// question these cases ask is what the *database* holds, not what a tool says about it.
+	static PartManager::TypeIcon resolvedIcon(const ScopedDatabase& database, int categoryId)
+	{
+		PartManager::PartType type;
+		PartManager::PartTypeRepository::findType(
+			database.handle()->connection(), categoryId, type);
+		return PartManager::TypeIconStyle::resolve(type.name, type.iconGlyph, type.iconColour);
+	}
+
 	static bool arrayContainsText(const QJsonArray& array, const QString& text)
 	{
 		for (const QJsonValue& entry : array)
@@ -115,12 +133,12 @@ private:
 		TEST_ASSERT_M(database.handle() != nullptr, "createNew failed: " + database.error());
 
 		const std::vector<PartManager::LlmTool> tools = database.tools();
-		TEST_COMPARE(tools.size(), static_cast<size_t>(11));
+		TEST_COMPARE(tools.size(), static_cast<size_t>(12));
 
 		// The list PartManager_PartToolset.h documents, in the order it documents it.
 		const char* expected[] = { "list_categories", "get_category", "create_category",
-			"add_category_attribute", "search_parts", "get_part", "create_part", "update_part",
-			"set_part_attribute", "list_tags", "set_part_tags" };
+			"set_category_icon", "add_category_attribute", "search_parts", "get_part",
+			"create_part", "update_part", "set_part_attribute", "list_tags", "set_part_tags" };
 		for (const char* name : expected)
 		{
 			TEST_ASSERT_M(PartManager::findLlmTool(tools, QString::fromLatin1(name)) != nullptr,
@@ -155,6 +173,204 @@ private:
 			"the unit parameter must offer the whole unit dropdown, \"(no unit)\" included");
 		TEST_ASSERT_M(parameterEnum(tools, "set_part_attribute", "unit").size() == unitCount,
 			"the cross-check unit must come from that same list");
+
+		// §14c's two closed vocabularies. Free text on either is the bug: a model that may invent
+		// a glyph writes a column nothing can draw, and one that may invent RGB reproduces the
+		// unreadable mud the palette exists to prevent.
+		const int glyphCount = static_cast<int>(PartManager::TypeIconStyle::glyphNames().size());
+		const int colourCount =
+			static_cast<int>(PartManager::TypeIconStyle::paletteColourNames().size());
+		TEST_ASSERT_M(parameterEnum(tools, "create_category", "glyph").size() == glyphCount,
+			"create_category's glyph must offer every TypeGlyph, as an enum and not as free text");
+		TEST_ASSERT_M(parameterEnum(tools, "set_category_icon", "glyph").size() == glyphCount,
+			"set_category_icon's glyph must offer the same list");
+		TEST_ASSERT_M(colourCount == 12, "the palette is twelve hand-checked slots");
+		TEST_ASSERT_M(parameterEnum(tools, "set_category_icon", "colour").size() == colourCount,
+			"colour must be the palette by name — an RGB parameter would defeat the palette");
+		TEST_ASSERT_M(arrayContainsText(parameterEnum(tools, "set_category_icon", "colour"),
+			QStringLiteral("deep teal")),
+			"the colour enum carries the palette's own names, spaces and all");
+	}
+
+	// The whole point of the slice: a category the model invents can arrive with a picture, and
+	// the picture survives the round trip back out through get_category.
+	TEST_FUNCTION(createCategoryStoresTheGlyphItWasGiven)
+	{
+		TEST_START;
+
+		ScopedDatabase database("category_glyph");
+		TEST_ASSERT_M(database.handle() != nullptr, "createNew failed: " + database.error());
+		const std::vector<PartManager::LlmTool> tools = database.tools();
+
+		QJsonObject args;
+		args["name"] = "Varistor";
+		// Lower case on purpose: a model answers an enum in whatever case it feels like, and the
+		// column is supposed to end up holding one spelling per value either way.
+		args["glyph"] = "resistor";
+		const QJsonObject created = call(tools, "create_category", args);
+		TEST_ASSERT_M(isOk(created), messageOf(created));
+		TEST_ASSERT_M(created.value("glyph").toString() == QStringLiteral("Resistor"),
+			"the stored glyph comes back in the vocabulary's own spelling, not the model's");
+
+		QJsonObject query;
+		query["categoryId"] = created.value("id").toInt();
+		const QJsonObject fetched = call(tools, "get_category", query);
+		TEST_ASSERT_M(isOk(fetched), messageOf(fetched));
+		TEST_ASSERT_M(fetched.value("glyph").toString() == QStringLiteral("Resistor"),
+			"get_category must report the stored glyph");
+		TEST_ASSERT_M(fetched.value("colour").toString().isEmpty(),
+			"create_category takes no colour, so the colour stays unset and is derived");
+
+		// And it is the *shape* that was stored, not the name-derived one: "Varistor" contains
+		// "resistor" as a substring, so a case that only checked the drawn glyph would pass even
+		// if nothing had been written. The column is what this asserts on.
+		PartManager::PartType type;
+		TEST_ASSERT(PartManager::PartTypeRepository::findType(
+			database.handle()->connection(), created.value("id").toInt(), type));
+		TEST_ASSERT_M(type.iconGlyph == "Resistor", "the glyph reached part_type.icon_glyph");
+		TEST_ASSERT_M(type.iconColour == 0u, "no colour was given, so none was written");
+	}
+
+	// Rule 3 of PartManager_PartToolset.h, on the parameter that earned it: a local model answered
+	// a `glyph` enum with an emoji. What turns that into a correction one call later rather than a
+	// row nothing can draw is the handler's own check plus `allowed_values` in the answer.
+	TEST_FUNCTION(aBogusGlyphOrColourIsRefusedWithTheAllowedValues)
+	{
+		TEST_START;
+
+		ScopedDatabase database("icon_enums");
+		TEST_ASSERT_M(database.handle() != nullptr, "createNew failed: " + database.error());
+		const std::vector<PartManager::LlmTool> tools = database.tools();
+		const int resistorId = categoryIdNamed(tools, QStringLiteral("Resistor"));
+		TEST_ASSERT_M(resistorId != 0, "the seeded Resistor category must be there");
+
+		QJsonObject emoji;
+		emoji["name"] = "Optocoupler";
+		emoji["glyph"] = QString::fromUtf8("\xF0\x9F\x94\x8C");   // an electric plug
+		const QJsonObject refused = call(tools, "create_category", emoji);
+		TEST_ASSERT_M(!isOk(refused), "an emoji is not a glyph name and must be refused");
+		TEST_ASSERT_M(refused.value("allowed_values").toArray().size()
+			== static_cast<int>(PartManager::TypeIconStyle::glyphNames().size()),
+			"the refusal has to carry the list, or the model has nothing to correct towards");
+		TEST_ASSERT_M(categoryIdNamed(tools, QStringLiteral("Optocoupler")) == 0,
+			"a refused glyph writes nothing at all — not even the category");
+
+		// A colour outside the palette is the same refusal. Hex is the interesting case: it is
+		// what a model reaches for when told "colour", and it is exactly what the palette exists
+		// to keep out of the column.
+		QJsonObject hex;
+		hex["categoryId"] = resistorId;
+		hex["glyph"] = "Resistor";
+		hex["colour"] = "#3F51B5";
+		const QJsonObject refusedColour = call(tools, "set_category_icon", hex);
+		TEST_ASSERT_M(!isOk(refusedColour), "free RGB must be refused, not stored");
+		TEST_ASSERT_M(refusedColour.value("allowed_values").toArray().size() == 12,
+			"the refusal names all twelve palette colours");
+
+		// An unknown categoryId still names the real ones, the same way every other tool does.
+		QJsonObject wrongId;
+		wrongId["categoryId"] = 999999;
+		wrongId["glyph"] = "Sensor";
+		const QJsonObject unknown = call(tools, "set_category_icon", wrongId);
+		TEST_ASSERT_M(!isOk(unknown), "an invented categoryId must be refused");
+		TEST_ASSERT_M(messageOf(unknown).find("Resistor") != std::string::npos,
+			"the refusal names the categories that do exist: " + messageOf(unknown));
+	}
+
+	TEST_FUNCTION(setCategoryIconWritesTheShapeAndTheColour)
+	{
+		TEST_START;
+
+		ScopedDatabase database("set_icon");
+		TEST_ASSERT_M(database.handle() != nullptr, "createNew failed: " + database.error());
+		const std::vector<PartManager::LlmTool> tools = database.tools();
+
+		QJsonObject args;
+		args["name"] = "Optocoupler";
+		const int categoryId = call(tools, "create_category", args).value("id").toInt();
+		TEST_ASSERT(categoryId != 0);
+
+		QJsonObject icon;
+		icon["categoryId"] = categoryId;
+		icon["glyph"] = "Ic";
+		icon["colour"] = "deep teal";
+		const QJsonObject set = call(tools, "set_category_icon", icon);
+		TEST_ASSERT_M(isOk(set), messageOf(set));
+		TEST_ASSERT_M(set.value("glyph").toString() == QStringLiteral("Ic"), "the shape is stored");
+		TEST_ASSERT_M(set.value("colour").toString() == QStringLiteral("deep teal"),
+			"the answer names the colour rather than an RGB number the model cannot check");
+
+		const PartManager::TypeIcon drawn = resolvedIcon(database, categoryId);
+		TEST_ASSERT_M(drawn.glyph == PartManager::TypeGlyph::Ic,
+			"the stored shape is what resolve() draws, not the one \"Optocoupler\" derives to");
+		TEST_ASSERT_M(drawn.colour == 0x499894u, "and the stored palette slot is the colour");
+
+		// A second call that names only the shape leaves the colour alone — the update_part rule,
+		// so fixing a shape cannot come with a colour change nobody asked for.
+		QJsonObject shapeOnly;
+		shapeOnly["categoryId"] = categoryId;
+		shapeOnly["glyph"] = "Sensor";
+		const QJsonObject again = call(tools, "set_category_icon", shapeOnly);
+		TEST_ASSERT_M(isOk(again), messageOf(again));
+		TEST_ASSERT_M(again.value("colour").toString() == QStringLiteral("deep teal"),
+			"an omitted colour keeps the one already chosen");
+		TEST_ASSERT_M(resolvedIcon(database, categoryId).glyph == PartManager::TypeGlyph::Sensor,
+			"and the shape did change");
+
+		// Read-only means read-only here too (§14f).
+		const QJsonObject blocked =
+			callLlmTool(database.readOnlyTools(), "set_category_icon", icon);
+		TEST_ASSERT_M(!isOk(blocked), "a read-only assistant may not repaint a category either");
+	}
+
+	// **The regression guard for every database that predates v13.** Nothing was written into the
+	// new columns by the migration — deliberately, see the v13 step — so what a category with no
+	// stored icon draws has to be exactly what forType() always gave it. A seeded default, or an
+	// inheritance rule slipped into resolve(), would change the look of every existing library.
+	TEST_FUNCTION(aCategoryWithNoStoredIconStillResolvesFromItsName)
+	{
+		TEST_START;
+
+		ScopedDatabase database("icon_fallback");
+		TEST_ASSERT_M(database.handle() != nullptr, "createNew failed: " + database.error());
+		SQLiteWrapper::SQLite& db = database.handle()->connection();
+
+		int checked = 0;
+		for (const PartManager::PartType& type : PartManager::PartTypeRepository::listTypes(db))
+		{
+			TEST_ASSERT_M(type.iconGlyph.empty(),
+				"a seeded category stores no icon: " + type.name + " -> " + type.iconGlyph);
+			TEST_ASSERT_M(type.iconColour == 0u, "and no colour: " + type.name);
+
+			const PartManager::TypeIcon derived = PartManager::TypeIconStyle::forType(type.name);
+			const PartManager::TypeIcon resolved =
+				PartManager::TypeIconStyle::resolve(type.name, type.iconGlyph, type.iconColour);
+			TEST_ASSERT_M(resolved.glyph == derived.glyph,
+				"an unset glyph must resolve to forType()'s: " + type.name);
+			TEST_ASSERT_M(resolved.colour == derived.colour,
+				"an unset colour must resolve to forType()'s: " + type.name);
+			TEST_ASSERT_M(resolved.initials == derived.initials,
+				"and so must the initials: " + type.name);
+			++checked;
+		}
+		TEST_ASSERT_M(checked > 0, "a new database seeds categories to check this against");
+
+		// A child category is not given its parent's icon either. Icon inheritance would be a new
+		// §2b rule, and it would silently repaint subtypes on every existing database.
+		const std::vector<PartManager::LlmTool> tools = database.tools();
+		const int resistorId = categoryIdNamed(tools, QStringLiteral("Resistor"));
+		QJsonObject paint;
+		paint["categoryId"] = resistorId;
+		paint["glyph"] = "Fuse";
+		TEST_ASSERT(isOk(call(tools, "set_category_icon", paint)));
+
+		QJsonObject child;
+		child["name"] = "Shunt";
+		child["parentId"] = resistorId;
+		const int childId = call(tools, "create_category", child).value("id").toInt();
+		TEST_ASSERT(childId != 0);
+		TEST_ASSERT_M(resolvedIcon(database, childId).glyph != PartManager::TypeGlyph::Fuse,
+			"a subtype does not inherit its parent's stored icon");
 	}
 
 	// Rule 1 of PartManager_PartToolset.h, and the one that cost eight calls when it was missing.

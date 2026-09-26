@@ -309,6 +309,10 @@ namespace PartManager
 			object["searchKeywords"] = QString::fromStdString(node.type.searchKeywords);
 			object["excludedKeywords"] = QString::fromStdString(node.type.excludedKeywords);
 			object["nameTemplate"] = QString::fromStdString(node.type.nameTemplate);
+			// §14c. Carried so a category arrives looking like itself; an older file simply has
+			// neither key, and "" / 0 is the "derive it from the name" value.
+			object["iconGlyph"] = QString::fromStdString(node.type.iconGlyph);
+			object["iconColour"] = static_cast<int>(node.type.iconColour);
 			object["attributes"] = attributesToJson(node.ownAttributes);
 			object["fileSlots"] = fileSlotsToJson(node.ownFileSlots);
 			object["listColumns"] = listColumnsToJson(node.ownListColumns);
@@ -402,6 +406,8 @@ namespace PartManager
 			node.type.searchKeywords = object["searchKeywords"].toString().toStdString();
 			node.type.excludedKeywords = object["excludedKeywords"].toString().toStdString();
 			node.type.nameTemplate = object["nameTemplate"].toString().toStdString();
+			node.type.iconGlyph = object["iconGlyph"].toString().toStdString();
+			node.type.iconColour = static_cast<std::uint32_t>(object["iconColour"].toInt());
 			node.ownAttributes = attributesFromJson(object["attributes"].toArray());
 			node.ownFileSlots = fileSlotsFromJson(object["fileSlots"].toArray());
 			node.ownListColumns = listColumnsFromJson(object["listColumns"].toArray());

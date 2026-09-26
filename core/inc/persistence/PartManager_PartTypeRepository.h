@@ -94,9 +94,10 @@ namespace PartManager
 		// overwritten, which is also what makes this safe to re-run as a migration step.
 		static bool seedDefaultSearchKeywords(SQLiteWrapper::SQLite& db);
 		// Adds the columns that arrived after `part_type` and `part` were first created —
-		// `search_keywords`, `excluded_keywords` (§7a) and `name_template` (§11). CREATE TABLE IF
-		// NOT EXISTS cannot, so an existing database needs the ALTER; see the v10..v12 migrations.
-		// Per column, so a database missing only one of them gets only that one.
+		// `search_keywords`, `excluded_keywords` (§7a), `name_template` (§11) and `icon_glyph`/
+		// `icon_colour` (§14c). CREATE TABLE IF NOT EXISTS cannot, so an existing database needs
+		// the ALTER; see the v10..v13 migrations. Per column, so a database missing only one of
+		// them gets only that one.
 		static bool ensureLateAddedColumns(SQLiteWrapper::SQLite& db);
 #endif
 

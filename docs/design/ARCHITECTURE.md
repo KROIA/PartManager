@@ -695,6 +695,26 @@ tools advertised and 5 calls / 71 s with fourteen — the extra tools
 (`mouser_suggest_category`, `mouser_import_part`) *shortened* the loop by making
 whole steps unnecessary. Trim a tool list for correctness, not for length.
 
+**Category pictograms are chosen out of two closed lists (v13).**
+`create_category` takes an optional `glyph`, and `set_category_icon` takes
+`{categoryId, glyph, colour?}`. `glyph` is a `TypeGlyph` name; `colour` is one
+of the twelve palette slots **by name**, and there is deliberately no RGB
+parameter — the palette exists because an arbitrary hash-to-RGB produced
+unreadable mud about a third of the time (§7c), and a model picking hex would
+do no better. Both are stored on `part_type` (`icon_glyph`, `icon_colour`),
+both are re-validated in the handler per rule 3, and an omitted `colour` leaves
+the category's current one alone the way `update_part` does.
+
+Unset is the normal state and means *derive it*: `TypeIconStyle::resolve()`
+prefers the stored values and falls back to `forType()`, which is what every
+pre-v13 category still draws. The v13 migration therefore writes nothing into
+the new columns — seeding the derived value would freeze today's name matching
+into the rows, so renaming a category would stop changing its icon and a later
+improvement to `forType()` would reach none of them. The picture is **not**
+inherited down the §2b chain: a subtype is a different picture, not the same
+one again. The same two lists drive the Type Template editor's glyph and
+colour pickers, so the assistant and the user choose from one vocabulary.
+
 `MouserToolset` keeps `mouser_import_part` as **one** tool rather than
 primitives the model assembles, because that path already knows what a model
 does not: that `Price` carries its own currency, that the image URL lies about
@@ -750,11 +770,6 @@ the longer the tool list gets).
   `FlateDecode` + `Tj/TJ` extractor in `core/`, which works on text PDFs and not
   on scanned ones, is the candidate — it needs no new dependency because Qt
   already carries zlib).
-- **Category pictograms chosen by the model.** `TypeIconStyle::forType()`
-  derives the glyph from the type *name* and nothing is stored, so a category
-  the model invents falls through to `Generic`. Letting it choose means adding a
-  stored glyph/colour to `part_type` (a schema bump) and a `set_category_icon`
-  tool.
 - **Editing KiCad symbols and footprints through tools.** The geometry editors
   do not exist yet in the app either (`TASKS.md`, Feature wishes), so there is
   nothing for a tool to drive.

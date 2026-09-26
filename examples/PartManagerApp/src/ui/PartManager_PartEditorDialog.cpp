@@ -543,14 +543,19 @@ namespace PartManager
 		if (pixmap.isNull())
 		{
 			// The same type placeholder the table and the main preview draw, so the editor does
-			// not disagree with them about what a part with no photo looks like.
-			std::string typeName;
+			// not disagree with them about what a part with no photo looks like — resolved through
+			// the category's stored icon (§14c) for exactly that reason.
+			TypeIcon placeholder = TypeIconStyle::forType(std::string());
 			for (const PartType& type : m_controller.types())
 			{
-				if (type.id == m_part.partTypeId) { typeName = type.name; break; }
+				if (type.id == m_part.partTypeId)
+				{
+					placeholder = TypeIconStyle::resolve(type.name, type.iconGlyph, type.iconColour);
+					break;
+				}
 			}
 			m_ui->imagePreviewLabel->setText(QString());
-			m_ui->imagePreviewLabel->setPixmap(TypeIconPainter::icon(toQt(typeName),
+			m_ui->imagePreviewLabel->setPixmap(TypeIconPainter::icon(placeholder,
 				m_ui->imagePreviewLabel->maximumHeight(), devicePixelRatioF()));
 		}
 		else

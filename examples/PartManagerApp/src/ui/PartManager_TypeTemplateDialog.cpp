@@ -8,6 +8,7 @@
 #include "domain/PartManager_PartFileRole.h"
 #include "search/PartManager_SearchEngine.h"
 #include "widgets/PartManager_KeywordCheckList.h"
+#include "widgets/PartManager_TypeIconPainter.h"
 #include "units/PartManager_UnitTable.h"
 
 #include <algorithm>
@@ -110,6 +111,31 @@ namespace PartManager
 		QString toQt(const std::string& text)
 		{
 			return QString::fromStdString(text);
+		}
+
+		// §14c icon picker sizes. The swatch is larger than the tree's 16 px because it is the
+		// thing being judged rather than a label decoration; the combo entries match the tree, so
+		// what the list shows is what the tree will show.
+		constexpr int IconPreviewSize = 24;
+		constexpr int IconEntrySize = CategoryGlyphSize;
+		// The glyph list is drawn in one neutral colour rather than in each type's own, so the
+		// only thing its entries differ in is the shape — which is the question that list asks.
+		// The colour list answers the other half.
+		constexpr std::uint32_t GlyphEntryColour = 0x5A6A7A;
+
+		// One palette slot as a filled square, for the colour list. Device-pixel-ratio is left at
+		// 1 deliberately: a flat rectangle has no edge to go soft, unlike the drawn glyphs.
+		QIcon colourSwatch(std::uint32_t rgb, int size)
+		{
+			QPixmap pixmap(size, size);
+			pixmap.fill(Qt::transparent);
+			QPainter painter(&pixmap);
+			painter.setRenderHint(QPainter::Antialiasing, true);
+			painter.setPen(Qt::NoPen);
+			painter.setBrush(QColor(int((rgb >> 16) & 0xFF), int((rgb >> 8) & 0xFF), int(rgb & 0xFF)));
+			painter.drawRoundedRect(QRectF(1, 1, size - 2, size - 2), 2, 2);
+			painter.end();
+			return QIcon(pixmap);
 		}
 
 		// A "+" or a "−" at button size, in the palette's text colour so it survives a dark theme.
@@ -226,6 +252,13 @@ namespace PartManager
 					: new QTreeWidgetItem(tree, QStringList{ node.name });
 				item->setData(0, TypeIdRole, node.typeId);
 				item->setExpanded(true);
+				// Same rule as the other three trees (§14c) — and here it is also the feedback for
+				// the icon picker below, which is why this tree gained glyphs when the picker did.
+				if (node.iconIsStored || node.icon.glyph != TypeGlyph::Generic)
+				{
+					item->setIcon(0, TypeIconPainter::icon(node.icon, CategoryGlyphSize,
+						tree->devicePixelRatioF()));
+				}
 				if (node.typeId == selectedTypeId)
 				{
 					outToSelect = item;
@@ -297,7 +330,7 @@ namespace PartManager
 		m_ui->searchKeywordsLabel->setText(tr("This type's own"));
 		searchWordsForm->addRow(tr("Inherited"), m_inheritedKeywords);
 		searchWordsForm->addRow(m_ui->searchKeywordsLabel, m_ui->searchKeywordsEdit);
-		m_ui->formLayout->insertRow(6, searchWordsGroup);
+		m_ui->formLayout->insertRow(7, searchWordsGroup);
 
 		// §11: the pattern the part editor's suggested name is built from. Typed as text — the
 		// syntax is one form, `{key}` — with a menu that inserts a placeholder for any attribute
@@ -341,7 +374,7 @@ namespace PartManager
 		nameTemplateLayout->addWidget(insertKeyButton);
 		nameTemplateColumn->addLayout(nameTemplateLayout);
 		nameTemplateColumn->addWidget(m_namePreviewLabel);
-		m_ui->formLayout->insertRow(7, tr("Name pattern"), nameTemplateRow);
+		m_ui->formLayout->insertRow(8, tr("Name pattern"), nameTemplateRow);
 
 		connect(m_ui->newTypeButton, &QPushButton::clicked, this, &TypeTemplateDialog::onNewType);
 		connect(m_ui->deleteTypeButton, &QPushButton::clicked, this, &TypeTemplateDialog::onDeleteType);
@@ -372,6 +405,15 @@ namespace PartManager
 			});
 		connect(m_ui->domainCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
 			&TypeTemplateDialog::onTypeFieldEdited);
+
+		// §14c: the category's own picture. Filled before the first refreshTypeTree() below, or
+		// refreshTypeForm() would have nothing to select in.
+		fillIconPickers();
+		connect(m_ui->iconGlyphCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+			&TypeTemplateDialog::onIconChanged);
+		connect(m_ui->iconColourCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+			&TypeTemplateDialog::onIconChanged);
+
 		connect(m_ui->parentButton, &QPushButton::clicked, this,
 			&TypeTemplateDialog::chooseParentType);
 
@@ -484,6 +526,17 @@ namespace PartManager
 			? tr("(none — a root type)")
 			: partTypePath(m_types, m_parentTypeId));   // user data
 
+		// §14c. Selected by the canonical name held as item data, so a translated label cannot put
+		// the wrong entry in front of the user; a value the build no longer knows — a glyph
+		// renamed in a later version — falls back to index 0, "from the name", which is what the
+		// row then effectively draws anyway.
+		const int glyphIndex = m_ui->iconGlyphCombo->findData(toQt(type.iconGlyph));
+		m_ui->iconGlyphCombo->setCurrentIndex(glyphIndex >= 0 ? glyphIndex : 0);
+		const int colourIndex = m_ui->iconColourCombo->findData(
+			toQt(TypeIconStyle::paletteColourName(type.iconColour)));
+		m_ui->iconColourCombo->setCurrentIndex(colourIndex >= 0 ? colourIndex : 0);
+		updateIconPreview();
+
 		const int partCount = type.id != NoParentType ? m_controller.partCountOfType(type.id) : 0;
 		m_ui->usageLabel->setText(tr("Used by %n part(s) of exactly this type.", "", partCount));
 
@@ -544,6 +597,13 @@ namespace PartManager
 		type.searchKeywords = m_ui->searchKeywordsEdit->toPlainText().toStdString();
 		type.excludedKeywords = m_inheritedKeywords->excludedKeywords().toStdString();
 		type.nameTemplate = m_nameTemplateEdit->toPlainText().toStdString();
+		// §14c: the canonical name off the item data, never the visible label. An empty one is
+		// "unset" and is stored as such, so switching back to "from the name" clears the column
+		// rather than freezing whatever the name happened to derive to today.
+		type.iconGlyph = m_ui->iconGlyphCombo->currentData().toString().toStdString();
+		type.iconColour = 0;
+		TypeIconStyle::paletteColourFromName(
+			m_ui->iconColourCombo->currentData().toString().toStdString(), type.iconColour);
 		if (!m_controller.updateType(type))
 		{
 			return;
@@ -570,6 +630,120 @@ namespace PartManager
 			// in the forest — both tables and the tree have to be re-read.
 			refreshTypeTree();
 		}
+	}
+
+	void TypeTemplateDialog::fillIconPickers()
+	{
+		// Filled once, from TypeIconStyle. The empty entry comes first and is not a glyph: it is
+		// "nothing stored", which is what every category that has never been given an icon carries
+		// and what the `set_category_icon` tool's omitted parameter means.
+		m_ui->iconGlyphCombo->addItem(tr("from the name"), QString());
+		for (const std::string& name : TypeIconStyle::glyphNames())
+		{
+			TypeIcon entry;
+			TypeIconStyle::glyphFromName(name, entry.glyph);
+			entry.colour = GlyphEntryColour;
+			entry.initials = "AB";   // the Generic body is empty without one
+			const QString canonical = toQt(name);
+			m_ui->iconGlyphCombo->addItem(
+				QIcon(TypeIconPainter::icon(entry, IconEntrySize, devicePixelRatioF())),
+				glyphDisplayName(canonical), canonical);
+		}
+
+		m_ui->iconColourCombo->addItem(tr("from the name"), QString());
+		for (const std::string& name : TypeIconStyle::paletteColourNames())
+		{
+			std::uint32_t rgb = 0;
+			TypeIconStyle::paletteColourFromName(name, rgb);
+			const QString canonical = toQt(name);
+			m_ui->iconColourCombo->addItem(colourSwatch(rgb, IconEntrySize),
+				colourDisplayName(canonical), canonical);
+		}
+	}
+
+	void TypeTemplateDialog::updateIconPreview()
+	{
+		const PartType type = selectedType();
+		std::uint32_t colour = 0;
+		TypeIconStyle::paletteColourFromName(
+			m_ui->iconColourCombo->currentData().toString().toStdString(), colour);
+		const QString glyph = m_ui->iconGlyphCombo->currentData().toString();
+		const TypeIcon style = TypeIconStyle::resolve(type.name, glyph.toStdString(), colour);
+
+		m_ui->iconPreviewLabel->setPixmap(
+			TypeIconPainter::icon(style, IconPreviewSize, devicePixelRatioF()));
+
+		// The tree row too — that is where the icon will actually be read, and a swatch that
+		// agrees with the combos but not with the tree answers the wrong half of the question.
+		if (QTreeWidgetItem* item = m_ui->typeTree->currentItem())
+		{
+			item->setIcon(0, (!glyph.isEmpty() || style.glyph != TypeGlyph::Generic)
+				? QIcon(TypeIconPainter::icon(style, CategoryGlyphSize, devicePixelRatioF()))
+				: QIcon());
+		}
+	}
+
+	void TypeTemplateDialog::onIconChanged()
+	{
+		onTypeFieldEdited();
+		updateIconPreview();
+	}
+
+	QString TypeTemplateDialog::glyphDisplayName(const QString& canonical)
+	{
+		// Paired with the stored spelling rather than derived from it: "Ic" is how the column and
+		// the tool spell it, "IC / chip" is how it is read.
+		static const struct { const char* stored; const char* shown; } names[] = {
+			{ "Resistor",   QT_TR_NOOP("Resistor")            },
+			{ "Capacitor",  QT_TR_NOOP("Capacitor")           },
+			{ "Inductor",   QT_TR_NOOP("Inductor")            },
+			{ "Diode",      QT_TR_NOOP("Diode")               },
+			{ "Led",        QT_TR_NOOP("LED")                 },
+			{ "Transistor", QT_TR_NOOP("Transistor")          },
+			{ "Ic",         QT_TR_NOOP("IC / chip")           },
+			{ "Connector",  QT_TR_NOOP("Connector")           },
+			{ "Crystal",    QT_TR_NOOP("Crystal")             },
+			{ "Switch",     QT_TR_NOOP("Switch")              },
+			{ "Relay",      QT_TR_NOOP("Relay")               },
+			{ "Fuse",       QT_TR_NOOP("Fuse")                },
+			{ "Sensor",     QT_TR_NOOP("Sensor")              },
+			{ "Mechanical", QT_TR_NOOP("Mechanical part")     },
+			{ "Generic",    QT_TR_NOOP("Plain box, initials") },
+		};
+		for (const auto& entry : names)
+		{
+			if (canonical == QLatin1String(entry.stored))
+			{
+				return tr(entry.shown);
+			}
+		}
+		return canonical;
+	}
+
+	QString TypeTemplateDialog::colourDisplayName(const QString& canonical)
+	{
+		static const struct { const char* stored; const char* shown; } names[] = {
+			{ "blue",        QT_TR_NOOP("Blue")        },
+			{ "orange",      QT_TR_NOOP("Orange")      },
+			{ "red",         QT_TR_NOOP("Red")         },
+			{ "teal",        QT_TR_NOOP("Teal")        },
+			{ "green",       QT_TR_NOOP("Green")       },
+			{ "purple",      QT_TR_NOOP("Purple")      },
+			{ "yellow",      QT_TR_NOOP("Yellow")      },
+			{ "pink",        QT_TR_NOOP("Pink")        },
+			{ "brown",       QT_TR_NOOP("Brown")       },
+			{ "light green", QT_TR_NOOP("Light green") },
+			{ "sea green",   QT_TR_NOOP("Sea green")   },
+			{ "deep teal",   QT_TR_NOOP("Deep teal")   },
+		};
+		for (const auto& entry : names)
+		{
+			if (canonical == QLatin1String(entry.stored))
+			{
+				return tr(entry.shown);
+			}
+		}
+		return canonical;
 	}
 
 	void TypeTemplateDialog::updateNameTemplateFeedback()
@@ -921,6 +1095,8 @@ namespace PartManager
 		m_ui->deleteTypeButton->setEnabled(hasType);
 		m_ui->nameEdit->setEnabled(hasType);
 		m_ui->domainCombo->setEnabled(hasType);
+		m_ui->iconGlyphCombo->setEnabled(hasType);
+		m_ui->iconColourCombo->setEnabled(hasType);
 		m_ui->kicadRelevantCheck->setEnabled(hasType);
 		m_ui->kicadCategoryEdit->setEnabled(hasType && type.kicadRelevant);
 		m_ui->parentButton->setEnabled(hasType);

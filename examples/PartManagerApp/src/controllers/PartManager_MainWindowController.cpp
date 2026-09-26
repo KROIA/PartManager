@@ -48,6 +48,9 @@ namespace PartManager
 			if (typeIt != byId.end())
 			{
 				node.name = toQt(typeIt->second->name);
+				node.icon = TypeIconStyle::resolve(typeIt->second->name,
+					typeIt->second->iconGlyph, typeIt->second->iconColour);
+				node.iconIsStored = !typeIt->second->iconGlyph.empty();
 			}
 
 			auto ownIt = inStockByType.find(typeId);
@@ -577,12 +580,14 @@ namespace PartManager
 			query = SearchQuery::parse(filterText.toStdString());
 		}
 
-		// Type names for the placeholder icon a part with no photo gets. Looked up once for the
-		// whole table rather than per row, which would be a query per part.
+		// Type names for the placeholder icon a part with no photo gets, and the icon itself —
+		// resolved once for the whole table rather than per row, which would be a query per part.
 		std::map<int, QString> typeNameById;
+		std::map<int, TypeIcon> typeIconById;
 		for (const PartType& type : PartTypeRepository::listTypes(db))
 		{
 			typeNameById[type.id] = toQt(type.name);
+			typeIconById[type.id] = TypeIconStyle::resolve(type.name, type.iconGlyph, type.iconColour);
 		}
 
 		// An all-categories search has no type scope at all, and 0 is exactly that to both
@@ -617,6 +622,11 @@ namespace PartManager
 				row.imagePath = imageByPart.count(part.id) ? imageByPart[part.id] : QString();
 				row.typeName = typeNameById.count(part.partTypeId)
 					? typeNameById[part.partTypeId] : QString();
+				// A part whose type row is gone keeps the old answer — forType("") — rather than a
+				// default-constructed TypeIcon, whose colour of 0 would paint it black.
+				row.typeIcon = typeIconById.count(part.partTypeId)
+					? typeIconById[part.partTypeId]
+					: TypeIconStyle::forType(std::string());
 				row.attachments = attachmentsByPart.count(part.id)
 					? attachmentsByPart[part.id] : 0;
 
@@ -670,9 +680,16 @@ namespace PartManager
 					toQt(editor.roleFilePath(partId, PartFileRole::KicadFootprint));
 				preview.model3DPath =
 					toQt(editor.roleFilePath(partId, PartFileRole::Kicad3DModel));
+				preview.typeIcon = TypeIconStyle::forType(std::string());
 				for (const PartType& type : editor.types())
 				{
-					if (type.id == part.partTypeId) { preview.typeName = toQt(type.name); break; }
+					if (type.id == part.partTypeId)
+					{
+						preview.typeName = toQt(type.name);
+						preview.typeIcon =
+							TypeIconStyle::resolve(type.name, type.iconGlyph, type.iconColour);
+						break;
+					}
 				}
 				return preview;
 			}

@@ -151,69 +151,120 @@
           </widget>
          </item>
          <item row="2" column="0">
+          <widget class="QLabel" name="iconLabel">
+           <property name="text">
+            <string>Icon</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <layout class="QHBoxLayout" name="iconLayout">
+           <item>
+            <widget class="QComboBox" name="iconGlyphCombo">
+             <property name="toolTip">
+              <string>The picture this category shows in the tree, and in place of a photo for its parts. The shapes are deliberately coarse — a microcontroller and a logic IC are both a chip — so pick the nearest one. Left on &quot;from the name&quot;, the picture is worked out from the category's name.</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="iconColourCombo">
+             <property name="toolTip">
+              <string>Which colour the shape is drawn in. The twelve on offer are a hand-checked set that stays readable at icon size; left on &quot;from the name&quot;, a colour is derived from the category's name and stays the same from run to run.</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="iconPreviewLabel">
+             <property name="minimumSize">
+              <size>
+               <width>26</width>
+               <height>26</height>
+              </size>
+             </property>
+             <property name="text">
+              <string notr="true"/>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="iconSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+         <item row="3" column="0">
           <widget class="QLabel" name="kicadRelevantLabel">
            <property name="text">
             <string>KiCad</string>
            </property>
           </widget>
          </item>
-         <item row="2" column="1">
+         <item row="3" column="1">
           <widget class="QCheckBox" name="kicadRelevantCheck">
            <property name="text">
             <string>Parts of this type get a KiCad symbol and footprint</string>
            </property>
           </widget>
          </item>
-         <item row="3" column="0">
+         <item row="4" column="0">
           <widget class="QLabel" name="kicadCategoryLabel">
            <property name="text">
             <string>KiCad category</string>
            </property>
           </widget>
          </item>
-         <item row="3" column="1">
+         <item row="4" column="1">
           <widget class="QLineEdit" name="kicadCategoryEdit">
            <property name="toolTip">
             <string>The library file the generated symbols land in. Left empty, the parent type's category is used.</string>
            </property>
           </widget>
          </item>
-         <item row="4" column="0">
+         <item row="5" column="0">
           <widget class="QLabel" name="parentLabel">
            <property name="text">
             <string>Parent type</string>
            </property>
           </widget>
          </item>
-         <item row="4" column="1">
+         <item row="5" column="1">
           <widget class="QPushButton" name="parentButton">
            <property name="toolTip">
             <string>Click to pick the parent out of the category tree. Every attribute and file slot of the parent applies here too. The type itself and the types below it are not offered.</string>
            </property>
           </widget>
          </item>
-         <item row="5" column="0">
+         <item row="6" column="0">
           <widget class="QLabel" name="descriptionLabel">
            <property name="text">
             <string>Description</string>
            </property>
           </widget>
          </item>
-         <item row="5" column="1">
+         <item row="6" column="1">
           <widget class="QPlainTextEdit" name="descriptionEdit">
            <property name="maximumHeight">
             <number>56</number>
            </property>
           </widget>
          </item>
-         <item row="6" column="0">
+         <item row="7" column="0">
           <widget class="QLabel" name="searchKeywordsLabel">
            <property name="text">
             <string>Search words</string>
            </property>
           </widget>
          </item>
-         <item row="6" column="1">
+         <item row="7" column="1">
           <widget class="QPlainTextEdit" name="searchKeywordsEdit">
            <property name="maximumHeight">
             <number>56</number>
@@ -223,7 +274,7 @@
            </property>
           </widget>
          </item>
-         <item row="7" column="1">
+         <item row="8" column="1">
           <widget class="QLabel" name="usageLabel">
            <property name="text">
             <string notr="true"/>

@@ -4,6 +4,8 @@
 
 #include "database/PartManager_DatabaseHandle.h"
 
+#include "domain/PartManager_TypeIcon.h"
+
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 	#include "persistence/PartManager_PartRepository.h"
 	#include "persistence/PartManager_PartTypeRepository.h"
@@ -396,6 +398,30 @@ namespace PartManager
 			return values;
 		}
 
+		QStringList fromStdStrings(const std::vector<std::string>& values)
+		{
+			QStringList list;
+			for (const std::string& value : values)
+			{
+				list.append(QString::fromStdString(value));
+			}
+			return list;
+		}
+
+		// §14c's two closed vocabularies, read straight off TypeIconStyle so the schema the model
+		// is shown and the names the handler accepts cannot drift apart.
+		const QStringList& glyphValues()
+		{
+			static const QStringList values = fromStdStrings(TypeIconStyle::glyphNames());
+			return values;
+		}
+
+		const QStringList& colourValues()
+		{
+			static const QStringList values = fromStdStrings(TypeIconStyle::paletteColourNames());
+			return values;
+		}
+
 		QJsonArray asJsonArray(const QStringList& values)
 		{
 			QJsonArray array;
@@ -404,6 +430,41 @@ namespace PartManager
 				array.append(value);
 			}
 			return array;
+		}
+
+		// Rule 3 again, for the two icon enums. `outCanonical` comes back as the vocabulary's own
+		// spelling rather than the model's, so "LED" is stored as "Led" and the column holds one
+		// spelling per value. The refusal carries `allowed_values` because that is what turned the
+		// emoji answer into a correction one call later instead of a row nothing could read.
+		bool iconEnumArg(const QJsonObject& args, const QString& key, const QStringList& allowed,
+			QString& outCanonical, QJsonObject& outError)
+		{
+			const QString typed = stringArg(args, key);
+			for (const QString& value : allowed)
+			{
+				if (folded(value) == folded(typed))
+				{
+					outCanonical = value;
+					return true;
+				}
+			}
+			QJsonObject extra;
+			extra["allowed_values"] = asJsonArray(allowed);
+			outError = llmError(QStringLiteral("'%1' must be one of %2 — got \"%3\". Pick the "
+				"closest one from that list; it is a fixed vocabulary, not free text.")
+				.arg(key).arg(allowed.join(QStringLiteral(", "))).arg(typed), extra);
+			return false;
+		}
+
+		// The two icon fields as the model reads them back: the *stored* choice, with "" meaning
+		// "none stored, the picture is derived from the category name". Deliberately not the
+		// resolved icon — "what is stored" is the question a tool answer has to be able to settle,
+		// and a derived value coming back as if it were stored is how set_category_icon would look
+		// like a no-op that had worked.
+		void addIconFields(QJsonObject& payload, const PartType& type)
+		{
+			payload["glyph"] = jsonText(type.iconGlyph);
+			payload["colour"] = jsonText(TypeIconStyle::paletteColourName(type.iconColour));
 		}
 
 
@@ -512,6 +573,7 @@ namespace PartManager
 				payload["nameTemplate"] =
 					jsonText(nameTemplateFor(PartTypeRepository::listTypes(db), categoryId));
 				payload["description"] = jsonText(type.description);
+				addIconFields(payload, type);
 				payload["attributes"] = attributes;
 				payload["fileSlots"] = fileSlots;
 				return llmOk(payload);
@@ -540,7 +602,15 @@ namespace PartManager
 					"category name, not a domain. It decides which default file slots and which "
 					"KiCad handling the category gets, and every child category inherits it. "
 					"Defaults to \"electronic\".", false)
-				.addParameter("description", "string", "Free-text note about the category.", false);
+				.addParameter("description", "string", "Free-text note about the category.", false)
+				.addEnumParameter("glyph", glyphValues(),
+					"The pictogram drawn for this category in the tree, and for a part of it that "
+					"has no photo. The shapes are deliberately coarse — a microcontroller and a "
+					"logic IC are both \"Ic\" — so pick the nearest one rather than the most "
+					"specific-sounding. Omit it and the picture is derived from the category name, "
+					"which already works for the obvious names; give it for a name that would not "
+					"be recognised. Use set_category_icon to change it later or to choose a colour.",
+					false);
 
 			tool.handler = [context](const QJsonObject& args) -> QJsonObject
 			{
@@ -599,6 +669,21 @@ namespace PartManager
 					domain = typed.toStdString();
 				}
 
+				// Checked before the idempotency lookup, so a bad glyph is a correction whether or
+				// not the category happened to exist already — not an error on one call and a
+				// silent no-op on the next.
+				std::string glyph;
+				if (hasArg(args, QStringLiteral("glyph")))
+				{
+					QString canonical;
+					QJsonObject error;
+					if (!iconEnumArg(args, QStringLiteral("glyph"), glyphValues(), canonical, error))
+					{
+						return error;
+					}
+					glyph = canonical.toStdString();
+				}
+
 				// Rule 1: idempotent on (name, parentId). A model handed a create that forks on every
 				// call keeps calling it — this is the line that ends that loop on the second try.
 				const std::vector<PartType> types = PartTypeRepository::listTypes(db);
@@ -606,10 +691,15 @@ namespace PartManager
 				{
 					if (existing.parentTypeId == parentId && folded(existing.name) == folded(name))
 					{
+						// The existing category's own icon, not the one just asked for: a create
+						// that already answered "it is there" has no business repainting it, and
+						// the answer says what it actually carries so set_category_icon is the
+						// obvious next call when that is not what was wanted.
 						QJsonObject payload;
 						payload["id"] = existing.id;
 						payload["created"] = false;
 						payload["name"] = jsonText(existing.name);
+						addIconFields(payload, existing);
 						return llmOk(payload);
 					}
 				}
@@ -619,6 +709,7 @@ namespace PartManager
 				type.parentTypeId = parentId;
 				type.domain = domain;
 				type.description = stringArg(args, QStringLiteral("description")).toStdString();
+				type.iconGlyph = glyph;
 
 				const int newId = PartTypeRepository::insertType(db, type);
 				if (newId == NoParentType)
@@ -630,6 +721,93 @@ namespace PartManager
 				payload["id"] = newId;
 				payload["created"] = true;
 				payload["name"] = jsonText(type.name);
+				addIconFields(payload, type);
+				return llmOk(payload);
+			};
+			return tool;
+		}
+
+		LlmTool makeSetCategoryIcon(const LlmToolContext& context)
+		{
+			LlmTool tool;
+			tool.schema.setName("set_category_icon")
+				.setDescription("Chooses the pictogram a category draws — in the category tree, and "
+					"in place of a photo for every part filed under it. Both parameters are picked "
+					"from fixed lists: there are fifteen shapes and twelve colours, and no other "
+					"value is accepted. The colours are a hand-checked set that stays readable at "
+					"16 pixels, which is why a colour is named rather than given as RGB.")
+				.setGroup(ToolGroup)
+				.addParameter("categoryId", "integer", "Category id from list_categories.", true)
+				.addEnumParameter("glyph", glyphValues(),
+					"The shape to draw. Coarse on purpose — a microcontroller, an op-amp and a "
+					"logic IC are all \"Ic\" — so pick the nearest match rather than the most "
+					"specific-sounding name. \"Generic\" draws a plain body carrying the "
+					"category's initials, which is the honest choice for something that is none "
+					"of the others.", true)
+				.addEnumParameter("colour", colourValues(),
+					"Which of the twelve palette colours the shape is drawn in. Omit it to leave "
+					"the category's current colour alone; a category that has never been given one "
+					"takes a stable colour derived from its name.", false);
+
+			tool.handler = [context](const QJsonObject& args) -> QJsonObject
+			{
+				if (!context.isUsable())
+				{
+					return llmError(NoDatabaseMessage);
+				}
+				if (!context.allowWrites)
+				{
+					return llmError(ReadOnlyMessage);
+				}
+
+				int categoryId = 0;
+				if (!intArg(args, QStringLiteral("categoryId"), categoryId))
+				{
+					return missingIdError(QStringLiteral("categoryId"),
+						QStringLiteral("Call list_categories to get one."));
+				}
+
+				SQLiteWrapper::SQLite& db = context.database->connection();
+				PartType type;
+				if (!PartTypeRepository::findType(db, categoryId, type))
+				{
+					return unknownCategoryError(db, categoryId);
+				}
+
+				QString glyph;
+				QJsonObject error;
+				if (!iconEnumArg(args, QStringLiteral("glyph"), glyphValues(), glyph, error))
+				{
+					return error;
+				}
+				type.iconGlyph = glyph.toStdString();
+
+				// Absent means "leave the colour as it is", the same rule update_part follows: a
+				// model that only wants to fix the shape should not have to re-state a colour it
+				// never chose, and re-stating one it guessed at is how the shape edit would come
+				// with a colour change nobody asked for.
+				if (hasArg(args, QStringLiteral("colour")))
+				{
+					QString colour;
+					if (!iconEnumArg(args, QStringLiteral("colour"), colourValues(), colour, error))
+					{
+						return error;
+					}
+					std::uint32_t rgb = 0;
+					TypeIconStyle::paletteColourFromName(colour.toStdString(), rgb);
+					type.iconColour = rgb;
+				}
+
+				if (!PartTypeRepository::updateType(db, type))
+				{
+					return llmError(QStringLiteral("the icon of category %1 could not be written.")
+						.arg(categoryId));
+				}
+
+				QJsonObject payload;
+				payload["id"] = type.id;
+				payload["name"] = jsonText(type.name);
+				addIconFields(payload, type);
 				return llmOk(payload);
 			};
 			return tool;
@@ -1518,6 +1696,7 @@ namespace PartManager
 		tools.push_back(makeListCategories(context));
 		tools.push_back(makeGetCategory(context));
 		tools.push_back(makeCreateCategory(context));
+		tools.push_back(makeSetCategoryIcon(context));
 		tools.push_back(makeAddCategoryAttribute(context));
 		tools.push_back(makeSearchParts(context));
 		tools.push_back(makeGetPart(context));
@@ -1540,7 +1719,8 @@ namespace PartManager
 		// Every database tool, not a hand-picked few. **Measured 2026-09-26:** the migration loop
 		// (search -> suggest category -> list categories -> create category -> import) ran in five
 		// calls and 71 s with all fourteen tools advertised — eleven here plus the three Mouser
-		// ones. The length of the list is not what a small model trips over; a parameter whose
+		// ones; set_category_icon joined them afterwards, which is what lets an invented category
+		// arrive with a picture. The length of the list is not what a small model trips over; a parameter whose
 		// meaning it can misread is (see create_category's `domain`). So this trims nothing for
 		// size, and exists to keep the migration's tool set named in one place instead of
 		// assembled at every call site.
@@ -1548,6 +1728,7 @@ namespace PartManager
 			QStringLiteral("list_categories"),
 			QStringLiteral("get_category"),
 			QStringLiteral("create_category"),
+			QStringLiteral("set_category_icon"),
 			QStringLiteral("add_category_attribute"),
 			QStringLiteral("search_parts"),
 			QStringLiteral("get_part"),

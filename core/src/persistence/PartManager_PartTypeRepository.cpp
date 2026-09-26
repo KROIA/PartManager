@@ -113,6 +113,12 @@ namespace PartManager
 			type.searchKeywords = row.size() > 7 ? row[7] : std::string();
 			type.excludedKeywords = row.size() > 8 ? row[8] : std::string();
 			type.nameTemplate = row.size() > 9 ? row[9] : std::string();
+			type.iconGlyph = row.size() > 10 ? row[10] : std::string();
+			// An ALTERed-in column reads back as "" on every row that predates it, and strtoul("")
+			// is 0 — which is exactly the "unset, derive it from the name" value (§14c).
+			type.iconColour = row.size() > 11
+				? static_cast<std::uint32_t>(std::strtoul(row[11].c_str(), nullptr, 10))
+				: 0u;
 			return type;
 		}
 
@@ -182,7 +188,9 @@ namespace PartManager
 			"description TEXT,"
 			"search_keywords TEXT,"
 			"excluded_keywords TEXT,"
-			"name_template TEXT"
+			"name_template TEXT,"
+			"icon_glyph TEXT,"
+			"icon_colour INTEGER"
 			");") && ok;
 		ok = db.execute(
 			"CREATE TABLE IF NOT EXISTS part_type_attribute ("
@@ -216,22 +224,22 @@ namespace PartManager
 	int PartTypeRepository::insertType(SQLiteWrapper::SQLite& db, const PartType& type)
 	{
 		bool ok = db.executeWithParams(
-			"INSERT INTO part_type (name, domain, kicad_relevant, kicad_category, parent_type_id, description, search_keywords, excluded_keywords, name_template) "
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);",
+			"INSERT INTO part_type (name, domain, kicad_relevant, kicad_category, parent_type_id, description, search_keywords, excluded_keywords, name_template, icon_glyph, icon_colour) "
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);",
 			{ type.name, type.domain, type.kicadRelevant ? "1" : "0", type.kicadCategory,
 			  std::to_string(type.parentTypeId), type.description, type.searchKeywords, type.excludedKeywords,
-			  type.nameTemplate });
+			  type.nameTemplate, type.iconGlyph, std::to_string(type.iconColour) });
 		return ok ? static_cast<int>(db.getLastInsertRowId()) : NoParentType;
 	}
 
 	bool PartTypeRepository::updateType(SQLiteWrapper::SQLite& db, const PartType& type)
 	{
 		return db.executeWithParams(
-			"UPDATE part_type SET name=?, domain=?, kicad_relevant=?, kicad_category=?, parent_type_id=?, description=?, search_keywords=?, excluded_keywords=?, name_template=? "
+			"UPDATE part_type SET name=?, domain=?, kicad_relevant=?, kicad_category=?, parent_type_id=?, description=?, search_keywords=?, excluded_keywords=?, name_template=?, icon_glyph=?, icon_colour=? "
 			"WHERE id=?;",
 			{ type.name, type.domain, type.kicadRelevant ? "1" : "0", type.kicadCategory,
 			  std::to_string(type.parentTypeId), type.description, type.searchKeywords, type.excludedKeywords,
-			  type.nameTemplate, std::to_string(type.id) });
+			  type.nameTemplate, type.iconGlyph, std::to_string(type.iconColour), std::to_string(type.id) });
 	}
 
 	bool PartTypeRepository::deleteType(SQLiteWrapper::SQLite& db, int typeId)
@@ -242,7 +250,7 @@ namespace PartManager
 	bool PartTypeRepository::findType(SQLiteWrapper::SQLite& db, int typeId, PartType& outType)
 	{
 		std::vector<std::vector<std::string>> rows = db.fetchAll(
-			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description,search_keywords,excluded_keywords,name_template "
+			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description,search_keywords,excluded_keywords,name_template,icon_glyph,icon_colour "
 			"FROM part_type WHERE id=" + std::to_string(typeId) + ";");
 		if (rows.empty())
 		{
@@ -256,7 +264,7 @@ namespace PartManager
 	{
 		std::vector<PartType> result;
 		for (const std::vector<std::string>& row : db.fetchAll(
-			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description,search_keywords,excluded_keywords,name_template FROM part_type ORDER BY id;"))
+			"SELECT id,name,domain,kicad_relevant,kicad_category,parent_type_id,description,search_keywords,excluded_keywords,name_template,icon_glyph,icon_colour FROM part_type ORDER BY id;"))
 		{
 			result.push_back(rowToType(row));
 		}
@@ -768,7 +776,7 @@ namespace PartManager
 	{
 		// CREATE TABLE IF NOT EXISTS does nothing to a table that is already there, so an existing
 		// database needs the column added by hand — the same shape as ensureAttrColumn().
-		auto ensureColumn = [&db](const char* table, const char* column)
+		auto ensureColumn = [&db](const char* table, const char* column, const char* sqlType)
 		{
 			for (const std::vector<std::string>& row :
 				db.fetchAll(std::string("PRAGMA table_info(") + table + ");"))
@@ -778,13 +786,19 @@ namespace PartManager
 					return true;
 				}
 			}
-			return db.execute(std::string("ALTER TABLE ") + table + " ADD COLUMN " + column + " TEXT;");
+			return db.execute(std::string("ALTER TABLE ") + table + " ADD COLUMN " + column
+				+ " " + sqlType + ";");
 		};
-		bool ok = ensureColumn("part_type", "search_keywords");
-		ok = ensureColumn("part", "search_keywords") && ok;
-		ok = ensureColumn("part_type", "excluded_keywords") && ok;
-		ok = ensureColumn("part", "excluded_keywords") && ok;
-		return ensureColumn("part_type", "name_template") && ok;
+		bool ok = ensureColumn("part_type", "search_keywords", "TEXT");
+		ok = ensureColumn("part", "search_keywords", "TEXT") && ok;
+		ok = ensureColumn("part_type", "excluded_keywords", "TEXT") && ok;
+		ok = ensureColumn("part", "excluded_keywords", "TEXT") && ok;
+		ok = ensureColumn("part_type", "name_template", "TEXT") && ok;
+		// v13 (§14c). Left NULL on every existing row on purpose — see the migration's note: an
+		// unset icon is what resolve() derives from the name, which is what these categories
+		// already drew.
+		ok = ensureColumn("part_type", "icon_glyph", "TEXT") && ok;
+		return ensureColumn("part_type", "icon_colour", "INTEGER") && ok;
 	}
 
 	bool PartTypeRepository::seedDefaultFileSlots(SQLiteWrapper::SQLite& db)

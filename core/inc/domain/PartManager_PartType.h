@@ -10,6 +10,7 @@
 #pragma once
 
 #include "PartManager_global.h"
+#include <cstdint>
 #include <string>
 
 namespace PartManager
@@ -44,6 +45,15 @@ namespace PartManager
 		// declaration winning rather than accumulating, because a name is one string and not a
 		// list. Empty everywhere = the type suggests no name and the part editor's button is off.
 		std::string nameTemplate;
+		// The pictogram this category draws when a part of it has no photo, and the tree draws
+		// beside its name (v13). A `TypeIconStyle::glyphName()` spelling; **empty means unset**,
+		// and unset is the normal state — `TypeIconStyle::resolve()` then derives the glyph from
+		// the name exactly as every category did before these columns existed. Not inherited down
+		// the §2b chain: a subtype is a different picture, not the same one again.
+		std::string iconGlyph;
+		// 0xRRGGBB, one of the twelve `TypeIconStyle::paletteColourNames()` slots. **0 means
+		// unset**, so a category can carry a chosen glyph and still take its colour from the name.
+		std::uint32_t iconColour = 0;
 	};
 
 }

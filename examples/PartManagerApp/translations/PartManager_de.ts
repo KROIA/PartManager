@@ -4798,6 +4798,118 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
         <source>Example: %1</source>
         <translation>Beispiel: %1</translation>
     </message>
+    <message>
+        <source>from the name</source>
+        <translation>aus dem Namen</translation>
+    </message>
+    <message>
+        <source>Resistor</source>
+        <translation>Widerstand</translation>
+    </message>
+    <message>
+        <source>Capacitor</source>
+        <translation>Kondensator</translation>
+    </message>
+    <message>
+        <source>Inductor</source>
+        <translation>Spule</translation>
+    </message>
+    <message>
+        <source>Diode</source>
+        <translation>Diode</translation>
+    </message>
+    <message>
+        <source>LED</source>
+        <translation>LED</translation>
+    </message>
+    <message>
+        <source>Transistor</source>
+        <translation>Transistor</translation>
+    </message>
+    <message>
+        <source>IC / chip</source>
+        <translation>IC / Chip</translation>
+    </message>
+    <message>
+        <source>Connector</source>
+        <translation>Steckverbinder</translation>
+    </message>
+    <message>
+        <source>Crystal</source>
+        <translation>Quarz</translation>
+    </message>
+    <message>
+        <source>Switch</source>
+        <translation>Schalter</translation>
+    </message>
+    <message>
+        <source>Relay</source>
+        <translation>Relais</translation>
+    </message>
+    <message>
+        <source>Fuse</source>
+        <translation>Sicherung</translation>
+    </message>
+    <message>
+        <source>Sensor</source>
+        <translation>Sensor</translation>
+    </message>
+    <message>
+        <source>Mechanical part</source>
+        <translation>Mechanikteil</translation>
+    </message>
+    <message>
+        <source>Plain box, initials</source>
+        <translation>Einfaches Feld mit Initialen</translation>
+    </message>
+    <message>
+        <source>Blue</source>
+        <translation>Blau</translation>
+    </message>
+    <message>
+        <source>Orange</source>
+        <translation>Orange</translation>
+    </message>
+    <message>
+        <source>Red</source>
+        <translation>Rot</translation>
+    </message>
+    <message>
+        <source>Teal</source>
+        <translation>Petrol</translation>
+    </message>
+    <message>
+        <source>Green</source>
+        <translation>Grün</translation>
+    </message>
+    <message>
+        <source>Purple</source>
+        <translation>Violett</translation>
+    </message>
+    <message>
+        <source>Yellow</source>
+        <translation>Gelb</translation>
+    </message>
+    <message>
+        <source>Pink</source>
+        <translation>Rosa</translation>
+    </message>
+    <message>
+        <source>Brown</source>
+        <translation>Braun</translation>
+    </message>
+    <message>
+        <source>Light green</source>
+        <translation>Hellgrün</translation>
+    </message>
+    <message>
+        <source>Sea green</source>
+        <translation>Meergrün</translation>
+    </message>
+    <message>
+        <source>Deep teal</source>
+        <translation>Dunkles Petrol</translation>
+    </message>
 </context>
 <context>
     <name>PartMigrationDialog</name>
@@ -5718,6 +5830,18 @@ Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im 
     <message>
         <source>Extra words a search matches this type&apos;s parts on, one per line — &quot;R&quot;, &quot;Res&quot;, &quot;Ohm&quot;. Every part of this type answers to them, and to the ones its parent types declare; a part can add its own in the part editor.</source>
         <translation>Zusätzliche Wörter, unter denen die Suche die Bauteile dieses Typs findet — eines pro Zeile, etwa „R“, „Res“, „Ohm“. Jedes Bauteil dieses Typs reagiert darauf und auf die Wörter seiner Übergeordneten Typen; eigene kommen im Bauteil-Editor dazu.</translation>
+    </message>
+    <message>
+        <source>Icon</source>
+        <translation>Symbol</translation>
+    </message>
+    <message>
+        <source>The picture this category shows in the tree, and in place of a photo for its parts. The shapes are deliberately coarse — a microcontroller and a logic IC are both a chip — so pick the nearest one. Left on &quot;from the name&quot;, the picture is worked out from the category&apos;s name.</source>
+        <translation>Das Bild, das diese Kategorie im Baum zeigt — und anstelle eines Fotos bei ihren Teilen. Die Formen sind bewusst grob: Ein Mikrocontroller und ein Logik-IC sind beide ein Chip, wähle also die nächstliegende. Auf „aus dem Namen“ belassen, wird das Bild aus dem Namen der Kategorie ermittelt.</translation>
+    </message>
+    <message>
+        <source>Which colour the shape is drawn in. The twelve on offer are a hand-checked set that stays readable at icon size; left on &quot;from the name&quot;, a colour is derived from the category&apos;s name and stays the same from run to run.</source>
+        <translation>In welcher Farbe die Form gezeichnet wird. Die zwölf angebotenen Farben sind ein handgeprüfter Satz, der in Symbolgröße lesbar bleibt. Auf „aus dem Namen“ belassen, wird eine Farbe aus dem Namen der Kategorie abgeleitet und bleibt von Lauf zu Lauf gleich.</translation>
     </message>
 </context>
 </TS>

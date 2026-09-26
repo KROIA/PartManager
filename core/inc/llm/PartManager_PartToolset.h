@@ -22,6 +22,12 @@
 //     enum with an emoji; the validator is what turns that into a correction
 //     instead of a bad row.
 //
+// **A category's icon is picked out of two closed lists, never described.**
+// `glyph` is one of the `TypeGlyph` names and `colour` is one of the twelve
+// palette slots *by name* — no free RGB, because the palette exists precisely
+// because an arbitrary hash-to-RGB produced unreadable mud about a third of the
+// time (PartManager_TypeIcon.h), and a model picking hex would do no better.
+//
 // @see docs/design/ARCHITECTURE.md §2, §2a, §2b, §2d, §14
 // @see PartManager_LlmTool.h, PartManager_PartTypeRepository.h, PartManager_PartRepository.h
 #pragma once
@@ -48,11 +54,13 @@ namespace PartManager
 		//
 		//   list_categories   {}                            -> categories[]{id,name,parentId,domain,partCount}
 		//   get_category      {categoryId}                  -> name, parentId, domain, kicadCategory,
-		//                                                       nameTemplate, attributes[]{key,label,unit,
+		//                                                       nameTemplate, glyph, colour,
+		//                                                       attributes[]{key,label,unit,
 		//                                                       datatype,required,searchable,enumOptions},
 		//                                                       fileSlots[]{role,label,required}
 		//   create_category   {name, parentId?, domain?,     -> {id, created}  — created=false when it
-		//                      description?}                    already existed (see rule 1 above)
+		//                      description?, glyph?}            already existed (see rule 1 above)
+		//   set_category_icon {categoryId, glyph, colour?}  -> {id, glyph, colour}
 		//   add_category_attribute {categoryId, key, label,  -> {id}
 		//                      datatype, unit?, required?,
 		//                      searchable?, enumOptions?}

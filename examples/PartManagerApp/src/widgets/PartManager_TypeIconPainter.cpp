@@ -279,12 +279,17 @@ namespace PartManager
 		}
 	}
 
-	QPixmap TypeIconPainter::icon(const QString& typeName, int size, qreal devicePixelRatio)
+	QPixmap TypeIconPainter::icon(const TypeIcon& style, int size, qreal devicePixelRatio)
 	{
 		if (size <= 0) { return QPixmap(); }
 
-		const QString key = QStringLiteral("pm-typeicon-%1-%2-%3")
-			.arg(typeName).arg(size).arg(devicePixelRatio);
+		// Keyed on what is drawn, not on the type name it came from — two categories that resolve
+		// to the same picture share one pixmap, and a category whose stored icon has just been
+		// changed misses the cache instead of redrawing the old one. `initials` is in the key for
+		// the Generic body, where it is the only thing distinguishing two icons of one colour.
+		const QString key = QStringLiteral("pm-typeicon-%1-%2-%3-%4-%5")
+			.arg(int(style.glyph)).arg(style.colour).arg(QString::fromStdString(style.initials))
+			.arg(size).arg(devicePixelRatio);
 		QPixmap cached;
 		if (QPixmapCache::find(key, &cached)) { return cached; }
 
@@ -294,13 +299,17 @@ namespace PartManager
 		pixmap.fill(Qt::transparent);
 
 		QPainter painter(&pixmap);
-		const TypeIcon style = TypeIconStyle::forType(typeName.toStdString());
 		painter.scale(size / Unit, size / Unit);
 		paintGlyph(painter, style, size);
 		painter.end();
 
 		QPixmapCache::insert(key, pixmap);
 		return pixmap;
+	}
+
+	QPixmap TypeIconPainter::icon(const QString& typeName, int size, qreal devicePixelRatio)
+	{
+		return icon(TypeIconStyle::forType(typeName.toStdString()), size, devicePixelRatio);
 	}
 
 }

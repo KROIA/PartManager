@@ -32,11 +32,22 @@ namespace PartManager
 	{
 		TypeIconPainter() = delete;
 	public:
-		// A square icon of `size` pixels for `typeName`. Never null for a non-zero size, which
-		// is the point: the caller uses it precisely when there is no real image to show.
+		// A square icon of `size` pixels for an already-resolved style. Never null for a non-zero
+		// size, which is the point: the caller uses it precisely when there is no real image to
+		// show.
+		//
+		// This overload is the one to reach for wherever a `PartType` is in hand: a category may
+		// carry a stored glyph and colour (§14c), and only `TypeIconStyle::resolve()` knows how to
+		// mix those with the name-derived fallback. Resolving at the caller also keeps the
+		// resolution out of the paint loop.
 		//
 		// `devicePixelRatio` is taken from the target widget so the glyph is crisp on a scaled
 		// display; the returned pixmap carries it, so callers draw it at logical size as usual.
+		static QPixmap icon(const TypeIcon& style, int size, qreal devicePixelRatio = 1.0);
+
+		// The same thing from a bare type name, for the callers that have nothing else — a part
+		// whose category row is gone, and the tests. Equivalent to `TypeIconStyle::forType()`, so
+		// it never draws a stored icon.
 		static QPixmap icon(const QString& typeName, int size, qreal devicePixelRatio = 1.0);
 	};
 

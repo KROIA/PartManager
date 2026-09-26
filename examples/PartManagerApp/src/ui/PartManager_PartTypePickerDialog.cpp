@@ -202,11 +202,12 @@ namespace PartManager
 		// name and the row alone cannot tell them apart.
 		item->setToolTip(0, partTypePath(m_types, node.typeId));
 
-		// The same rule the main window's tree paints by: a type that classifies as Generic gets no
-		// glyph, since a column of look-alike initials boxes says nothing the name does not.
-		if (TypeIconStyle::forType(node.name.toStdString()).glyph != TypeGlyph::Generic)
+		// The same rule the main window's tree paints by: a type that *derives* as Generic gets no
+		// glyph, since a column of look-alike initials boxes says nothing the name does not — but
+		// one that was given an icon (§14c) is drawn, Generic included.
+		if (node.iconIsStored || node.icon.glyph != TypeGlyph::Generic)
 		{
-			item->setIcon(0, TypeIconPainter::icon(node.name, CategoryGlyphSize, devicePixelRatioF()));
+			item->setIcon(0, TypeIconPainter::icon(node.icon, CategoryGlyphSize, devicePixelRatioF()));
 		}
 
 		if (node.typeId == preselectedTypeId && preselectedTypeId != NoParentType)

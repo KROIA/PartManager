@@ -120,11 +120,12 @@ namespace PartManager
 		// alternative is a user ticking a hundred boxes before anything happens.
 		item->setCheckState(0, Qt::Checked);
 
-		// The same rule the main window's tree paints by: a type that classifies as Generic gets no
-		// glyph, since a column of look-alike initials says nothing the name does not.
-		if (TypeIconStyle::forType(node.name.toStdString()).glyph != TypeGlyph::Generic)
+		// The same rule the main window's tree paints by: a type that *derives* as Generic gets no
+		// glyph, since a column of look-alike initials says nothing the name does not — but one
+		// that was given an icon (§14c) is drawn, Generic included.
+		if (node.iconIsStored || node.icon.glyph != TypeGlyph::Generic)
 		{
-			item->setIcon(0, TypeIconPainter::icon(node.name, CategoryGlyphSize, devicePixelRatioF()));
+			item->setIcon(0, TypeIconPainter::icon(node.icon, CategoryGlyphSize, devicePixelRatioF()));
 		}
 
 		for (const CategoryNode& child : node.children)

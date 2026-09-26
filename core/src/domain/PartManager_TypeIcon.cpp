@@ -44,20 +44,56 @@ namespace PartManager
 		// Hand-checked: every entry is dark enough for white text and distinct enough from its
 		// neighbours to tell apart in a 28-pixel square. Unknown types index into this, so the
 		// list is what guarantees a readable colour rather than luck.
-		constexpr std::array<std::uint32_t, 12> Palette = {
-			0x4E79A7,   // blue
-			0xF28E2B,   // orange
-			0xE15759,   // red
-			0x76B7B2,   // teal
-			0x59A14F,   // green
-			0xB07AA1,   // purple
-			0xEDC948,   // yellow
-			0xFF9DA7,   // pink
-			0x9C755F,   // brown
-			0x8CD17D,   // light green
-			0x86BCB6,   // sea green
-			0x499894,   // deep teal
+		//
+		// The names are not decoration: they are the vocabulary the icon picker and
+		// set_category_icon offer, so this table is the single place a palette slot is spelled.
+		// **The order is load-bearing** — stableIndex() indexes into it, so moving an entry
+		// re-colours every Generic type in every existing database.
+		struct PaletteEntry
+		{
+			const char* name;
+			std::uint32_t rgb;
 		};
+		constexpr std::array<PaletteEntry, 12> Palette = { {
+			{ "blue",        0x4E79A7 },
+			{ "orange",      0xF28E2B },
+			{ "red",         0xE15759 },
+			{ "teal",        0x76B7B2 },
+			{ "green",       0x59A14F },
+			{ "purple",      0xB07AA1 },
+			{ "yellow",      0xEDC948 },
+			{ "pink",        0xFF9DA7 },
+			{ "brown",       0x9C755F },
+			{ "light green", 0x8CD17D },
+			{ "sea green",   0x86BCB6 },
+			{ "deep teal",   0x499894 },
+		} };
+
+		// Every TypeGlyph by the name it is stored and offered under. One entry per enumerator;
+		// glyphName() returns the first match, so a missing row would come back empty rather than
+		// wrong — which the round-trip test is there to catch.
+		struct GlyphEntry
+		{
+			TypeGlyph glyph;
+			const char* name;
+		};
+		constexpr std::array<GlyphEntry, 15> Glyphs = { {
+			{ TypeGlyph::Resistor,   "Resistor"   },
+			{ TypeGlyph::Capacitor,  "Capacitor"  },
+			{ TypeGlyph::Inductor,   "Inductor"   },
+			{ TypeGlyph::Diode,      "Diode"      },
+			{ TypeGlyph::Led,        "Led"        },
+			{ TypeGlyph::Transistor, "Transistor" },
+			{ TypeGlyph::Ic,         "Ic"         },
+			{ TypeGlyph::Connector,  "Connector"  },
+			{ TypeGlyph::Crystal,    "Crystal"    },
+			{ TypeGlyph::Switch,     "Switch"     },
+			{ TypeGlyph::Relay,      "Relay"      },
+			{ TypeGlyph::Fuse,       "Fuse"       },
+			{ TypeGlyph::Sensor,     "Sensor"     },
+			{ TypeGlyph::Mechanical, "Mechanical" },
+			{ TypeGlyph::Generic,    "Generic"    },
+		} };
 
 		// FNV-1a, the same one FileStore uses for content hashes. Any stable hash works; the
 		// requirement is only that a given type name always lands on the same colour, so the
@@ -191,10 +227,113 @@ namespace PartManager
 		else
 		{
 			icon.glyph = TypeGlyph::Generic;
-			icon.colour = Palette[stableIndex(name, Palette.size())];
+			icon.colour = Palette[stableIndex(name, Palette.size())].rgb;
 			icon.initials = initialsFor(typeName);
 		}
 		return icon;
+	}
+
+	TypeIcon TypeIconStyle::resolve(const std::string& typeName, const std::string& storedGlyph,
+		std::uint32_t storedColour)
+	{
+		TypeIcon icon = forType(typeName);
+
+		TypeGlyph chosen = TypeGlyph::Generic;
+		if (glyphFromName(storedGlyph, chosen))
+		{
+			icon.glyph = chosen;
+			// The initials are only ever drawn on the Generic body, and forType() only fills them
+			// when it landed there itself. A category whose name reads as a resistor but that was
+			// deliberately given the Generic glyph would otherwise come out as an empty box.
+			icon.initials = (chosen == TypeGlyph::Generic) ? initialsFor(typeName) : std::string();
+		}
+		if (storedColour != 0)
+		{
+			icon.colour = storedColour & 0xFFFFFFu;
+		}
+		return icon;
+	}
+
+	std::vector<std::string> TypeIconStyle::glyphNames()
+	{
+		std::vector<std::string> names;
+		names.reserve(Glyphs.size());
+		for (const GlyphEntry& entry : Glyphs)
+		{
+			names.push_back(entry.name);
+		}
+		return names;
+	}
+
+	std::string TypeIconStyle::glyphName(TypeGlyph glyph)
+	{
+		for (const GlyphEntry& entry : Glyphs)
+		{
+			if (entry.glyph == glyph)
+			{
+				return entry.name;
+			}
+		}
+		return std::string();
+	}
+
+	bool TypeIconStyle::glyphFromName(const std::string& name, TypeGlyph& outGlyph)
+	{
+		if (name.empty())
+		{
+			return false;
+		}
+		const std::string wanted = lower(name);
+		for (const GlyphEntry& entry : Glyphs)
+		{
+			if (lower(entry.name) == wanted)
+			{
+				outGlyph = entry.glyph;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	std::vector<std::string> TypeIconStyle::paletteColourNames()
+	{
+		std::vector<std::string> names;
+		names.reserve(Palette.size());
+		for (const PaletteEntry& entry : Palette)
+		{
+			names.push_back(entry.name);
+		}
+		return names;
+	}
+
+	bool TypeIconStyle::paletteColourFromName(const std::string& name, std::uint32_t& outColour)
+	{
+		if (name.empty())
+		{
+			return false;
+		}
+		const std::string wanted = lower(name);
+		for (const PaletteEntry& entry : Palette)
+		{
+			if (lower(entry.name) == wanted)
+			{
+				outColour = entry.rgb;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	std::string TypeIconStyle::paletteColourName(std::uint32_t colour)
+	{
+		for (const PaletteEntry& entry : Palette)
+		{
+			if (entry.rgb == (colour & 0xFFFFFFu))
+			{
+				return entry.name;
+			}
+		}
+		return std::string();
 	}
 
 }

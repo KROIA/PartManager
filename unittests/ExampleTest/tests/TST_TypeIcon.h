@@ -4,6 +4,7 @@
 #include "domain/PartManager_TypeIcon.h"
 #include <set>
 #include <string>
+#include <vector>
 
 // The placeholder classifier. Almost every rule here is a near-miss of another one — "LED" is a
 // diode by name, "ceramic capacitor" is a capacitor, and "ic" hides inside "silicone" — so the
@@ -19,6 +20,8 @@ public:
 		ADD_TEST(TST_TypeIcon::shortWordsDoNotMatchInsideOtherWords);
 		ADD_TEST(TST_TypeIcon::unknownTypesGetAStableReadableColour);
 		ADD_TEST(TST_TypeIcon::initials);
+		ADD_TEST(TST_TypeIcon::bothStoredVocabulariesRoundTrip);
+		ADD_TEST(TST_TypeIcon::storedValuesWinAndUnsetOnesFallBack);
 	}
 
 private:
@@ -132,6 +135,96 @@ private:
 		// Punctuation and separators are word breaks, not letters.
 		TEST_COMPARE(PartManager::TypeIconStyle::initialsFor("Crystal / Oscillator"), std::string("CO"));
 		TEST_COMPARE(PartManager::TypeIconStyle::initialsFor(""), std::string());
+	}
+
+	// The names are what `part_type.icon_glyph` holds and what the two LLM tools accept, so an
+	// enumerator missing from the table would come back as an empty string that stores as "unset"
+	// — a value silently doing nothing rather than failing. Every glyph round-trips or this fails.
+	TEST_FUNCTION(bothStoredVocabulariesRoundTrip)
+	{
+		TEST_START;
+		using G = PartManager::TypeGlyph;
+
+		const std::vector<std::string> names = PartManager::TypeIconStyle::glyphNames();
+		TEST_ASSERT_M(names.size() == 15, "one name per TypeGlyph enumerator");
+		for (const std::string& name : names)
+		{
+			G glyph = G::Generic;
+			TEST_ASSERT_M(PartManager::TypeIconStyle::glyphFromName(name, glyph),
+				"a name the list offers must parse: " + name);
+			TEST_ASSERT_M(PartManager::TypeIconStyle::glyphName(glyph) == name,
+				"and must come back as itself: " + name);
+		}
+
+		// Forgiving about case, strict about meaning — the same split every LLM argument reader
+		// in this project uses.
+		G parsed = G::Generic;
+		TEST_ASSERT(PartManager::TypeIconStyle::glyphFromName("led", parsed));
+		TEST_COMPARE(parsed, G::Led);
+		TEST_ASSERT_M(!PartManager::TypeIconStyle::glyphFromName("", parsed),
+			"an empty name is 'unset', not a glyph");
+		TEST_ASSERT_M(!PartManager::TypeIconStyle::glyphFromName("Varistor", parsed),
+			"a plausible-sounding name that is not in the list is still a refusal");
+
+		const std::vector<std::string> colours = PartManager::TypeIconStyle::paletteColourNames();
+		TEST_ASSERT_M(colours.size() == 12, "the palette is twelve hand-checked slots");
+		for (const std::string& name : colours)
+		{
+			std::uint32_t rgb = 0;
+			TEST_ASSERT_M(PartManager::TypeIconStyle::paletteColourFromName(name, rgb),
+				"a palette name must parse: " + name);
+			TEST_ASSERT_M(PartManager::TypeIconStyle::paletteColourName(rgb) == name,
+				"and must come back as itself: " + name);
+		}
+		std::uint32_t ignored = 0;
+		TEST_ASSERT_M(!PartManager::TypeIconStyle::paletteColourFromName("#3F51B5", ignored),
+			"hex is not a palette name — that is the whole point of naming the colours");
+		TEST_ASSERT_M(PartManager::TypeIconStyle::paletteColourName(0u).empty(),
+			"0 means unset and is not a palette entry");
+	}
+
+	TEST_FUNCTION(storedValuesWinAndUnsetOnesFallBack)
+	{
+		TEST_START;
+		using G = PartManager::TypeGlyph;
+
+		// Unset on both halves is forType() exactly — the guarantee every pre-v13 database rests
+		// on, checked here on the classifier's own two sides.
+		for (const std::string name : { std::string("Resistor"), std::string("Wibble") })
+		{
+			const PartManager::TypeIcon derived = PartManager::TypeIconStyle::forType(name);
+			const PartManager::TypeIcon resolved =
+				PartManager::TypeIconStyle::resolve(name, std::string(), 0u);
+			TEST_COMPARE(resolved.glyph, derived.glyph);
+			TEST_COMPARE(resolved.colour, derived.colour);
+			TEST_COMPARE(resolved.initials, derived.initials);
+		}
+
+		// A stored glyph beats the name, even when the name classifies perfectly well.
+		const PartManager::TypeIcon overridden =
+			PartManager::TypeIconStyle::resolve("Resistor", "Fuse", 0u);
+		TEST_COMPARE(overridden.glyph, G::Fuse);
+		TEST_ASSERT_M(overridden.colour == PartManager::TypeIconStyle::forType("Resistor").colour,
+			"an unset colour still comes from the name, even beside a stored glyph");
+
+		// Each half is independent: a colour with no glyph repaints the derived shape.
+		const PartManager::TypeIcon recoloured =
+			PartManager::TypeIconStyle::resolve("Resistor", std::string(), 0x499894u);
+		TEST_COMPARE(recoloured.glyph, G::Resistor);
+		TEST_COMPARE(recoloured.colour, 0x499894u);
+
+		// The Generic body is the only one that draws initials, and a *chosen* Generic has to get
+		// them — a name that classifies would otherwise leave forType()'s empty string behind and
+		// paint an empty box.
+		const PartManager::TypeIcon plain =
+			PartManager::TypeIconStyle::resolve("Resistor", "Generic", 0u);
+		TEST_COMPARE(plain.glyph, G::Generic);
+		TEST_COMPARE(plain.initials, std::string("RE"));
+
+		// A stored name this build does not know is "unset", not a crash and not a default shape.
+		const PartManager::TypeIcon stale =
+			PartManager::TypeIconStyle::resolve("Resistor", "Flux Capacitor", 0u);
+		TEST_COMPARE(stale.glyph, G::Resistor);
 	}
 };
 

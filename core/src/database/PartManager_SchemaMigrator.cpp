@@ -147,6 +147,22 @@ namespace PartManager
 			// suggests a name until someone writes a pattern for it.
 			PartTypeRepository::ensureLateAddedColumns(db);
 		}
+		if (storedSchemaVersion < 13 && db.isOpen())
+		{
+			// v12 -> v13: `icon_glyph` and `icon_colour` on `part_type` (§14c). Same helper again;
+			// it adds whichever of the seven columns is missing, so a database arriving from v9
+			// gets all of them in one pass.
+			//
+			// **Nothing is written into them, and that is the decision, not an omission.** The v8
+			// lesson is that a migration has to leave the database in the state the current
+			// version expects — and what v13 expects is that an unset icon means "derive it from
+			// the name", which is what TypeIconStyle::resolve() does and what every one of these
+			// categories already drew. Seeding the derived values instead would freeze today's
+			// name matching into the rows: renaming a category would stop changing its icon, and
+			// a later improvement to forType() would reach none of them. The regression guard is
+			// TST_LlmPartToolset::aCategoryWithNoStoredIconStillResolvesFromItsName.
+			PartTypeRepository::ensureLateAddedColumns(db);
+		}
 		return SchemaCompatibility::migrated;
 	}
 #endif

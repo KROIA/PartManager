@@ -21,6 +21,7 @@
 #include "domain/PartManager_PartTypeAttribute.h"
 #include "domain/PartManager_PartTypeListColumn.h"
 #include "domain/PartManager_Tag.h"
+#include "domain/PartManager_TypeIcon.h"
 #include <QString>
 #include <QStringList>
 #include <map>
@@ -41,6 +42,15 @@ namespace PartManager
 		int partCount = 0;                  // parts of any quantity, own + all descendants
 		int inStockCount = 0;               // parts with stock_qty > 0, own + all descendants
 		int matchCount = 0;                 // §7a tree filter hits, own + all descendants; 0 with no filter
+		// §14c, already resolved: the type's stored glyph/colour where it has them, the
+		// name-derived fallback where it does not. Resolved here rather than in each tree so the
+		// three trees that paint this forest cannot disagree about what a category looks like.
+		TypeIcon icon;
+		// Whether that icon came from the row or from the name. What the trees paint by: a
+		// name-derived Generic gets no glyph at all, because a column of look-alike initials
+		// boxes says nothing the names beside them do not — but one that was *chosen* is shown,
+		// since somebody asked for it on purpose.
+		bool iconIsStored = false;
 		std::vector<CategoryNode> children;
 	};
 
@@ -83,6 +93,8 @@ namespace PartManager
 		// The part's type, which decides the placeholder glyph when `imagePath` is empty —
 		// which is the normal state, not an exception (a CSV import brings no photos at all).
 		QString typeName;
+		// That placeholder, already resolved through the type's stored icon (§14c).
+		TypeIcon typeIcon;
 		// OR of PartAttachment. Painted as the "Files" column's glyph strip, so a part missing
 		// its footprint is visible from the list instead of only from inside the editor.
 		int attachments = 0;
@@ -118,6 +130,8 @@ namespace PartManager
 		// the preview panel's Datasheet button greys itself out on.
 		QString datasheetPath;
 		QString typeName;
+		// The §14c placeholder for a part with no photo, resolved the same way the table's is.
+		TypeIcon typeIcon;
 	};
 
 	// Assembles the part_type forest from flat rows, honoring parent_type_id (§2b).

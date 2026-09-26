@@ -64,6 +64,9 @@ namespace PartManager
 		// parent cycle cannot be picked in the first place.
 		void chooseParentType();
 		void onTypeFieldEdited();
+		// §14c: writes the row like any other field, then repaints the swatch and the tree row so
+		// the choice is visible where it will actually be seen rather than only in the combo.
+		void onIconChanged();
 
 		void onAddAttribute();
 		void onRemoveAttribute();
@@ -133,6 +136,19 @@ namespace PartManager
 		// Writes one table row back to its `part_type_attribute` / `part_type_file_slot` row.
 		void saveAttributeRow(int row);
 		void saveFileSlotRow(int row);
+
+		// §14c. Both combos are filled from TypeIconStyle rather than from a list spelled here,
+		// so the picker, the stored column and the `set_category_icon` tool offer one vocabulary.
+		// Each entry carries its canonical name as item data; the visible text is translated and
+		// the canonical name is what is written, so the two never have to agree.
+		void fillIconPickers();
+		// The swatch beside the combos and the glyph on the selected tree row — the two places the
+		// choice is actually judged. Cheap enough to run on every change: TypeIconPainter caches.
+		void updateIconPreview();
+		// The two vocabularies as the user reads them. Separate from the stored spelling on
+		// purpose: a German user looks for "Widerstand", the column holds "Resistor".
+		static QString glyphDisplayName(const QString& canonical);
+		static QString colourDisplayName(const QString& canonical);
 
 		Ui::TypeTemplateDialog* m_ui;
 		// Borrowed, never owned — kept because the parent-type picker opens on the same database.

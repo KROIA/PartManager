@@ -26,6 +26,10 @@
 //   v12: `name_template` on `part_type` (§11) — the pattern behind the part
 //       editor's suggested name. ALTERed in, empty, so nothing suggests one
 //       until a type declares a pattern.
+//   v13: `icon_glyph`/`icon_colour` on `part_type` (§14c) — the pictogram a
+//       category draws, now that the assistant and the type editor can choose
+//       one. ALTERed in and deliberately left unset on every existing row; see
+//       the step's own note for why that is not the v8 mistake repeating.
 // @see docs/design/ARCHITECTURE.md §1c
 #pragma once
 
@@ -40,7 +44,7 @@ namespace PartManager
 {
 
 	// The schema (table/column structure) version this build of PartManager understands.
-	constexpr int CurrentSchemaVersion = 12;
+	constexpr int CurrentSchemaVersion = 13;
 
 	// Outcome of comparing a database's stored schema_version against CurrentSchemaVersion.
 	enum class SchemaCompatibility
