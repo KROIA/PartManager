@@ -942,6 +942,7 @@ namespace PartManager
 		prefill.imageUrl = previewImageUrl(dto.imagePath);
 		prefill.productDetailUrl = dto.productDetailUrl;
 		prefill.suggestedTypeName = suggestedTypeName(dto.category);
+		prefill.mouserCategory = dto.category;
 
 		// partTypeId stays 0 on purpose — resolving a name to a row is persistence's job and
 		// core/mouser has no database handle. The caller looks up suggestedTypeName if it wants one.

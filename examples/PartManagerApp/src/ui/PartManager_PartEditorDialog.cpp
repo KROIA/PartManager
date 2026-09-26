@@ -117,6 +117,10 @@ namespace PartManager
 	{
 		m_ui->setupUi(this);
 		m_ui->attributeLayout->addWidget(m_attributeForm);
+		// This is the screen that owns a part's values, so it is the one that has to own the ones
+		// its category no longer declares too (§2b): shown as a footnote, saved back untouched, and
+		// removable only by the user. Everywhere else the form keeps its default silence.
+		m_attributeForm->setUnrecognisedValuesVisible(true);
 
 		// §11: the category's naming pattern applied to this part, and one button to take it.
 		// A frame of its own above Identity, with the Name field moved into it, because the

@@ -53,13 +53,14 @@
             <property name="text">
              <string>Component type</string>
             </property>
-            <property name="toolTip">
-             <string>Which category template this part uses. It decides the attribute fields below and the columns the part table shows — e.g. Resistor, Capacitor, MOSFET.</string>
-            </property>
            </widget>
           </item>
           <item row="0" column="1">
-           <widget class="QComboBox" name="typeCombo"/>
+           <widget class="QPushButton" name="typeButton">
+            <property name="toolTip">
+             <string>Click to pick the category out of the category tree. It decides the attribute fields below and the columns the part table shows — e.g. Resistor, Capacitor, MOSFET.</string>
+            </property>
+           </widget>
           </item>
           <item row="1" column="0">
            <widget class="QLabel" name="nameLabel">
@@ -111,11 +112,41 @@
            </widget>
           </item>
           <item row="4" column="1">
-           <widget class="QLineEdit" name="mouserEdit">
-            <property name="placeholderText">
-             <string>e.g. 595-LM358DR — required to order this part</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="mouserRow">
+            <item>
+             <widget class="QLineEdit" name="mouserEdit">
+              <property name="placeholderText">
+               <string>e.g. 595-LM358DR — required to order this part</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="openMouserButton">
+              <property name="text">
+               <string notr="true">🌐</string>
+              </property>
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="toolTip">
+               <string>Opens this article number's page on mouser.com in your browser. A part that was fetched or prefilled opens its own product page; a hand-typed number opens a search for it.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="fetchMouserButton">
+              <property name="text">
+               <string>Fetch…</string>
+              </property>
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="toolTip">
+               <string>Looks this article number up on Mouser and fills the form in from it. Empty fields are filled in silently; anything you already typed is only replaced after you say so. Still nothing is written to disk — the datasheet and the photo are only queued, and download when the part is created.</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item row="5" column="0">
            <widget class="QLabel" name="packageLabel">

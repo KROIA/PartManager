@@ -39,6 +39,8 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_StockDialog.cpp")
 ## The §6 Mouser prefill lands on New Part's runtime-generated attribute rows, so that whole
 ## widget stack has to come along -- the dialog alone would link but render an empty form.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_NewPartDialog.cpp")
+## ...whose category field opens the §2b type tree instead of a flat combo (TST_PartTypePickerDialogGui).
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartTypePickerDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_PartlistPanel.cpp")
 ## ...whose "+ Add Part" and Part-column repair both open the picker.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartPickerDialog.cpp")
@@ -49,6 +51,8 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartEditorDialog.cp
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartlistImportDialog.cpp")
 ## ...and the import wizard's "look this row up on Mouser" opens the search dialog.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_MouserSearchDialog.cpp")
+## The pasted-list migration screen (TST_PartMigrationDialogGui), which drives both of the above.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartMigrationDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_OrderManagerDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_CartStagingDialog.cpp")
 ## ...and confirming an arrival opens the per-package dialog.
@@ -56,6 +60,9 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_ReceiveArrivalDialo
 ## ...and New Part offers the §5c symbol/footprint download right after Create.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_EcadFetchDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttributeFormWidget.cpp")
+## ...whose "Unrecognised values" footnote and the §2b move that drops such values are two halves
+## of one rule (TST_AttributeFormGui), so the move dialog is compiled in beside it.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_MovePartDialog.cpp")
 ## ...and the §7a tick list of the search words the part inherits from its category.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KeywordCheckList.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_DimensionLineEdit.cpp")
@@ -63,6 +70,13 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_DimensionLineE
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KicadPreviewWidget.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_TypeIconPainter.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttachmentIconPainter.cpp")
+
+## The §2b category transfer, all three screens (TST_CategoryTransferGui, TST_CategoryReconcileGui).
+## The reconcile dialog drives the picker, the move dialog and the part editor, which are all
+## already above it in this list -- it is the one that ties them together.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_CategoryExportDialog.cpp")
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_CategoryImportDialog.cpp")
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_CategoryReconcileDialog.cpp")
 
 ## USER_SECTION_END
 

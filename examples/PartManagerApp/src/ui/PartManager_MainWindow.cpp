@@ -2,6 +2,9 @@
 #include "ui_PartManager_MainWindow.h"
 
 #include "controllers/PartManager_PartEditorController.h"
+#include "ui/PartManager_CategoryExportDialog.h"
+#include "ui/PartManager_CategoryImportDialog.h"
+#include "ui/PartManager_CategoryReconcileDialog.h"
 #include "ui/PartManager_ColumnsDialog.h"
 #include "ui/PartManager_DatabaseSelectorDialog.h"
 #include "ui/PartManager_ManageTagsDialog.h"
@@ -9,6 +12,7 @@
 #include "ui/PartManager_MovePartDialog.h"
 #include "ui/PartManager_NewPartDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
+#include "ui/PartManager_PartMigrationDialog.h"
 #include "ui/PartManager_OrderManagerDialog.h"
 #include "services/PartManager_MeshCacheBuilder.h"
 #include "widgets/PartManager_AttachmentIconPainter.h"
@@ -97,9 +101,8 @@ namespace PartManager
 		// glance; the row is 34 px tall, so this is what fits without stretching the grid.
 		constexpr int AttachmentGlyphSize = 18;
 
-		// The category tree's glyph. One tree row tall — bigger and the rows grow, which turns the
-		// whole tree into a list of icons with names attached rather than the other way round.
-		constexpr int CategoryGlyphSize = 16;
+		// The category tree's glyph size now lives beside the painter as PartManager::
+		// CategoryGlyphSize — PartTypePickerDialog draws the same tree and has to agree with it.
 
 		// Where Help sends anyone looking for documentation. There is no user manual in the app
 		// and none shipped beside it, so this is the honest answer rather than an empty viewer.
@@ -659,6 +662,20 @@ namespace PartManager
 		quit->setShortcut(QKeySequence::Quit);
 		connect(quit, &QAction::triggered, this, &MainWindow::close);
 
+		// The category transfer, repeated from the ribbon. The ribbon is where it will be found the
+		// first time; the menu is where "Loose Ends" has to live, because that one has no ribbon
+		// button of its own — it is the tail of an import that already finished, reopened days
+		// later, and a permanent ribbon button for a window that is usually empty would read as a
+		// standing chore.
+		QMenu* categoryMenu = menuBar()->addMenu(tr("&Categories"));
+		connect(categoryMenu->addAction(tr("&Export Categories...")), &QAction::triggered,
+			this, &MainWindow::onExportCategories);
+		connect(categoryMenu->addAction(tr("&Import Categories...")), &QAction::triggered,
+			this, &MainWindow::onImportCategories);
+		categoryMenu->addSeparator();
+		connect(categoryMenu->addAction(tr("&Loose Ends...")), &QAction::triggered,
+			this, &MainWindow::onReconcileCategories);
+
 		// Only the panel that is genuinely optional. Qt's own createPopupMenu() lists every dock and
 		// toolbar, and of the three it found, two could not be switched off in any useful sense:
 		// the ribbon is the whole command surface and its entry was even blank (a toolbar's toggle
@@ -1168,6 +1185,56 @@ namespace PartManager
 			return;
 		}
 		openNewPart(dialog.createdPartId(), QString::fromStdString(prefill.datasheetUrl));
+	}
+
+	void MainWindow::onImportPartList()
+	{
+		// No openNewPart() tail here: the dialog creates any number of parts and offers the editor
+		// per part itself, behind a check box that is off by default.
+		PartMigrationDialog dialog(m_controller.handle(), this);
+		dialog.exec();
+		if (dialog.createdCount() > 0)
+		{
+			reloadCategories();
+		}
+	}
+
+	void MainWindow::onExportCategories()
+	{
+		// Nothing to reload: an export reads and writes a file, and leaves this database exactly
+		// as it found it.
+		CategoryExportDialog dialog(m_controller.handle(), this);
+		dialog.exec();
+	}
+
+	void MainWindow::onImportCategories()
+	{
+		CategoryImportDialog dialog(m_controller.handle(), this);
+		dialog.exec();
+		if (!dialog.applied())
+		{
+			return;
+		}
+		// The tree on screen is stale the moment the merge commits — names, parents and part
+		// counts can all have moved — and so is the table, whose columns are resolved from the
+		// category's §7b list columns. Both are rebuilt rather than patched: the merge can touch
+		// any number of categories, and working out which of them the current view depends on is
+		// more code than simply asking again.
+		reloadCategories();
+		refreshCurrentCategory();
+	}
+
+	void MainWindow::onReconcileCategories()
+	{
+		// No plan to hand over — reopened from the ribbon there is no import in progress, which is
+		// exactly the case the dialog's empty-vector constructor is for.
+		CategoryReconcileDialog dialog(m_controller.handle(), std::vector<int>(), this);
+		dialog.exec();
+		if (dialog.movedPartCount() > 0)
+		{
+			reloadCategories();
+			refreshCurrentCategory();
+		}
 	}
 
 	void MainWindow::openNewPart(int partId, const QString& datasheetUrl)
@@ -1805,6 +1872,14 @@ namespace PartManager
 		addButton(manageGroup, tr("Edit Type Templates"), QStringLiteral(":/icons/edit-type-template.png"), &MainWindow::onEditTypeTemplates);
 		addButton(manageGroup, tr("Manage Tags"), QStringLiteral(":/icons/manage-tags.png"), &MainWindow::onManageTags);
 		addButton(manageGroup, tr("Import from Mouser"), QStringLiteral(":/icons/mouser-search.png"), &MainWindow::onNewPartFromMouser);
+		addButton(manageGroup, tr("Import Part List"), QStringLiteral(":/icons/import-csv.png"), &MainWindow::onImportPartList);
+		// Beside the part-level imports rather than in a group of their own: from the user's side
+		// this is still "bring something in from elsewhere", only the something is the category
+		// templates instead of the parts. Icons are reused — the type-template glyph says
+		// *categories*, the database glyph says *another database*, and inventing two more for a
+		// pair of buttons would leave the ribbon with two icons nothing else speaks.
+		addButton(manageGroup, tr("Export Categories"), QStringLiteral(":/icons/edit-type-template.png"), &MainWindow::onExportCategories);
+		addButton(manageGroup, tr("Import Categories"), QStringLiteral(":/icons/database.png"), &MainWindow::onImportCategories);
 		addButton(filesGroup, tr("Attach File"), QStringLiteral(":/icons/attach-file.png"), &MainWindow::onAttachFile);
 		addButton(filesGroup, tr("Open Datasheet"), QStringLiteral(":/icons/open-datasheet.png"), &MainWindow::onOpenDatasheet);
 

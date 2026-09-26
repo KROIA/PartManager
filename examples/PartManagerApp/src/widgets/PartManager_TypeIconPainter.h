@@ -20,6 +20,14 @@
 namespace PartManager
 {
 
+	// The category tree's glyph size. One tree row tall — bigger and the rows grow, which turns the
+	// whole tree into a list of icons with names attached rather than the other way round.
+	//
+	// Lives here rather than in the main window it was born in because a second tree of the same
+	// categories now exists (PartTypePickerDialog), and the point of that dialog is that it looks
+	// like the browser the user already knows. Two hand-picked 16s would drift apart.
+	constexpr int CategoryGlyphSize = 16;
+
 	class TypeIconPainter
 	{
 		TypeIconPainter() = delete;

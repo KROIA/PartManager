@@ -74,6 +74,40 @@
          </item>
         </layout>
        </item>
+       <item>
+        <layout class="QHBoxLayout" name="transferButtonLayout">
+         <item>
+          <widget class="QPushButton" name="exportCategoriesButton">
+           <property name="text">
+            <string>Export...</string>
+           </property>
+           <property name="toolTip">
+            <string>Write the picked categories, with everything they inherit from, to a file another database can read. Templates only — no part travels with them.</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="importCategoriesButton">
+           <property name="text">
+            <string>Import...</string>
+           </property>
+           <property name="toolTip">
+            <string>Read such a file, or another database, and merge its categories into this one. Nothing is written until the whole plan has been reviewed.</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="looseEndsButton">
+           <property name="text">
+            <string>Loose Ends...</string>
+           </property>
+           <property name="toolTip">
+            <string>What an earlier import left open: local categories nothing matched, and parts missing a value their category now asks for.</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
       </layout>
      </item>
      <item>
@@ -152,9 +186,9 @@
           </widget>
          </item>
          <item row="4" column="1">
-          <widget class="QComboBox" name="parentCombo">
+          <widget class="QPushButton" name="parentButton">
            <property name="toolTip">
-            <string>Every attribute and file slot of the parent applies here too. The type itself and the types below it are not offered.</string>
+            <string>Click to pick the parent out of the category tree. Every attribute and file slot of the parent applies here too. The type itself and the types below it are not offered.</string>
            </property>
           </widget>
          </item>

@@ -68,6 +68,21 @@ namespace PartManager
 		void onNewPart();
 		// Parts tab's Import from Mouser button — search, prefill, create, fetch the datasheet (§6).
 		void onNewPartFromMouser();
+		// Parts tab's Import Part List button — a pasted inventory becomes parts, one row at a
+		// time (§4, §5). The other direction from Import CSV/BOM, which produces a partlist.
+		void onImportPartList();
+		// Parts tab's Export Categories button — writes the picked category templates, with their
+		// §2b ancestors, to a `.pmcat` bundle. Templates only: no part ever travels with them.
+		void onExportCategories();
+		// Parts tab's Import Categories button — reads such a bundle from a file or another
+		// registered database and merges it into this one (§2b path matching), reviewable before
+		// anything is written. The tree and the open category are reloaded afterwards, because a
+		// merge can rename, re-parent and re-attribute the very category currently on screen.
+		void onImportCategories();
+		// The §2b/§11 loose ends an import leaves behind, reopened cold — no plan, so tab one is
+		// empty and the incomplete-parts list is the whole dialog. Reachable on its own because
+		// neither list is mandatory and both survive the window being closed.
+		void onReconcileCategories();
 		// Home tab's New Partlist button — creates an empty BOM in the panel below the table (§4).
 		void onNewPartlist();
 		// Home tab's Partlists button — reveals the §4 panel, which is also the list overview.

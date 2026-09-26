@@ -1,5 +1,9 @@
 #include "ui/PartManager_TypeTemplateDialog.h"
 #include "ui_PartManager_TypeTemplateDialog.h"
+#include "ui/PartManager_CategoryExportDialog.h"
+#include "ui/PartManager_CategoryImportDialog.h"
+#include "ui/PartManager_CategoryReconcileDialog.h"
+#include "ui/PartManager_PartTypePickerDialog.h"
 #include "controllers/PartManager_MainWindowController.h"
 #include "domain/PartManager_PartFileRole.h"
 #include "search/PartManager_SearchEngine.h"
@@ -234,6 +238,7 @@ namespace PartManager
 	TypeTemplateDialog::TypeTemplateDialog(DatabaseHandle* handle, QWidget* parent)
 		: QDialog(parent)
 		, m_ui(new Ui::TypeTemplateDialog)
+		, m_handle(handle)
 		, m_controller(handle)
 	{
 		m_ui->setupUi(this);
@@ -367,8 +372,8 @@ namespace PartManager
 			});
 		connect(m_ui->domainCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
 			&TypeTemplateDialog::onTypeFieldEdited);
-		connect(m_ui->parentCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-			&TypeTemplateDialog::onTypeFieldEdited);
+		connect(m_ui->parentButton, &QPushButton::clicked, this,
+			&TypeTemplateDialog::chooseParentType);
 
 		connect(m_ui->addAttributeButton, &QPushButton::clicked, this, &TypeTemplateDialog::onAddAttribute);
 		connect(m_ui->removeAttributeButton, &QPushButton::clicked, this, &TypeTemplateDialog::onRemoveAttribute);
@@ -389,6 +394,13 @@ namespace PartManager
 			&TypeTemplateDialog::onFileSlotSelectionChanged);
 		connect(m_ui->fileSlotTable, &QTableWidget::itemChanged, this,
 			&TypeTemplateDialog::onFileSlotItemChanged);
+
+		connect(m_ui->exportCategoriesButton, &QPushButton::clicked, this,
+			&TypeTemplateDialog::onExportCategories);
+		connect(m_ui->importCategoriesButton, &QPushButton::clicked, this,
+			&TypeTemplateDialog::onImportCategories);
+		connect(m_ui->looseEndsButton, &QPushButton::clicked, this,
+			&TypeTemplateDialog::onReconcileCategories);
 
 		connect(m_ui->closeButton, &QPushButton::clicked, this, &TypeTemplateDialog::accept);
 
@@ -463,28 +475,51 @@ namespace PartManager
 			? tr("e.g. Resistor {resistance} {package}")
 			: tr("inherited: %1").arg(inheritedPattern));
 
-		// A type cannot descend from itself, directly or through a chain — the §2b walk would
-		// then never reach a root. typeIdWithDescendants() is the same subtree the main window
-		// resolves when it lists a category's parts.
-		const std::vector<int> forbidden = type.id != NoParentType
-			? typeIdWithDescendants(m_types, type.id) : std::vector<int>();
-		m_ui->parentCombo->clear();
-		m_ui->parentCombo->addItem(tr("(none — a root type)"), NoParentType);
-		for (const PartType& candidate : m_types)
-		{
-			if (std::find(forbidden.begin(), forbidden.end(), candidate.id) != forbidden.end())
-			{
-				continue;
-			}
-			m_ui->parentCombo->addItem(toQt(candidate.name), candidate.id);   // user data
-		}
-		const int parentIndex = m_ui->parentCombo->findData(type.parentTypeId);
-		m_ui->parentCombo->setCurrentIndex(parentIndex >= 0 ? parentIndex : 0);
+		// The parent is picked out of the same tree the rest of the app browses (§2b is a tree, and
+		// a flat list of every type in alphabetical order hides exactly the structure being edited).
+		// Which types the picker refuses to offer is decided in chooseParentType(); here the button
+		// only has to say what the answer currently is, by its full path rather than its leaf name.
+		m_parentTypeId = type.parentTypeId;
+		m_ui->parentButton->setText(m_parentTypeId == NoParentType
+			? tr("(none — a root type)")
+			: partTypePath(m_types, m_parentTypeId));   // user data
 
 		const int partCount = type.id != NoParentType ? m_controller.partCountOfType(type.id) : 0;
 		m_ui->usageLabel->setText(tr("Used by %n part(s) of exactly this type.", "", partCount));
 
 		m_reloading = false;
+	}
+
+	void TypeTemplateDialog::chooseParentType()
+	{
+		const PartType type = selectedType();
+		if (type.id == NoParentType)
+		{
+			return;
+		}
+
+		// The one rule this field has: a type may not descend from itself, directly or through a
+		// chain, or the §2b walk would never reach a root. The flat combo enforced it by leaving
+		// those entries out; the picker is told the same thing with excludeSubtreeOfTypeId, which
+		// hides the whole branch rather than only the type itself — so the rule survives the change
+		// instead of being re-implemented here.
+		PartTypePickerDialog picker(m_handle, m_parentTypeId, type.id, this);
+		picker.setWindowTitle(tr("Choose a parent type"));
+		// "No category" is the wrong word for this field: a type with no parent is not uncategorised,
+		// it is the root of a family.
+		picker.setNoTypeButtonText(tr("No parent — a root type"));
+		if (picker.exec() != QDialog::Accepted || picker.selectedTypeId() == m_parentTypeId)
+		{
+			return;
+		}
+
+		m_parentTypeId = picker.selectedTypeId();
+		// Painted here as well as in refreshTypeForm(), because a rejected write leaves the form
+		// untouched and the button would otherwise claim a parent the type does not have.
+		m_ui->parentButton->setText(m_parentTypeId == NoParentType
+			? tr("(none — a root type)")
+			: partTypePath(m_types, m_parentTypeId));   // user data
+		onTypeFieldEdited();
 	}
 
 	void TypeTemplateDialog::onTypeFieldEdited()
@@ -504,7 +539,7 @@ namespace PartManager
 		type.domain = m_ui->domainCombo->currentText().toStdString();
 		type.kicadRelevant = m_ui->kicadRelevantCheck->isChecked();
 		type.kicadCategory = m_ui->kicadCategoryEdit->text().trimmed().toStdString();
-		type.parentTypeId = m_ui->parentCombo->currentData().toInt();
+		type.parentTypeId = m_parentTypeId;
 		type.description = m_ui->descriptionEdit->toPlainText().toStdString();
 		type.searchKeywords = m_ui->searchKeywordsEdit->toPlainText().toStdString();
 		type.excludedKeywords = m_inheritedKeywords->excludedKeywords().toStdString();
@@ -716,6 +751,41 @@ namespace PartManager
 		refreshTypeTree();
 	}
 
+	void TypeTemplateDialog::onExportCategories()
+	{
+		// Reads only — nothing here can have gone stale by the time it closes, so no refresh.
+		CategoryExportDialog dialog(m_handle, this);
+		dialog.exec();
+	}
+
+	void TypeTemplateDialog::onImportCategories()
+	{
+		CategoryImportDialog dialog(m_handle, this);
+		dialog.exec();
+		if (!dialog.applied())
+		{
+			return;
+		}
+		// The whole forest is re-read, and the selection deliberately not restored: the type that
+		// was selected may have been renamed, re-parented, or be sitting under a new ancestor, and
+		// putting the cursor back on an id says nothing about whether it is still the same row the
+		// user was looking at.
+		m_ui->typeTree->setCurrentItem(nullptr);
+		refreshTypeTree();
+	}
+
+	void TypeTemplateDialog::onReconcileCategories()
+	{
+		// Opened from here there is no plan — see the dialog's header for why tab two works anyway.
+		CategoryReconcileDialog dialog(m_handle, std::vector<int>(), this);
+		dialog.exec();
+		if (dialog.movedPartCount() > 0)
+		{
+			// Only the part counts moved, but they are read per type on the way into the tree.
+			refreshTypeTree(selectedType().id);
+		}
+	}
+
 	void TypeTemplateDialog::refreshAttributeTable(int selectAttributeId)
 	{
 		const PartType type = selectedType();
@@ -853,7 +923,7 @@ namespace PartManager
 		m_ui->domainCombo->setEnabled(hasType);
 		m_ui->kicadRelevantCheck->setEnabled(hasType);
 		m_ui->kicadCategoryEdit->setEnabled(hasType && type.kicadRelevant);
-		m_ui->parentCombo->setEnabled(hasType);
+		m_ui->parentButton->setEnabled(hasType);
 		m_ui->descriptionEdit->setEnabled(hasType);
 		m_ui->searchKeywordsEdit->setEnabled(hasType);
 		m_inheritedKeywords->setEnabled(hasType);

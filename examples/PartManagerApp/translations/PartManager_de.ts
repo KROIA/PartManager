@@ -2,6 +2,163 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="de_DE">
 <context>
+    <name>CategoryExportDialog</name>
+    <message>
+        <source>Export Categories</source>
+        <translation>Kategorien exportieren</translation>
+    </message>
+    <message>
+        <source>Pick the categories to write out. A category always travels with the ones it sits under, so ticking a subtype ticks its parents too — without them it could not be imported anywhere.</source>
+        <translation>Wählen Sie die Kategorien aus, die geschrieben werden sollen. Eine Kategorie wandert immer zusammen mit den Kategorien, unter denen sie liegt – ein Häkchen bei einem Untertyp setzt deshalb auch die Häkchen seiner Elternkategorien; ohne sie ließe er sich nirgends importieren.</translation>
+    </message>
+    <message>
+        <source>Select all</source>
+        <translation>Alle auswählen</translation>
+    </message>
+    <message>
+        <source>Select none</source>
+        <translation>Keine auswählen</translation>
+    </message>
+</context>
+<context>
+    <name>CategoryImportDialog</name>
+    <message>
+        <source>Import Categories</source>
+        <translation>Kategorien importieren</translation>
+    </message>
+    <message>
+        <source>Where should the categories come from? Nothing is changed by picking a source — the next page shows what an import would do before anything is written.</source>
+        <translation>Woher sollen die Kategorien kommen? Die Auswahl einer Quelle ändert nichts – die nächste Seite zeigt, was ein Import tun würde, bevor irgendetwas geschrieben wird.</translation>
+    </message>
+    <message>
+        <source>From a category file (.pmcat)</source>
+        <translation>Aus einer Kategoriedatei (.pmcat)</translation>
+    </message>
+    <message>
+        <source>Read a file exported by &quot;Export Categories&quot;</source>
+        <translation>Eine Datei lesen, die mit „Kategorien exportieren“ geschrieben wurde</translation>
+    </message>
+    <message>
+        <source>No file chosen yet</source>
+        <translation>Noch keine Datei gewählt</translation>
+    </message>
+    <message>
+        <source>Choose file…</source>
+        <translation>Datei wählen…</translation>
+    </message>
+    <message>
+        <source>From another database</source>
+        <translation>Aus einer anderen Datenbank</translation>
+    </message>
+    <message>
+        <source>Read the categories straight out of another PartManager database</source>
+        <translation>Die Kategorien direkt aus einer anderen PartManager-Datenbank lesen</translation>
+    </message>
+    <message>
+        <source>The databases this app already knows about. The one currently open is not on the list — importing a database into itself would change nothing.</source>
+        <translation>Die Datenbanken, die diese Anwendung bereits kennt. Die gerade geöffnete steht nicht auf der Liste – eine Datenbank in sich selbst zu importieren würde nichts ändern.</translation>
+    </message>
+    <message>
+        <source>Choose database…</source>
+        <translation>Datenbank wählen…</translation>
+    </message>
+    <message>
+        <source>This is what an import would do. Change any of it — nothing has been written yet.</source>
+        <translation>Das würde ein Import tun. Ändern Sie daran, was Sie möchten – geschrieben wurde noch nichts.</translation>
+    </message>
+    <message>
+        <source>Keep all local in this row</source>
+        <translation>In dieser Zeile alles Lokale behalten</translation>
+    </message>
+    <message>
+        <source>Every disagreeing field of the selected category keeps the value this database already has.</source>
+        <translation>Jedes abweichende Feld der gewählten Kategorie behält den Wert, den diese Datenbank bereits hat.</translation>
+    </message>
+    <message>
+        <source>Take all incoming in this row</source>
+        <translation>In dieser Zeile alles Eingehende übernehmen</translation>
+    </message>
+    <message>
+        <source>Every disagreeing field of the selected category takes the value from the source.</source>
+        <translation>Jedes abweichende Feld der gewählten Kategorie übernimmt den Wert aus der Quelle.</translation>
+    </message>
+    <message>
+        <source>Worth reading first</source>
+        <translation>Vorher lesenswert</translation>
+    </message>
+    <message>
+        <source>Sort out the leftovers…</source>
+        <translation>Reste klären…</translation>
+    </message>
+    <message>
+        <source>Local categories nothing matched, and parts that a new required field left incomplete. Neither is urgent — this can be opened again later from the type template editor.</source>
+        <translation>Lokale Kategorien, zu denen nichts gepasst hat, und Teile, denen ein neues Pflichtfeld nun fehlt. Beides eilt nicht – dieses Fenster lässt sich später jederzeit aus dem Typvorlagen-Editor wieder öffnen.</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Zurück</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Weiter</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Abbrechen</translation>
+    </message>
+</context>
+<context>
+    <name>CategoryReconcileDialog</name>
+    <message>
+        <source>Loose Ends</source>
+        <translation>Offene Enden</translation>
+    </message>
+    <message>
+        <source>None of this is required. Everything here can be left as it is, and this window can be opened again later from the category editor.</source>
+        <translation>Nichts davon ist Pflicht. Alles hier kann so bleiben, wie es ist, und dieses Fenster lässt sich später aus dem Kategorieeditor wieder öffnen.</translation>
+    </message>
+    <message>
+        <source>Categories nothing matched</source>
+        <translation>Kategorien ohne Entsprechung</translation>
+    </message>
+    <message>
+        <source>These categories exist here but not in what was imported, so they were left alone. If one of them is really the same thing under another name, its parts can be moved into the category that arrived.</source>
+        <translation>Diese Kategorien gibt es hier, aber nicht im Importierten, deshalb wurden sie unangetastet gelassen. Wenn eine davon in Wirklichkeit dasselbe unter einem anderen Namen ist, können ihre Teile in die neu hinzugekommene Kategorie verschoben werden.</translation>
+    </message>
+    <message>
+        <source>Move its parts to…</source>
+        <translation>Teile verschieben nach…</translation>
+    </message>
+    <message>
+        <source>Pick another category and move every part out of this one into it. Parts that lose nothing move straight away; the rest ask first.</source>
+        <translation>Eine andere Kategorie wählen und jedes Teil aus dieser dorthin verschieben. Teile, die dabei nichts verlieren, wandern sofort; bei den übrigen wird vorher gefragt.</translation>
+    </message>
+    <message>
+        <source>Keep this one as it is</source>
+        <translation>Diese so lassen, wie sie ist</translation>
+    </message>
+    <message>
+        <source>Changes nothing — just marks the row as dealt with.</source>
+        <translation>Ändert nichts – markiert die Zeile nur als erledigt.</translation>
+    </message>
+    <message>
+        <source>Parts missing a required value</source>
+        <translation>Teile ohne Pflichtwert</translation>
+    </message>
+    <message>
+        <source>A category can ask for a value that its parts were never asked for before. These parts are unchanged and still findable — they are simply missing an answer. Open one to fill it in; the list shrinks as you go.</source>
+        <translation>Eine Kategorie kann einen Wert verlangen, nach dem ihre Teile nie gefragt wurden. Diese Teile sind unverändert und weiterhin auffindbar – es fehlt ihnen schlicht eine Angabe. Öffnen Sie eines, um sie nachzutragen; die Liste wird dabei kürzer.</translation>
+    </message>
+    <message>
+        <source>Open this part…</source>
+        <translation>Dieses Teil öffnen…</translation>
+    </message>
+    <message>
+        <source>Check again</source>
+        <translation>Erneut prüfen</translation>
+    </message>
+</context>
+<context>
     <name>ColumnsDialog</name>
     <message>
         <source>Customize Columns</source>
@@ -396,8 +553,8 @@ Das Feld zu leeren oder darin Escape zu drücken kehrt zur ausgewählten Kategor
         <translation>Abbrechen</translation>
     </message>
     <message>
-        <source>Which category template this part uses. It decides the attribute fields below and the columns the part table shows — e.g. Resistor, Capacitor, MOSFET.</source>
-        <translation>Welche Kategorievorlage dieses Bauteil verwendet. Sie bestimmt die Attributfelder unten und die Spalten der Bauteiltabelle — z. B. Widerstand, Kondensator, MOSFET.</translation>
+        <source>Click to pick the category out of the category tree. It decides the attribute fields below and the columns the part table shows — e.g. Resistor, Capacitor, MOSFET.</source>
+        <translation>Klicken, um die Kategorie aus dem Kategoriebaum zu wählen. Sie bestimmt die Attributfelder unten und die Spalten der Bauteiltabelle — z. B. Widerstand, Kondensator, MOSFET.</translation>
     </message>
     <message>
         <source>What you want to see in the parts table. Freely chosen — e.g. &quot;4k7 0603 1%&quot; or &quot;LM358 dual op-amp&quot;.</source>
@@ -512,6 +669,18 @@ Mouser füllt das aus seiner Spalte &quot;Package / Case&quot; aus.</translation
     <message>
         <source>STEP, OBJ, PLY, STL, WRL or glTF. STEP is what KiCad wants; the built-in viewer draws the mesh formats directly and converts STEP when FreeCAD is installed. Mouser publishes no CAD models through its API, so this one is always a local file.</source>
         <translation>STEP, OBJ, PLY, STL, WRL oder glTF. KiCad möchte STEP; der eingebaute Betrachter zeichnet die Mesh-Formate direkt und wandelt STEP um, wenn FreeCAD installiert ist. Mouser veröffentlicht über seine API keine CAD-Modelle, daher ist das hier immer eine lokale Datei.</translation>
+    </message>
+    <message>
+        <source>Opens this article number&apos;s page on mouser.com in your browser. A part that was fetched or prefilled opens its own product page; a hand-typed number opens a search for it.</source>
+        <translation>Öffnet die Seite dieser Artikelnummer auf mouser.com im Browser. Ein abgerufenes oder vorausgefülltes Bauteil öffnet seine eigene Produktseite; eine von Hand eingetippte Nummer öffnet eine Suche danach.</translation>
+    </message>
+    <message>
+        <source>Fetch…</source>
+        <translation>Abrufen…</translation>
+    </message>
+    <message>
+        <source>Looks this article number up on Mouser and fills the form in from it. Empty fields are filled in silently; anything you already typed is only replaced after you say so. Still nothing is written to disk — the datasheet and the photo are only queued, and download when the part is created.</source>
+        <translation>Schlägt diese Artikelnummer bei Mouser nach und füllt das Formular daraus aus. Leere Felder werden stillschweigend ausgefüllt; bereits Eingetipptes wird erst nach Ihrer Zustimmung ersetzt. Auf die Festplatte wird trotzdem nichts geschrieben — Datenblatt und Foto werden nur vorgemerkt und erst beim Anlegen des Bauteils heruntergeladen.</translation>
     </message>
 </context>
 <context>
@@ -904,6 +1073,25 @@ Fehlt: %2</translation>
     </message>
 </context>
 <context>
+    <name>PartManager::AttributeFormWidget</name>
+    <message>
+        <source>Unrecognised values</source>
+        <translation>Unbekannte Werte</translation>
+    </message>
+    <message>
+        <source>Values saved under this part before its category changed. They are kept so nothing is lost; this category has no field for them. Delete one to remove it for good.</source>
+        <translation>Werte, die vor dem Kategoriewechsel an diesem Teil gespeichert waren. Sie bleiben erhalten, damit nichts verloren geht; diese Kategorie hat kein Feld dafür. Löschen entfernt einen Wert endgültig.</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Löschen</translation>
+    </message>
+    <message>
+        <source>Remove this value from the part</source>
+        <translation>Diesen Wert vom Teil entfernen</translation>
+    </message>
+</context>
+<context>
     <name>PartManager::CartStagingDialog</name>
     <message>
         <source>Review what goes into your Mouser cart</source>
@@ -1036,6 +1224,304 @@ Mousers API kann weder einen Warenkorb löschen noch die Warenkörbe Ihres Konto
     <message>
         <source>, </source>
         <translation>, </translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::CategoryExportDialog</name>
+    <message>
+        <source>Export…</source>
+        <translation>Exportieren…</translation>
+    </message>
+    <message numerus="yes">
+        <source>Export %n category(ies)…</source>
+        <translation>
+            <numerusform>%n Kategorie exportieren…</numerusform>
+            <numerusform>%n Kategorien exportieren…</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Export categories</source>
+        <translation>Kategorien exportieren</translation>
+    </message>
+    <message>
+        <source>PartManager categories (*.pmcat)</source>
+        <translation>PartManager-Kategorien (*.pmcat)</translation>
+    </message>
+    <message>
+        <source>Could not write %1 — %2.</source>
+        <translation>%1 konnte nicht geschrieben werden – %2.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Exported %n category(ies) to %1.</source>
+        <translation>
+            <numerusform>%n Kategorie nach %1 exportiert.</numerusform>
+            <numerusform>%n Kategorien nach %1 exportiert.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::CategoryImportDialog</name>
+    <message>
+        <source>(empty)</source>
+        <translation>(leer)</translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation>Kategorie</translation>
+    </message>
+    <message>
+        <source>What happens</source>
+        <translation>Was geschieht</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Einzelheiten</translation>
+    </message>
+    <message>
+        <source>(pick a database)</source>
+        <translation>(Datenbank wählen)</translation>
+    </message>
+    <message>
+        <source>Open a category file</source>
+        <translation>Kategoriedatei öffnen</translation>
+    </message>
+    <message>
+        <source>PartManager categories (*.pmcat)</source>
+        <translation>PartManager-Kategorien (*.pmcat)</translation>
+    </message>
+    <message>
+        <source>Open a PartManager database</source>
+        <translation>PartManager-Datenbank öffnen</translation>
+    </message>
+    <message>
+        <source>PartManager databases (*.pmdb *.db)</source>
+        <translation>PartManager-Datenbanken (*.pmdb *.db)</translation>
+    </message>
+    <message>
+        <source>Could not read %1 — %2.</source>
+        <translation>%1 konnte nicht gelesen werden – %2.</translation>
+    </message>
+    <message>
+        <source>That is the database this window is writing into. Importing a database into itself would change nothing — pick another one.</source>
+        <translation>Das ist die Datenbank, in die dieses Fenster schreibt. Eine Datenbank in sich selbst zu importieren würde nichts ändern – bitte eine andere wählen.</translation>
+    </message>
+    <message>
+        <source>an unnamed database</source>
+        <translation>einer unbenannten Datenbank</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n category(ies) from %1.</source>
+        <translation>
+            <numerusform>%n Kategorie aus %1.</numerusform>
+            <numerusform>%n Kategorien aus %1.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n category(ies) from %1, written %2.</source>
+        <translation>
+            <numerusform>%n Kategorie aus %1, geschrieben am %2.</numerusform>
+            <numerusform>%n Kategorien aus %1, geschrieben am %2.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Add new</source>
+        <translation>Neu anlegen</translation>
+    </message>
+    <message>
+        <source>Merge</source>
+        <translation>Zusammenführen</translation>
+    </message>
+    <message>
+        <source>Skip</source>
+        <translation>Überspringen</translation>
+    </message>
+    <message>
+        <source>here: %1   ·   incoming: %2</source>
+        <translation>hier: %1   ·   eingehend: %2</translation>
+    </message>
+    <message>
+        <source>Keep local</source>
+        <translation>Lokalen Wert behalten</translation>
+    </message>
+    <message>
+        <source>Take incoming</source>
+        <translation>Eingehenden Wert übernehmen</translation>
+    </message>
+    <message>
+        <source>%1 new, %2 merged, %3 skipped</source>
+        <translation>%1 neu, %2 zusammengeführt, %3 übersprungen</translation>
+    </message>
+    <message>
+        <source>Not in this database yet — it will be created.</source>
+        <translation>In dieser Datenbank noch nicht vorhanden – wird angelegt.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n field(s) differ</source>
+        <translation>
+            <numerusform>%n Feld weicht ab</numerusform>
+            <numerusform>%n Felder weichen ab</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n field(s) added: %1</source>
+        <translation>
+            <numerusform>%n Feld hinzugefügt: %1</numerusform>
+            <numerusform>%n Felder hinzugefügt: %1</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Already the same here — nothing to change.</source>
+        <translation>Hier bereits identisch – nichts zu ändern.</translation>
+    </message>
+    <message>
+        <source>Left exactly as it is.</source>
+        <translation>Bleibt genau so, wie es ist.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n part(s) here will be missing a now-required value (%1).</source>
+        <translation>
+            <numerusform>%n Teil hier wird ein nun verlangter Wert fehlen (%1).</numerusform>
+            <numerusform>%n Teilen hier wird ein nun verlangter Wert fehlen (%1).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No snapshot could be taken — %1.</source>
+        <translation>Es konnte keine Sicherung angelegt werden – %1.</translation>
+    </message>
+    <message>
+        <source>No backup was made</source>
+        <translation>Keine Sicherung angelegt</translation>
+    </message>
+    <message>
+        <source>The safety snapshot could not be written (%1). The import itself is still all-or-nothing, but there would be no snapshot to fall back to afterwards.
+
+Import anyway?</source>
+        <translation>Die Sicherungskopie konnte nicht geschrieben werden (%1). Der Import selbst bleibt ein Alles-oder-nichts, aber es gäbe hinterher keine Sicherung, auf die man zurückgreifen könnte.
+
+Trotzdem importieren?</translation>
+    </message>
+    <message>
+        <source>A snapshot of this database was saved as %1 before anything was changed. Settings ▸ Backups can put it back.</source>
+        <translation>Vor jeder Änderung wurde eine Sicherung dieser Datenbank als %1 abgelegt. Über Einstellungen ▸ Sicherungen lässt sie sich zurückspielen.</translation>
+    </message>
+    <message>
+        <source>The import failed and nothing was changed — the whole thing was rolled back.
+
+%1</source>
+        <translation>Der Import ist fehlgeschlagen, und es wurde nichts geändert – das Ganze wurde zurückgenommen.
+
+%1</translation>
+    </message>
+    <message>
+        <source>Done — %1 categories added, %2 merged.</source>
+        <translation>Fertig – %1 Kategorien hinzugefügt, %2 zusammengeführt.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 categories will be added, %2 merged and %3 left alone. %n part(s) will be left missing a value that has become required — they stay exactly as they are and can be filled in afterwards.</source>
+        <translation>
+            <numerusform>Es werden %1 Kategorien hinzugefügt, %2 zusammengeführt und %3 unangetastet gelassen. %n Teil wird danach ein Wert fehlen, der nun verlangt wird – es bleibt genau so, wie es ist, und kann später ergänzt werden.</numerusform>
+            <numerusform>Es werden %1 Kategorien hinzugefügt, %2 zusammengeführt und %3 unangetastet gelassen. %n Teilen wird danach ein Wert fehlen, der nun verlangt wird – sie bleiben genau so, wie sie sind, und können später ergänzt werden.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>A snapshot of this database is taken before anything is written, so this import can be undone by restoring it.</source>
+        <translation>Vor dem ersten Schreibvorgang wird eine Sicherung dieser Datenbank angelegt, sodass sich dieser Import durch Zurückspielen rückgängig machen lässt.</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Weiter</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Schließen</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>Übernehmen</translation>
+    </message>
+    <message>
+        <source>Close without importing?</source>
+        <translation>Ohne Import schließen?</translation>
+    </message>
+    <message>
+        <source>Nothing has been written to this database yet, so closing now changes nothing — but the decisions you made on the plan are not saved anywhere and would have to be made again.
+
+Close anyway?</source>
+        <translation>In diese Datenbank wurde noch nichts geschrieben, Schließen ändert also nichts – aber die auf der Planseite getroffenen Entscheidungen werden nirgends gespeichert und müssten erneut getroffen werden.
+
+Trotzdem schließen?</translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::CategoryReconcileDialog</name>
+    <message>
+        <source>Category</source>
+        <translation>Kategorie</translation>
+    </message>
+    <message>
+        <source>Parts</source>
+        <translation>Teile</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>Part</source>
+        <translation>Teil</translation>
+    </message>
+    <message>
+        <source>Missing</source>
+        <translation>Fehlt</translation>
+    </message>
+    <message>
+        <source>Leave them without a category</source>
+        <translation>Ohne Kategorie lassen</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n part(s) moved to %1</source>
+        <translation>
+            <numerusform>%n Teil nach %1 verschoben</numerusform>
+            <numerusform>%n Teile nach %1 verschoben</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Stopped after %n part(s)</source>
+        <translation>
+            <numerusform>Nach %n Teil abgebrochen</numerusform>
+            <numerusform>Nach %n Teilen abgebrochen</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Kept as it is</source>
+        <translation>So belassen</translation>
+    </message>
+    <message>
+        <source>Could not move the part</source>
+        <translation>Teil konnte nicht verschoben werden</translation>
+    </message>
+    <message>
+        <source>The database rejected the change to &quot;%1&quot; — it is still in its old category, and the rest were left alone.</source>
+        <translation>Die Datenbank hat die Änderung an „%1“ abgelehnt – das Teil ist noch in seiner alten Kategorie, und die übrigen wurden nicht angetastet.</translation>
+    </message>
+    <message>
+        <source>Nothing was left unmatched.</source>
+        <translation>Es blieb nichts ohne Entsprechung.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 looked at</source>
+        <translation>%1 von %2 angesehen</translation>
+    </message>
+    <message>
+        <source>Nothing is missing a required value.</source>
+        <translation>Es fehlt kein Pflichtwert.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n part(s) still missing a value</source>
+        <translation>
+            <numerusform>%n Teil fehlt noch ein Wert</numerusform>
+            <numerusform>%n Teilen fehlt noch ein Wert</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -1432,6 +1918,22 @@ Fortfahren?</translation>
         <translation>%1 (%2 : %3)</translation>
     </message>
     <message>
+        <source>&amp;Categories</source>
+        <translation>&amp;Kategorien</translation>
+    </message>
+    <message>
+        <source>&amp;Export Categories...</source>
+        <translation>Kategorien &amp;exportieren...</translation>
+    </message>
+    <message>
+        <source>&amp;Import Categories...</source>
+        <translation>Kategorien &amp;importieren...</translation>
+    </message>
+    <message>
+        <source>&amp;Loose Ends...</source>
+        <translation>&amp;Offene Enden...</translation>
+    </message>
+    <message>
         <source>Select a category</source>
         <translation>Kategorie auswählen</translation>
     </message>
@@ -1553,6 +2055,18 @@ Fortfahren?</translation>
     <message>
         <source>Import from Mouser</source>
         <translation>Aus Mouser importieren</translation>
+    </message>
+    <message>
+        <source>Import Part List</source>
+        <translation>Bauteilliste importieren</translation>
+    </message>
+    <message>
+        <source>Export Categories</source>
+        <translation>Kategorien exportieren</translation>
+    </message>
+    <message>
+        <source>Import Categories</source>
+        <translation>Kategorien importieren</translation>
     </message>
     <message>
         <source>Generate Libraries</source>
@@ -2254,6 +2768,14 @@ Die Datei liegt auf der Festplatte, daher fehlt meist ein Qt3D-Geometrie-Loader 
         <translation>Mousers Kategorie ließ sich keiner Typvorlage zuordnen — wählen Sie selbst eine aus.</translation>
     </message>
     <message>
+        <source>Filled in from the imported list — nothing here was checked against a catalogue, so correct anything that is wrong before creating the part.</source>
+        <translation>Aus der importierten Liste übernommen — nichts davon wurde gegen einen Katalog geprüft; korrigieren Sie also alles Falsche, bevor Sie das Bauteil anlegen.</translation>
+    </message>
+    <message>
+        <source>An imported list carries no category — pick the part type yourself.</source>
+        <translation>Eine importierte Liste enthält keine Kategorie — wählen Sie den Bauteiltyp selbst aus.</translation>
+    </message>
+    <message>
         <source>Not filled in automatically: %1.</source>
         <translation>Nicht automatisch ausgefüllt: %1.</translation>
     </message>
@@ -2390,6 +2912,93 @@ Trotzdem anlegen?</translation>
             <numerusform>%n Link im Browser öffnen</numerusform>
             <numerusform>%n Links im Browser öffnen</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>(none — select a category)</source>
+        <translation>(keine — Kategorie auswählen)</translation>
+    </message>
+    <message>
+        <source>Part type</source>
+        <translation>Bauteiltyp</translation>
+    </message>
+    <message>
+        <source>No Mouser API key — set the %1 environment variable and restart the app.</source>
+        <translation>Kein Mouser-API-Schlüssel — setzen Sie die Umgebungsvariable %1 und starten Sie die App neu.</translation>
+    </message>
+    <message>
+        <source>Manufacturer</source>
+        <translation>Hersteller</translation>
+    </message>
+    <message>
+        <source>MPN</source>
+        <translation>MPN</translation>
+    </message>
+    <message>
+        <source>Package</source>
+        <translation>Gehäuse</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Beschreibung</translation>
+    </message>
+    <message>
+        <source>Type attributes</source>
+        <translation>Typ-Attribute</translation>
+    </message>
+    <message>
+        <source>Datasheet</source>
+        <translation>Datenblatt</translation>
+    </message>
+    <message>
+        <source>Image</source>
+        <translation>Bild</translation>
+    </message>
+    <message>
+        <source>No Mouser API key — set the %1 environment variable and restart the app, then try again.</source>
+        <translation>Kein Mouser-API-Schlüssel — setzen Sie die Umgebungsvariable %1, starten Sie die App neu und versuchen Sie es erneut.</translation>
+    </message>
+    <message>
+        <source>Looking %1 up on Mouser…</source>
+        <translation>%1 wird bei Mouser gesucht…</translation>
+    </message>
+    <message>
+        <source>Mouser could not be reached (%1) — nothing on the form was changed.</source>
+        <translation>Mouser war nicht erreichbar (%1) — am Formular wurde nichts geändert.</translation>
+    </message>
+    <message>
+        <source>Mouser knows no part %1 — check the article number, or fill the form in by hand.</source>
+        <translation>Mouser kennt kein Bauteil %1 — prüfen Sie die Artikelnummer oder füllen Sie das Formular von Hand aus.</translation>
+    </message>
+    <message>
+        <source>Replace what you already typed?</source>
+        <translation>Bereits Eingetipptes ersetzen?</translation>
+    </message>
+    <message numerus="yes">
+        <source>Mouser has a different value for %n field(s):
+
+%1
+
+Replace them with Mouser&apos;s? Choosing No keeps what you typed and only fills in the fields that are still empty.</source>
+        <translation>
+            <numerusform>Mouser hat für %n Feld einen anderen Wert:
+
+%1
+
+Durch Mousers Werte ersetzen? Mit Nein bleibt Ihre Eingabe stehen und es werden nur die noch leeren Felder ausgefüllt.</numerusform>
+            <numerusform>Mouser hat für %n Felder andere Werte:
+
+%1
+
+Durch Mousers Werte ersetzen? Mit Nein bleibt Ihre Eingabe stehen und es werden nur die noch leeren Felder ausgefüllt.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Filled in from Mouser %1 — check every value before creating the part.</source>
+        <translation>Aus Mouser %1 übernommen — prüfen Sie jeden Wert, bevor Sie das Bauteil anlegen.</translation>
+    </message>
+    <message>
+        <source>Kept what you typed in: %1.</source>
+        <translation>Ihre Eingaben wurden beibehalten: %1.</translation>
     </message>
 </context>
 <context>
@@ -3030,6 +3639,188 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
     </message>
 </context>
 <context>
+    <name>PartManager::PartMigrationDialog</name>
+    <message>
+        <source>Part number</source>
+        <translation>Bauteilnummer</translation>
+    </message>
+    <message>
+        <source>Stock</source>
+        <translation>Bestand</translation>
+    </message>
+    <message>
+        <source>Manufacturer</source>
+        <translation>Hersteller</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Beschreibung</translation>
+    </message>
+    <message>
+        <source>Notes</source>
+        <translation>Notizen</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>No Mouser API key — set the %1 environment variable and restart the app.</source>
+        <translation>Kein Mouser-API-Schlüssel — setzen Sie die Umgebungsvariable %1 und starten Sie die App neu.</translation>
+    </message>
+    <message>
+        <source>Paste a list to get started.</source>
+        <translation>Fügen Sie eine Liste ein, um zu beginnen.</translation>
+    </message>
+    <message>
+        <source>(not used)</source>
+        <translation>(nicht verwendet)</translation>
+    </message>
+    <message>
+        <source>Column %1</source>
+        <translation>Spalte %1</translation>
+    </message>
+    <message>
+        <source>No usable rows — check the delimiter and the column mapping.</source>
+        <translation>Keine brauchbaren Zeilen — prüfen Sie Trennzeichen und Spaltenzuordnung.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n row(s), %1 already in the database.</source>
+        <translation>
+            <numerusform>%n Zeile, davon %1 bereits in der Datenbank.</numerusform>
+            <numerusform>%n Zeilen, davon %1 bereits in der Datenbank.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>The first %n are previewed.</source>
+        <translation>
+            <numerusform>Die erste %n wird in der Vorschau gezeigt.</numerusform>
+            <numerusform>Die ersten %n werden in der Vorschau gezeigt.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Start over?</source>
+        <translation>Von vorn beginnen?</translation>
+    </message>
+    <message numerus="yes">
+        <source>Going back re-reads the pasted list, which throws this worklist away. The %n part(s) already created stay in the database — only the record of what you have worked through is lost.
+
+Go back anyway?</source>
+        <translation>
+            <numerusform>Zurückgehen liest die eingefügte Liste neu ein und verwirft damit diese Arbeitsliste. Das bereits angelegte %n Bauteil bleibt in der Datenbank — verloren geht nur der Überblick darüber, was Sie schon abgearbeitet haben.
+
+Trotzdem zurückgehen?</numerusform>
+            <numerusform>Zurückgehen liest die eingefügte Liste neu ein und verwirft damit diese Arbeitsliste. Die bereits angelegten %n Bauteile bleiben in der Datenbank — verloren geht nur der Überblick darüber, was Sie schon abgearbeitet haben.
+
+Trotzdem zurückgehen?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>To do</source>
+        <translation>Offen</translation>
+    </message>
+    <message>
+        <source>Already there</source>
+        <translation>Schon vorhanden</translation>
+    </message>
+    <message>
+        <source>Created</source>
+        <translation>Angelegt</translation>
+    </message>
+    <message>
+        <source>Skipped</source>
+        <translation>Übersprungen</translation>
+    </message>
+    <message>
+        <source>%1 of %2 handled</source>
+        <translation>%1 von %2 erledigt</translation>
+    </message>
+    <message>
+        <source>Book this stock in?</source>
+        <translation>Diesen Bestand einbuchen?</translation>
+    </message>
+    <message numerus="yes">
+        <source>Add %n unit(s) to “%1”?
+
+This is written as a restock, so the stock history records where the quantity came from.</source>
+        <translation>
+            <numerusform>%n Stück zu „%1“ hinzufügen?
+
+Das wird als Zugang gebucht, damit die Lagerhistorie festhält, woher die Menge stammt.</numerusform>
+            <numerusform>%n Stück zu „%1“ hinzufügen?
+
+Das wird als Zugang gebucht, damit die Lagerhistorie festhält, woher die Menge stammt.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Could not book the stock</source>
+        <translation>Bestand konnte nicht gebucht werden</translation>
+    </message>
+    <message>
+        <source>The database rejected the restock for “%1”.</source>
+        <translation>Die Datenbank hat den Zugang für „%1“ abgelehnt.</translation>
+    </message>
+    <message>
+        <source>List import</source>
+        <translation>Listenimport</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n booked in</source>
+        <translation>
+            <numerusform>%n eingebucht</numerusform>
+            <numerusform>%n eingebucht</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Close the migration?</source>
+        <translation>Migration schließen?</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n part(s) not yet handled. The list is not saved anywhere, so closing loses it — the parts already created stay in the database.
+
+Close anyway?</source>
+        <translation>
+            <numerusform>%n Bauteil ist noch nicht bearbeitet. Die Liste wird nirgends gespeichert, Schließen verwirft sie also — die bereits angelegten Bauteile bleiben in der Datenbank.
+
+Trotzdem schließen?</numerusform>
+            <numerusform>%n Bauteile sind noch nicht bearbeitet. Die Liste wird nirgends gespeichert, Schließen verwirft sie also — die bereits angelegten Bauteile bleiben in der Datenbank.
+
+Trotzdem schließen?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Mouser number</source>
+        <translation>Mouser-Nummer</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n row(s) — pick the column holding the part numbers, or the one holding the Mouser numbers, to continue.</source>
+        <translation>
+            <numerusform>%n Zeile — wählen Sie die Spalte mit den Bauteilnummern oder die mit den Mouser-Nummern aus, um fortzufahren.</numerusform>
+            <numerusform>%n Zeilen — wählen Sie die Spalte mit den Bauteilnummern oder die mit den Mouser-Nummern aus, um fortzufahren.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No Mouser API key — filled the form in from the pasted row instead.</source>
+        <translation>Kein Mouser-API-Schlüssel — das Formular wurde stattdessen aus der eingefügten Zeile ausgefüllt.</translation>
+    </message>
+    <message>
+        <source>Looking %1 up on Mouser…</source>
+        <translation>%1 wird bei Mouser gesucht…</translation>
+    </message>
+    <message>
+        <source>Mouser could not be reached (%1) — filled the form in from the pasted row instead.</source>
+        <translation>Mouser war nicht erreichbar (%1) — das Formular wurde stattdessen aus der eingefügten Zeile ausgefüllt.</translation>
+    </message>
+    <message>
+        <source>Mouser knows no part %1 — filled the form in from the pasted row instead.</source>
+        <translation>Mouser kennt kein Bauteil %1 — das Formular wurde stattdessen aus der eingefügten Zeile ausgefüllt.</translation>
+    </message>
+    <message>
+        <source>Filled in from Mouser %1.</source>
+        <translation>Aus Mouser %1 ausgefüllt.</translation>
+    </message>
+</context>
+<context>
     <name>PartManager::PartPickerDialog</name>
     <message>
         <source>Add a part</source>
@@ -3058,6 +3849,17 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
     <message>
         <source>Add to List</source>
         <translation>Zur Liste hinzufügen</translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::PartTypePickerDialog</name>
+    <message>
+        <source>No category</source>
+        <translation>Keine Kategorie</translation>
+    </message>
+    <message>
+        <source>No category matches “%1”.</source>
+        <translation>Keine Kategorie passt zu „%1“.</translation>
     </message>
 </context>
 <context>
@@ -3617,6 +4419,14 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
 <context>
     <name>PartManager::TypeTemplateDialog</name>
     <message>
+        <source>Choose a parent type</source>
+        <translation>Übergeordneten Typ wählen</translation>
+    </message>
+    <message>
+        <source>No parent — a root type</source>
+        <translation>Kein übergeordneter Typ — ein Wurzeltyp</translation>
+    </message>
+    <message>
         <source>A searchable number gets its own column on the part table, so filtering on it stays fast. Unticking this later leaves that column in place — it is simply unused.</source>
         <translation>Eine durchsuchbare Zahl bekommt eine eigene Spalte in der Bauteiltabelle, damit das Filtern danach schnell bleibt. Wird das Häkchen später entfernt, bleibt diese Spalte bestehen — sie wird dann einfach nicht mehr genutzt.</translation>
     </message>
@@ -3836,6 +4646,128 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
     <message>
         <source>Example: %1</source>
         <translation>Beispiel: %1</translation>
+    </message>
+</context>
+<context>
+    <name>PartMigrationDialog</name>
+    <message>
+        <source>Import Part List</source>
+        <translation>Bauteilliste importieren</translation>
+    </message>
+    <message>
+        <source>Paste your list below — one part number per line, or a block of columns copied out of a spreadsheet.</source>
+        <translation>Fügen Sie Ihre Liste unten ein — eine Bauteilnummer pro Zeile oder ein aus einer Tabelle kopierter Spaltenblock.</translation>
+    </message>
+    <message>
+        <source>RC0603FR-074K7L	25	YAGEO</source>
+        <translation>RC0603FR-074K7L	25	YAGEO</translation>
+    </message>
+    <message>
+        <source>Delimiter</source>
+        <translation>Trennzeichen</translation>
+    </message>
+    <message>
+        <source>First row is a header</source>
+        <translation>Erste Zeile ist eine Kopfzeile</translation>
+    </message>
+    <message>
+        <source>Columns</source>
+        <translation>Spalten</translation>
+    </message>
+    <message>
+        <source>Part number</source>
+        <translation>Bauteilnummer</translation>
+    </message>
+    <message>
+        <source>Stock count</source>
+        <translation>Bestandsmenge</translation>
+    </message>
+    <message>
+        <source>Manufacturer</source>
+        <translation>Hersteller</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Beschreibung</translation>
+    </message>
+    <message>
+        <source>Notes</source>
+        <translation>Notizen</translation>
+    </message>
+    <message>
+        <source>Work down the list: look a row up on Mouser, add it by hand, or skip it. Nothing here is saved — the parts you create are.</source>
+        <translation>Arbeiten Sie die Liste ab: eine Zeile bei Mouser nachschlagen, von Hand anlegen oder überspringen. Hier wird nichts gespeichert — die angelegten Bauteile schon.</translation>
+    </message>
+    <message>
+        <source>Search on Mouser…</source>
+        <translation>Bei Mouser suchen…</translation>
+    </message>
+    <message>
+        <source>Open Part</source>
+        <translation>Bauteil öffnen</translation>
+    </message>
+    <message>
+        <source>Book Stock</source>
+        <translation>Bestand buchen</translation>
+    </message>
+    <message>
+        <source>Skip</source>
+        <translation>Überspringen</translation>
+    </message>
+    <message>
+        <source>Open the part editor after creating</source>
+        <translation>Nach dem Anlegen den Bauteil-Editor öffnen</translation>
+    </message>
+    <message>
+        <source>Off by default: New Part already covers files, attributes and the KiCad symbol offer, and thirty editors in a row is thirty windows to close.</source>
+        <translation>Standardmäßig aus: „Neues Bauteil“ deckt Dateien, Attribute und das KiCad-Symbol-Angebot bereits ab, und dreißig Editoren hintereinander sind dreißig Fenster zum Schließen.</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Zurück</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Weiter</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Schließen</translation>
+    </message>
+    <message>
+        <source>The manufacturer&apos;s own part number. Either this or the Mouser column is needed — without one of them there is nothing to look a part up by.</source>
+        <translation>Die eigene Artikelnummer des Herstellers. Entweder diese oder die Mouser-Spalte wird benötigt — ohne eine davon gibt es nichts, wonach sich ein Bauteil nachschlagen ließe.</translation>
+    </message>
+    <message>
+        <source>Mouser number</source>
+        <translation>Mouser-Nummer</translation>
+    </message>
+    <message>
+        <source>The distributor&apos;s article number (&apos;595-LM358DR&apos;). Mapped separately from the part number so it reaches the Mouser field, and so adding a part can look it up first.</source>
+        <translation>Die Artikelnummer des Distributors („595-LM358DR“). Wird getrennt von der Bauteilnummer zugeordnet, damit sie im Mouser-Feld landet und das Hinzufügen eines Bauteils sie zuerst nachschlagen kann.</translation>
+    </message>
+    <message>
+        <source>Add Part…</source>
+        <translation>Bauteil hinzufügen…</translation>
+    </message>
+    <message>
+        <source>Opens the New Part form for this row. When the row carries a Mouser number it is looked up there first, so the form arrives filled in.</source>
+        <translation>Öffnet das Formular „Neues Bauteil“ für diese Zeile. Trägt die Zeile eine Mouser-Nummer, wird sie dort zuerst nachgeschlagen, sodass das Formular bereits ausgefüllt ankommt.</translation>
+    </message>
+</context>
+<context>
+    <name>PartTypePickerDialog</name>
+    <message>
+        <source>Choose a category</source>
+        <translation>Kategorie wählen</translation>
+    </message>
+    <message>
+        <source>Search categories…</source>
+        <translation>Kategorien durchsuchen…</translation>
+    </message>
+    <message>
+        <source>Narrows the tree as you type. A category whose child matches stays visible, so the child can still be reached.</source>
+        <translation>Schränkt den Baum beim Tippen ein. Eine Kategorie, deren Unterkategorie passt, bleibt sichtbar, damit die Unterkategorie erreichbar bleibt.</translation>
     </message>
 </context>
 <context>
@@ -4184,6 +5116,14 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
         <translation>%1 MB</translation>
     </message>
     <message>
+        <source>yes</source>
+        <translation>ja</translation>
+    </message>
+    <message>
+        <source>no</source>
+        <translation>nein</translation>
+    </message>
+    <message>
         <source>%1 *</source>
         <comment>required attribute</comment>
         <translation>%1 *</translation>
@@ -4473,6 +5413,30 @@ Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im 
         <translation>Wird abgelehnt, solange noch Bauteile den Typ verwenden oder ein anderer Typ von ihm erbt.</translation>
     </message>
     <message>
+        <source>Export...</source>
+        <translation>Exportieren...</translation>
+    </message>
+    <message>
+        <source>Write the picked categories, with everything they inherit from, to a file another database can read. Templates only — no part travels with them.</source>
+        <translation>Schreibt die gewählten Kategorien samt allem, was sie erben, in eine Datei, die eine andere Datenbank lesen kann. Nur Vorlagen – kein Teil wandert mit.</translation>
+    </message>
+    <message>
+        <source>Import...</source>
+        <translation>Importieren...</translation>
+    </message>
+    <message>
+        <source>Read such a file, or another database, and merge its categories into this one. Nothing is written until the whole plan has been reviewed.</source>
+        <translation>Liest eine solche Datei oder eine andere Datenbank und führt deren Kategorien mit dieser zusammen. Es wird nichts geschrieben, bevor nicht der ganze Plan geprüft wurde.</translation>
+    </message>
+    <message>
+        <source>Loose Ends...</source>
+        <translation>Offene Enden...</translation>
+    </message>
+    <message>
+        <source>What an earlier import left open: local categories nothing matched, and parts missing a value their category now asks for.</source>
+        <translation>Was ein früherer Import offen gelassen hat: lokale Kategorien ohne Entsprechung und Teile, denen ein Wert fehlt, den ihre Kategorie nun verlangt.</translation>
+    </message>
+    <message>
         <source>Name</source>
         <translation>Name</translation>
     </message>
@@ -4501,8 +5465,8 @@ Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im 
         <translation>Übergeordneter Typ</translation>
     </message>
     <message>
-        <source>Every attribute and file slot of the parent applies here too. The type itself and the types below it are not offered.</source>
-        <translation>Jedes Attribut und jeder Dateislot des übergeordneten Typs gilt auch hier. Der Typ selbst und die Typen darunter werden nicht angeboten.</translation>
+        <source>Click to pick the parent out of the category tree. Every attribute and file slot of the parent applies here too. The type itself and the types below it are not offered.</source>
+        <translation>Klicken, um den übergeordneten Typ aus dem Kategoriebaum zu wählen. Jedes Attribut und jeder Dateislot des übergeordneten Typs gilt auch hier. Der Typ selbst und die Typen darunter werden nicht angeboten.</translation>
     </message>
     <message>
         <source>Description</source>

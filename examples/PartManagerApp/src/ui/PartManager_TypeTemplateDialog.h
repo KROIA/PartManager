@@ -60,6 +60,9 @@ namespace PartManager
 
 		// The form above the tables. Each writes the whole `part_type` row back (§10) — there is
 		// one field per row here, so a per-field update would buy nothing over one statement.
+		// Opens PartTypePickerDialog on the parent field, with this type's own subtree hidden so a
+		// parent cycle cannot be picked in the first place.
+		void chooseParentType();
 		void onTypeFieldEdited();
 
 		void onAddAttribute();
@@ -68,6 +71,17 @@ namespace PartManager
 		void onAttributeSelectionChanged();
 		void onAttributeItemChanged(QTableWidgetItem* item);
 		void onTooltipEdited();
+
+		// The §2b category transfer, repeated here from the ribbon because this is where categories
+		// are actually edited: noticing that the tree needs a category another database already has
+		// happens in front of this tree, not in front of the part table. Import rebuilds the tree
+		// afterwards — the merge can rename, re-parent or re-attribute anything in it, including
+		// whatever row is selected right now.
+		void onExportCategories();
+		void onImportCategories();
+		// The optional tail of an import (§11), reopenable long after the import itself. No plan is
+		// handed over: there is none any more, and the incomplete-parts half never needed one.
+		void onReconcileCategories();
 
 		void onAddFileSlot();
 		void onRemoveFileSlot();
@@ -121,6 +135,8 @@ namespace PartManager
 		void saveFileSlotRow(int row);
 
 		Ui::TypeTemplateDialog* m_ui;
+		// Borrowed, never owned — kept because the parent-type picker opens on the same database.
+		DatabaseHandle* m_handle;
 		PartEditorController m_controller;
 		// §7a: the search words this type inherits from its ancestors, one tick box each. Unticking
 		// one drops it for this type and for everything under it.
@@ -149,6 +165,11 @@ namespace PartManager
 		// Set while a refresh is repopulating the widgets, so the change signals the repopulation
 		// itself emits are not mistaken for the user editing a field.
 		bool m_reloading = false;
+
+		// The parent shown on the parent button, NoParentType for a root type. The button carries a
+		// label, not a value, so the id it stands for is held here — one place, the way New Part
+		// holds the type it is creating.
+		int m_parentTypeId = NoParentType;
 	};
 
 }

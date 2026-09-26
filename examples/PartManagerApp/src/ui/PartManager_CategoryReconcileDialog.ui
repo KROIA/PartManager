@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CategoryReconcileDialog</class>
+ <widget class="QDialog" name="CategoryReconcileDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>820</width>
+    <height>560</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Loose Ends</string>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QLabel" name="introLabel">
+     <property name="text">
+      <string>None of this is required. Everything here can be left as it is, and this window can be opened again later from the category editor.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTabWidget" name="tabs">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="unmatchedTab">
+      <attribute name="title">
+       <string>Categories nothing matched</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="unmatchedLayout">
+       <item>
+        <widget class="QLabel" name="unmatchedHintLabel">
+         <property name="text">
+          <string>These categories exist here but not in what was imported, so they were left alone. If one of them is really the same thing under another name, its parts can be moved into the category that arrived.</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTreeWidget" name="unmatchedTree">
+         <property name="rootIsDecorated">
+          <bool>false</bool>
+         </property>
+         <property name="editTriggers">
+          <set>QAbstractItemView::NoEditTriggers</set>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SingleSelection</enum>
+         </property>
+         <column>
+          <property name="text">
+           <string notr="true">Category</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="unmatchedButtonLayout">
+         <item>
+          <widget class="QPushButton" name="mapButton">
+           <property name="text">
+            <string>Move its parts to…</string>
+           </property>
+           <property name="toolTip">
+            <string>Pick another category and move every part out of this one into it. Parts that lose nothing move straight away; the rest ask first.</string>
+           </property>
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="keepButton">
+           <property name="text">
+            <string>Keep this one as it is</string>
+           </property>
+           <property name="toolTip">
+            <string>Changes nothing — just marks the row as dealt with.</string>
+           </property>
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="unmatchedSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="unmatchedStatusLabel">
+           <property name="text">
+            <string notr="true"/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="incompleteTab">
+      <attribute name="title">
+       <string>Parts missing a required value</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="incompleteLayout">
+       <item>
+        <widget class="QLabel" name="incompleteHintLabel">
+         <property name="text">
+          <string>A category can ask for a value that its parts were never asked for before. These parts are unchanged and still findable — they are simply missing an answer. Open one to fill it in; the list shrinks as you go.</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTreeWidget" name="incompleteTree">
+         <property name="rootIsDecorated">
+          <bool>false</bool>
+         </property>
+         <property name="editTriggers">
+          <set>QAbstractItemView::NoEditTriggers</set>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SingleSelection</enum>
+         </property>
+         <column>
+          <property name="text">
+           <string notr="true">Part</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="incompleteButtonLayout">
+         <item>
+          <widget class="QPushButton" name="editPartButton">
+           <property name="text">
+            <string>Open this part…</string>
+           </property>
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="refreshButton">
+           <property name="text">
+            <string>Check again</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QProgressBar" name="incompleteProgress">
+           <property name="value">
+            <number>0</number>
+           </property>
+           <property name="format">
+            <string notr="true">%v / %m</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="incompleteStatusLabel">
+           <property name="text">
+            <string notr="true"/>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
