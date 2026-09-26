@@ -28,6 +28,10 @@ namespace PartManager
 	class AttributeFormWidget;
 	class KeywordCheckList;
 	class KicadPreviewWidget;
+	// §14d. Forward-declared unconditionally even though the class only exists when QtLLM is
+	// available: a pointer to an incomplete type costs nothing, and gating the declaration
+	// would make this header say one thing to moc and another to the compiler.
+	class LlmController;
 
 	class PartEditorDialog : public QDialog
 	{
@@ -40,6 +44,12 @@ namespace PartManager
 		// Mouser answers with an empty one for most real parts, which is why attaching a file by
 		// hand is the main road and this only saves typing when the URL happens to be there.
 		void setDatasheetSourceUrl(const QString& url);
+
+		// §14d: the assistant the "Generate description" button injects its prompt into. Null —
+		// the default, and what every caller outside the main window passes — hides the button
+		// outright rather than greying it out, because a disabled button invites a hunt for the
+		// setting that would enable it and there is none.
+		void setLlmController(LlmController* controller);
 
 		// True when the user deleted the part from in here, so the caller knows the row it was
 		// opened from is gone rather than merely edited.
@@ -91,6 +101,13 @@ namespace PartManager
 		// Deletes the part and closes. Confirmed first, and the confirmation names what goes with
 		// it — the stock history in particular is not recoverable from anywhere else.
 		void deletePart();
+
+		// §14d: builds the prompt from the fields as they stand and injects it into the chat
+		// panel, where it renders as a user bubble and costs one visible turn. It does not call
+		// the model behind the user's back, and it does not queue: a refusal (a turn already in
+		// flight) is reported on the status line instead. Closes the editor on success — see the
+		// comment at the implementation for why.
+		void generateDescription();
 
 		// §6: the Mouser article number, which is what the Cart API orders by — `part.mpn` is the
 		// *manufacturer's* number and Mouser rejects it. Filled in automatically for a part
@@ -150,6 +167,8 @@ namespace PartManager
 		bool m_loading = true;
 		bool m_deleted = false;
 		QString m_datasheetSourceUrl;
+		// §14d. Not owned — it belongs to the main window, which outlives this dialog.
+		LlmController* m_llm = nullptr;
 	};
 
 }

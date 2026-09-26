@@ -32,6 +32,11 @@ namespace Ui { class SettingsDialog; }
 namespace PartManager
 {
 
+	// §14. Forward-declared unconditionally even though the class only exists when QtLLM is
+	// available: a pointer to an incomplete type costs nothing, and gating the declaration
+	// would make this header say one thing to moc and another to the compiler.
+	class LlmController;
+
 	class SettingsDialog : public QDialog
 	{
 		Q_OBJECT
@@ -44,6 +49,11 @@ namespace PartManager
 		// True when a restore was performed, so the caller knows the database on disk is not the
 		// one its handle was opened against and the session has to end.
 		bool restoredFromBackup() const;
+
+		// §14: the second way in to QtLLM's own settings dialog, beside the chat panel's button.
+		// Null — the default — leaves the Assistant tab saying the assistant is not in this
+		// build, which is the only way it can be null once a database is open.
+		void setLlmController(LlmController* controller);
 
 	private slots:
 		// §10: writes every preference back. One slot for all of them — they are one struct and
@@ -81,6 +91,8 @@ namespace PartManager
 		// and write the defaults back over the stored values.
 		bool m_loading = false;
 		bool m_restored = false;
+		// §14. Not owned — it belongs to the main window, which outlives this dialog.
+		LlmController* m_llm = nullptr;
 	};
 
 }

@@ -221,14 +221,50 @@ Mouser fills this in from its &quot;Package / Case&quot; column.</string>
            </widget>
           </item>
           <item row="5" column="1">
-           <widget class="QPlainTextEdit" name="descriptionEdit">
-            <property name="maximumSize">
-             <size>
-              <width>16777215</width>
-              <height>80</height>
-             </size>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="descriptionRow">
+            <item>
+             <widget class="QPlainTextEdit" name="descriptionEdit">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>80</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <layout class="QVBoxLayout" name="descriptionButtonColumn">
+              <item>
+               <widget class="QPushButton" name="generateDescriptionButton">
+                <property name="text">
+                 <string>Generate description…</string>
+                </property>
+                <property name="toolTip">
+                 <string>Asks the assistant in the chat panel to write a description for this part, and to save it.
+
+This editor closes, because the answer and the tool calls behind it appear in the panel in the main window — which a modal editor would sit in front of. Everything you have typed is already saved.</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="descriptionButtonSpacer">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeType">
+                 <enum>QSizePolicy::Expanding</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>0</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+           </layout>
           </item>
           <item row="6" column="0">
            <widget class="QLabel" name="stockLabel">

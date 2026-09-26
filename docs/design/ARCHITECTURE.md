@@ -602,3 +602,159 @@ examples/PartManagerApp/src/
 - 3D viewer for `.stp`/step files (mechanical parts, future) — needs a 3D lib (e.g. Qt3D or a STEP-capable viewer component); deferred until mechanical part types are actually added, so it doesn't block the electronics MVP.
 - Remote/multi-device access — current design is single-machine embedded SQLite; if that's ever needed, add a thin sync/server layer later rather than building it speculatively now.
 - SnapEDA/Ultra Librarian/manufacturer auto-fetch for symbols/footprints/3D models — candidate fast-follow, not MVP.
+
+## 14. LLM assistant (QtLLM integration)
+
+The app embeds an LLM the user can talk to, and which can act on the database
+through a fixed set of tools. The library is KROIA's `QtLLM` (`dependencies/QtLLM.cmake`,
+fetched like every other dependency), which supplies the client, the tool-calling
+loop, a ready-made chat dock, a settings dialog and headless background agents.
+
+Two things shape everything below. First, **the default provider is a local
+Ollama model**, because a parts database is a place where a feature that costs
+money per click does not get used. Second, **a tool result is the only thing the
+model learns from**, so every handler is written to be corrected by: it validates,
+and when it refuses it says what it expected.
+
+### 14a. Where it lives
+
+```
+core/inc/llm/  core/src/llm/
+  PartManager_LlmTool.h        LlmToolContext (an open DatabaseHandle + an allowWrites flag),
+                               LlmTool (schema + handler), llmOk()/llmError(),
+                               registerLlmTools().
+  PartManager_PartToolset.h    the database tools: categories, parts, attributes, tags.
+  PartManager_MouserToolset.h  mouser_search / mouser_suggest_category / mouser_import_part (§6).
+  PartManager_MigrationAgent.h the headless agent that turns a part number into a part row.
+
+examples/PartManagerApp/src/controllers/
+  PartManager_LlmController.h  owns the one Client and the chat dock; §14d's prompt injection.
+```
+
+`core/llm/` is Qt but widget-free, like every other `core/` module (§12a) — the
+chat panel and the settings dialog are the app's, the tools and the agents are
+not. That split is what lets a tool be unit-tested without a model.
+
+**A toolset returns `std::vector<LlmTool>`; it does not register itself on a
+client.** The handler is then a plain function of a `QJsonObject` and an open
+database, so a test calls it directly with no model, no network and no event
+loop — the same split that made `StepConverter` testable by having it name a
+path instead of running the subprocess (§13).
+
+### 14b. Provider and model, and what was measured
+
+Measured against the local Ollama server on 2026-09-26, running the real
+migration tool loop (search → list categories → create category → create part):
+
+| Model | Result |
+|---|---|
+| `gpt-oss:20b` | Correct. 6 calls, ~103 s. Recovered from a rejected enum value on its own. **Default.** |
+| `qwen3:8b` | Correct. 5 calls, ~690 s — it reasons at length before each call. Fallback only. |
+| `qwen2.5-coder:14b` | **Emits no tool calls at all** through `/api/chat`; it prints the call as JSON in the message body, which arrives as ordinary assistant text. |
+| `llama3.2:3b` | **Unusable.** Called `create_part` first with empty strings for every field, then printed an invented result. It answers a single trivial tool call correctly, which is what makes this failure easy to miss. |
+
+So a model is a preference, never a promise: `AgentConfig::fallbackModels` is
+walked when the server does not offer the configured one, and the effective
+model is recorded in the result. `llama3.2` is deliberately *not* a fallback —
+it ships with almost every Ollama install and would be picked silently.
+
+Claude is supported by the same code (`QtLLM::Provider::Claude`, key from
+`ANTHROPIC_API_KEY` in the environment and nowhere else, §6's rule unchanged).
+It is not the default and there is no API-key field in Settings, for the same
+reason §9 has none for Mouser.
+
+### 14c. The toolsets
+
+`PartToolset` is a thin *validating* wrapper over the repositories — it adds no
+persistence and issues no SQL (§12a still holds). What it adds is what a model
+needs and a C++ caller does not: an answer that says why.
+
+Three rules here are load-bearing, each because the opposite was observed:
+
+1. **`create_category` is idempotent on `(name, parentId)`.** Handed a
+   non-idempotent create, a local model that had just created "Varistors"
+   created it again, and again — eight calls before the cap stopped it.
+2. **Ids are never invented.** `create_part` takes a `categoryId` that came from
+   `list_categories`/`create_category` and refuses an unknown one *while naming
+   the ones that exist*. A category name is not accepted in its place: two
+   branches may legitimately carry the same leaf name (§2b).
+3. **Every column with a fixed vocabulary is an enum parameter, and is
+   re-validated in the handler.** Two separate observations: the model answered
+   a `glyph` enum with an emoji, and — given a free-text `domain` — wrote
+   `"Circuit Protection"` into it, having read the name as "which product domain
+   this part comes from" rather than as `part_type.domain`'s
+   `electronic`/`mechanical`/`generic`. The first is caught by validation; the
+   second is only caught by *declaring* the enum, because a free-text parameter
+   has nothing to validate against and `effectiveDomain()` would inherit the
+   junk down the whole §2b subtree. A parameter description therefore says what
+   the value means in PartManager's terms, not just what it is called.
+
+A fourth thing was expected and turned out false: **a longer tool list did not
+make the model worse.** The same migration ran in 6 calls / 103 s with four
+tools advertised and 5 calls / 71 s with fourteen — the extra tools
+(`mouser_suggest_category`, `mouser_import_part`) *shortened* the loop by making
+whole steps unnecessary. Trim a tool list for correctness, not for length.
+
+`MouserToolset` keeps `mouser_import_part` as **one** tool rather than
+primitives the model assembles, because that path already knows what a model
+does not: that `Price` carries its own currency, that the image URL lies about
+its extension, that an HTTP 200 can still be a block page, and that a Mouser
+article number belongs in `part_seller_link` and never in `part.mpn` (§6).
+
+### 14d. Prompt injection — the buttons in the app
+
+A button like "Generate description" next to the part editor's description field
+does **not** call the model behind the user's back. It injects a prepared prompt
+into the chat through `ChatDockWidget::submitPrompt()`, which renders it as a
+user bubble and sends it — so it costs a visible turn and leaves the answer, the
+tool calls and the cost where every other answer lives. A feature that quietly
+spends tokens is a feature nobody can audit.
+
+`submitPrompt()` refuses while a turn is in flight, which is why
+`LlmController::injectPrompt()` returns a bool and the buttons report it rather
+than queueing: two impatient clicks must not stack two paid turns.
+
+### 14e. Background agents
+
+`QtLLM::Agent` is a conversation the user never sees, with its own provider,
+model, tool list and spend cap, listed live in the settings dialog's Agents tab.
+`MigrationAgent` is the first one: given a Mouser article number, a manufacturer
+part number or a pasted product-page URL, it looks the part up, decides which
+category it belongs in — creating one when nothing fits — and creates the part.
+
+It is capped three ways, because the failure mode of an unattended agent is a
+loop and not a wrong answer: a per-turn tool-call cap, a wall-clock timeout, and
+a tool list trimmed to what the job needs (a small model does measurably worse
+the longer the tool list gets).
+
+### 14f. Safety
+
+- **The database is the blast radius.** `LlmToolContext::allowWrites = false`
+  turns the whole toolset read-only, enforced *in the handlers* rather than by
+  leaving tools unregistered — so the model is told why instead of guessing at a
+  missing capability.
+- **No tool takes an API key as a parameter**, so a model can neither read one
+  nor be talked into echoing one into the chat. Keys stay in the environment
+  (§6, §9).
+- `Client::setValidateToolInput(true)` is on, and the per-turn tool-call cap is
+  set. Both are off by default in the library.
+- The filesystem built-in tools (`read_text_file`, `write_text_file`,
+  `list_directory`) are **not** registered. The parts database is reachable
+  through typed tools; a general file-write tool adds nothing to that and removes
+  the guarantee that the assistant can only touch parts.
+
+### 14g. Deliberately not built yet
+
+- **Reading datasheets to answer questions.** Nothing in the project extracts
+  text from a PDF, and adding that is its own slice (a hand-rolled
+  `FlateDecode` + `Tj/TJ` extractor in `core/`, which works on text PDFs and not
+  on scanned ones, is the candidate — it needs no new dependency because Qt
+  already carries zlib).
+- **Category pictograms chosen by the model.** `TypeIconStyle::forType()`
+  derives the glyph from the type *name* and nothing is stored, so a category
+  the model invents falls through to `Generic`. Letting it choose means adding a
+  stored glyph/colour to `part_type` (a schema bump) and a `set_category_icon`
+  tool.
+- **Editing KiCad symbols and footprints through tools.** The geometry editors
+  do not exist yet in the app either (`TASKS.md`, Feature wishes), so there is
+  nothing for a tool to drive.

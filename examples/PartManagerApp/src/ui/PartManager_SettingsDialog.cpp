@@ -2,6 +2,7 @@
 #include "ui_PartManager_SettingsDialog.h"
 
 #include "PartManager_AppStartup.h"
+#include "controllers/PartManager_LlmController.h"
 #include "filestore/PartManager_FileStore.h"
 #include "mouser/PartManager_MouserCartClient.h"
 #include "mouser/PartManager_MouserClient.h"
@@ -105,6 +106,22 @@ namespace PartManager
 		connect(m_ui->deleteUnusedButton, &QPushButton::clicked, this, &SettingsDialog::deleteUnusedFiles);
 		connect(m_ui->closeButton, &QPushButton::clicked, this, &SettingsDialog::accept);
 
+		// §14: the state the tab is in until a caller hands over an assistant. Set here rather
+		// than in the .ui so the "no assistant" wording and the live wording sit side by side in
+		// setLlmController() and cannot drift apart.
+		m_ui->llmSettingsButton->setVisible(false);
+		m_ui->assistantIntroLabel->setText(tr("This build of PartManager was made without the "
+			"assistant library, so there is nothing to configure here."));
+		connect(m_ui->llmSettingsButton, &QPushButton::clicked, this, [this]()
+			{
+#if QT_ENABLED && QTLLM_LIBRARY_AVAILABLE == 1
+				if (m_llm != nullptr)
+				{
+					m_llm->openSettings();
+				}
+#endif
+			});
+
 		m_ui->cleanupLabel->setText(tr("Deleting a part leaves its datasheets, images and models "
 			"in the file store — they are only removed once nothing points at them. Scanning "
 			"reports what is left over; nothing is deleted until you say so."));
@@ -114,6 +131,32 @@ namespace PartManager
 	SettingsDialog::~SettingsDialog()
 	{
 		delete m_ui;
+	}
+
+	void SettingsDialog::setLlmController(LlmController* controller)
+	{
+		m_llm = controller;
+		if (m_llm == nullptr)
+		{
+			return;
+		}
+
+		m_ui->llmSettingsButton->setVisible(true);
+		m_ui->assistantIntroLabel->setText(tr("The assistant is the chat panel in the main "
+			"window — switch it on under View. It answers about your own parts and can change "
+			"them, and every tool call it makes is drawn in the conversation. It runs against a "
+			"local Ollama model by default, which costs nothing per question."));
+		// §9 and §14f, the same rule the Mouser keys follow one tab over: this only *reports*
+		// whether the key is in the environment. A key typed into a settings dialog lands in a
+		// plain-text file in the user's data folder, which is exactly what keeping it in the
+		// environment avoids — so there is no field here and there never will be.
+		const bool claudeKeySet = !qEnvironmentVariableIsEmpty("ANTHROPIC_API_KEY");
+		m_ui->assistantKeyLabel->setText(claudeKeySet
+			? tr("ANTHROPIC_API_KEY is set, so Claude can be chosen as the provider. Keys are "
+				 "read from the environment only and are never stored by PartManager.")
+			: tr("To use Claude instead of a local model, set ANTHROPIC_API_KEY in your "
+				 "environment and restart PartManager. Keys are read from the environment only "
+				 "and are never stored by PartManager."));
 	}
 
 	bool SettingsDialog::restoredFromBackup() const

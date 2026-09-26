@@ -1034,6 +1034,18 @@ Mouser füllt das aus seiner Spalte &quot;Package / Case&quot; aus.</translation
         <source>Search words</source>
         <translation>Suchbegriffe</translation>
     </message>
+    <message>
+        <source>Generate description…</source>
+        <translation>Beschreibung erzeugen…</translation>
+    </message>
+    <message>
+        <source>Asks the assistant in the chat panel to write a description for this part, and to save it.
+
+This editor closes, because the answer and the tool calls behind it appear in the panel in the main window — which a modal editor would sit in front of. Everything you have typed is already saved.</source>
+        <translation>Bittet den Assistenten im Chat-Panel, eine Beschreibung für dieses Bauteil zu schreiben und zu speichern.
+
+Dieser Editor schließt sich dabei, denn die Antwort und die Werkzeugaufrufe dahinter erscheinen im Panel des Hauptfensters — vor dem ein modaler Editor stehen würde. Alles, was Sie eingegeben haben, ist bereits gespeichert.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::AttachmentIconPainter</name>
@@ -1889,6 +1901,125 @@ Fortfahren?</translation>
     <message>
         <source>Footprint generated but no symbol: none is attached, and the footprint&apos;s pads carry no pin numbers to derive one from: %1</source>
         <translation>Footprint erzeugt, aber kein Symbol: Es ist keines angehängt, und die Pads des Footprints tragen keine Pin-Nummern, aus denen sich eines ableiten ließe: %1</translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::LlmController</name>
+    <message>
+        <source>manufacturer: %1</source>
+        <translation>Hersteller: %1</translation>
+    </message>
+    <message>
+        <source>MPN: %1</source>
+        <translation>MPN: %1</translation>
+    </message>
+    <message>
+        <source>package: %1</source>
+        <translation>Gehäuse: %1</translation>
+    </message>
+    <message>
+        <source>Ollama is running. Looking for a model…</source>
+        <translation>Ollama läuft. Suche nach einem Modell…</translation>
+    </message>
+    <message>
+        <source>Ollama is not running. Starting it…</source>
+        <translation>Ollama läuft nicht. Wird gestartet…</translation>
+    </message>
+    <message>
+        <source>Ollama is not installed, or &apos;ollama serve&apos; could not be started. The assistant needs it to answer.</source>
+        <translation>Ollama ist nicht installiert, oder „ollama serve“ ließ sich nicht starten. Der Assistent braucht es, um antworten zu können.</translation>
+    </message>
+    <message>
+        <source>Ollama did not start in time.</source>
+        <translation>Ollama ist nicht rechtzeitig gestartet.</translation>
+    </message>
+    <message>
+        <source>Neither %1 nor %2 is installed. Run &apos;ollama pull %1&apos; — the models that are installed cannot be relied on to call tools.</source>
+        <translation>Weder %1 noch %2 ist installiert. Führen Sie „ollama pull %1“ aus — auf die installierten Modelle ist bei Werkzeugaufrufen kein Verlass.</translation>
+    </message>
+    <message>
+        <source>Ready — %1.</source>
+        <translation>Bereit — %1.</translation>
+    </message>
+    <message>
+        <source>Assistant</source>
+        <translation>Assistent</translation>
+    </message>
+    <message>
+        <source>Send</source>
+        <translation>Senden</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Abbrechen</translation>
+    </message>
+    <message>
+        <source>Provider, model, tools and usage.</source>
+        <translation>Anbieter, Modell, Werkzeuge und Verbrauch.</translation>
+    </message>
+    <message>
+        <source>Ask about your parts, or paste a part number…</source>
+        <translation>Fragen Sie nach Ihren Bauteilen, oder fügen Sie eine Teilenummer ein…</translation>
+    </message>
+    <message>
+        <source>Thinking…</source>
+        <translation>Denkt nach…</translation>
+    </message>
+    <message>
+        <source>Request cancelled.</source>
+        <translation>Anfrage abgebrochen.</translation>
+    </message>
+    <message>
+        <source>Please wait — the assistant is still answering.</source>
+        <translation>Bitte warten — der Assistent antwortet noch.</translation>
+    </message>
+    <message>
+        <source>Stopped waiting. A reply already on its way will still arrive.</source>
+        <translation>Warten beendet. Eine bereits unterwegs befindliche Antwort trifft trotzdem ein.</translation>
+    </message>
+    <message>
+        <source>The request failed: %1</source>
+        <translation>Die Anfrage ist fehlgeschlagen: %1</translation>
+    </message>
+    <message>
+        <source>Running %1…</source>
+        <translation>Führe %1 aus…</translation>
+    </message>
+    <message>
+        <source>Stopped after %1 tool calls in one turn.</source>
+        <translation>Nach %1 Werkzeugaufrufen in einem Zug abgebrochen.</translation>
+    </message>
+    <message>
+        <source>Looking for Ollama…</source>
+        <translation>Suche nach Ollama…</translation>
+    </message>
+    <message>
+        <source>Assistant Settings</source>
+        <translation>Assistent-Einstellungen</translation>
+    </message>
+    <message>
+        <source>Write a description for the part &quot;%1&quot; in my &quot;%2&quot; category.</source>
+        <translation>Schreibe eine Beschreibung für das Bauteil „%1“ in meiner Kategorie „%2“.</translation>
+    </message>
+    <message>
+        <source>What I know about it: %1.</source>
+        <translation>Was ich darüber weiß: %1.</translation>
+    </message>
+    <message>
+        <source>Two or three sentences: what it is, the ratings that matter when picking one, and what it is normally used for. Look it up with mouser_search if you need the details. Then save the text with update_part on part id %1.</source>
+        <translation>Zwei oder drei Sätze: was es ist, welche Kennwerte bei der Auswahl zählen und wofür es üblicherweise verwendet wird. Schlage es mit mouser_search nach, wenn dir Angaben fehlen. Speichere den Text anschließend mit update_part für Bauteil-ID %1.</translation>
+    </message>
+    <message>
+        <source>Add %1 to my database: look it up on Mouser, put it in the category it belongs in — create one if nothing fits — and create the part with its datasheet and photo. Tell me which category you chose and why.</source>
+        <translation>Füge %1 zu meiner Datenbank hinzu: schlage es auf Mouser nach, ordne es der passenden Kategorie zu — lege eine an, wenn keine passt — und erstelle das Bauteil mit Datenblatt und Foto. Sag mir, welche Kategorie du gewählt hast und warum.</translation>
+    </message>
+    <message>
+        <source>Which KiCad symbol and footprint should I use for &quot;%1&quot;?</source>
+        <translation>Welches KiCad-Symbol und welchen Footprint soll ich für „%1“ verwenden?</translation>
+    </message>
+    <message>
+        <source>Name the standard KiCad library symbol and footprint if there is one, say what the pin order is, and tell me what to check before I trust it.</source>
+        <translation>Nenne das Symbol und den Footprint aus der KiCad-Standardbibliothek, falls es sie gibt, sag mir die Pin-Reihenfolge und was ich prüfen sollte, bevor ich mich darauf verlasse.</translation>
     </message>
 </context>
 <context>
@@ -3637,6 +3768,10 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
         <source>Stock</source>
         <translation>Lager</translation>
     </message>
+    <message>
+        <source>The assistant is still answering. Wait for it to finish, then ask again.</source>
+        <translation>Der Assistent antwortet noch. Warten Sie, bis er fertig ist, und fragen Sie dann erneut.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::PartMigrationDialog</name>
@@ -4364,6 +4499,22 @@ PartManager wird jetzt geschlossen — öffnen Sie es erneut, um mit den wiederh
             <numerusform>%n Datei gelöscht.</numerusform>
             <numerusform>%n Dateien gelöscht.</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>This build of PartManager was made without the assistant library, so there is nothing to configure here.</source>
+        <translation>Dieses PartManager-Build wurde ohne die Assistenten-Bibliothek erstellt, daher gibt es hier nichts einzustellen.</translation>
+    </message>
+    <message>
+        <source>The assistant is the chat panel in the main window — switch it on under View. It answers about your own parts and can change them, and every tool call it makes is drawn in the conversation. It runs against a local Ollama model by default, which costs nothing per question.</source>
+        <translation>Der Assistent ist das Chat-Panel im Hauptfenster — schalten Sie es unter „Ansicht“ ein. Er beantwortet Fragen zu Ihren eigenen Bauteilen und kann sie ändern, und jeder Werkzeugaufruf wird im Gespräch angezeigt. Standardmäßig läuft er gegen ein lokales Ollama-Modell, das pro Frage nichts kostet.</translation>
+    </message>
+    <message>
+        <source>ANTHROPIC_API_KEY is set, so Claude can be chosen as the provider. Keys are read from the environment only and are never stored by PartManager.</source>
+        <translation>ANTHROPIC_API_KEY ist gesetzt, Claude kann also als Anbieter gewählt werden. Schlüssel werden ausschließlich aus der Umgebung gelesen und von PartManager nie gespeichert.</translation>
+    </message>
+    <message>
+        <source>To use Claude instead of a local model, set ANTHROPIC_API_KEY in your environment and restart PartManager. Keys are read from the environment only and are never stored by PartManager.</source>
+        <translation>Um Claude statt eines lokalen Modells zu verwenden, setzen Sie ANTHROPIC_API_KEY in Ihrer Umgebung und starten Sie PartManager neu. Schlüssel werden ausschließlich aus der Umgebung gelesen und von PartManager nie gespeichert.</translation>
     </message>
 </context>
 <context>
@@ -5357,6 +5508,18 @@ Die erzeugten Dateien partmanager-sym-lib-table und partmanager-fp-lib-table im 
     <message>
         <source>Delete them</source>
         <translation>Löschen</translation>
+    </message>
+    <message>
+        <source>Assistant</source>
+        <translation>Assistent</translation>
+    </message>
+    <message>
+        <source>Open Assistant Settings…</source>
+        <translation>Assistent-Einstellungen öffnen…</translation>
+    </message>
+    <message>
+        <source>Provider and model, which tools the assistant may call, what it has spent, and the background agents that are running.</source>
+        <translation>Anbieter und Modell, welche Werkzeuge der Assistent aufrufen darf, was er verbraucht hat, und die laufenden Hintergrund-Agenten.</translation>
     </message>
 </context>
 <context>

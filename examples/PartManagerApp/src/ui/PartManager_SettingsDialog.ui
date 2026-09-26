@@ -90,6 +90,73 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="assistantTab">
+      <attribute name="title">
+       <string>Assistant</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="assistantLayout">
+       <item>
+        <widget class="QLabel" name="assistantIntroLabel">
+         <property name="text">
+          <string notr="true"/>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="assistantButtonRow">
+         <item>
+          <widget class="QPushButton" name="llmSettingsButton">
+           <property name="text">
+            <string>Open Assistant Settings…</string>
+           </property>
+           <property name="toolTip">
+            <string>Provider and model, which tools the assistant may call, what it has spent, and the background agents that are running.</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="assistantButtonSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="assistantKeyLabel">
+         <property name="text">
+          <string notr="true"/>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="assistantBottomSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="storageTab">
       <attribute name="title">
        <string>Storage</string>

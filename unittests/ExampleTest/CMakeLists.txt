@@ -18,6 +18,11 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_PartlistCo
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_DatabaseSelectorController.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_OrderController.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_KicadController.cpp")
+## §14d: the part editor below carries the "Generate description" button, which names
+## LlmController. Nothing here tests the controller -- it is compiled in because the dialog
+## that is tested will not link without it. (Its own body is behind QTLLM_LIBRARY_AVAILABLE,
+## so a build without QtLLM compiles this to an empty translation unit.)
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_LlmController.cpp")
 
 ## The app's display setup, so the GUI tests render at the same scale and font size the user's
 ## app does. A suite that runs unscaled cannot see a layout that only breaks on the real screen.

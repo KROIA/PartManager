@@ -1,6 +1,7 @@
 #include "ui/PartManager_PartEditorDialog.h"
 #include "ui_PartManager_PartEditorDialog.h"
 
+#include "controllers/PartManager_LlmController.h"
 #include "ui/PartManager_EcadFetchDialog.h"
 #include "widgets/PartManager_AttributeFormWidget.h"
 #include "widgets/PartManager_KeywordCheckList.h"
@@ -204,6 +205,13 @@ namespace PartManager
 		previewRow->addWidget(m_footprintPreview);
 		m_ui->kicadLayout->addLayout(previewRow);
 
+		// §14d: hidden until a caller hands over an assistant to inject into. The main window is
+		// the only one that does — everywhere else this dialog is opened from, the chat panel it
+		// would send to is not on screen.
+		m_ui->generateDescriptionButton->setVisible(false);
+		connect(m_ui->generateDescriptionButton, &QPushButton::clicked,
+			this, &PartEditorDialog::generateDescription);
+
 		m_saveTimer->setSingleShot(true);
 		m_saveTimer->setInterval(AutosaveDelayMs);
 		connect(m_saveTimer, &QTimer::timeout, this, &PartEditorDialog::autosave);
@@ -278,6 +286,73 @@ namespace PartManager
 	void PartEditorDialog::setDatasheetSourceUrl(const QString& url)
 	{
 		m_datasheetSourceUrl = url;
+	}
+
+	void PartEditorDialog::setLlmController(LlmController* controller)
+	{
+		m_llm = controller;
+		// A part that does not exist has no id to describe and nothing to save into, so the
+		// button goes with the rest of the dead editor (see loadPart()).
+		m_ui->generateDescriptionButton->setVisible(m_llm != nullptr && m_part.id != 0);
+#if QT_ENABLED && QTLLM_LIBRARY_AVAILABLE == 1
+		if (m_llm != nullptr)
+		{
+			// §14d's second half: the button goes quiet while a turn is in flight, so the refusal
+			// on the status line is the exception and not the normal way to learn it is busy.
+			connect(m_llm, &LlmController::busyChanged, this, [this](bool busy)
+				{
+					m_ui->generateDescriptionButton->setEnabled(!busy);
+				});
+		}
+#endif
+	}
+
+	void PartEditorDialog::generateDescription()
+	{
+#if QT_ENABLED && QTLLM_LIBRARY_AVAILABLE == 1
+		if (m_llm == nullptr || m_part.id == 0)
+		{
+			return;
+		}
+
+		// §10: a keystroke younger than the debounce would otherwise reach the model as the
+		// previous value — the prompt has to describe the part as the user sees it right now.
+		if (m_saveTimer->isActive())
+		{
+			autosave();
+		}
+
+		// The category name is user data and travels into the prompt as-is. A part whose type
+		// was deleted leaves it empty, which the prompt builder simply carries through rather
+		// than inventing a placeholder for the model to reason about.
+		QString categoryName;
+		for (const PartType& type : m_controller.types())
+		{
+			if (type.id == m_part.partTypeId)
+			{
+				categoryName = toQt(type.name);
+				break;
+			}
+		}
+
+		if (!m_llm->injectPrompt(LlmController::describePartPrompt(m_part, categoryName)))
+		{
+			// §14d: reported, never queued — two impatient clicks must not stack two paid turns.
+			// The editor stays open, because nothing was sent.
+			m_ui->statusLabel->setText(
+				tr("The assistant is still answering. Wait for it to finish, then ask again."));
+			return;
+		}
+
+		// The editor is modal and the chat panel is in the window behind it, so an open editor
+		// puts the answer somewhere the user can neither read nor copy from. Closing is the one
+		// way out that leaves them looking at the reply: §10 has already written every field,
+		// done() flushes anything still pending, and the prompt asks the assistant to store the
+		// text with update_part — so the part they come back to is the part the answer was about.
+		// The table behind it is reloaded on close as usual; the model's own write lands minutes
+		// later and needs a Refresh, which is true of every background write in the app.
+		accept();
+#endif
 	}
 
 	PartEditorDialog::~PartEditorDialog()

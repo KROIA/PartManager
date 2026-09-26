@@ -1,6 +1,7 @@
 #include "ui/PartManager_MainWindow.h"
 #include "ui_PartManager_MainWindow.h"
 
+#include "controllers/PartManager_LlmController.h"
 #include "controllers/PartManager_PartEditorController.h"
 #include "ui/PartManager_CategoryExportDialog.h"
 #include "ui/PartManager_CategoryImportDialog.h"
@@ -73,6 +74,12 @@
 
 #if RIBBON_WIDGET_LIBRARY_AVAILABLE == 1
 	#include "RibbonWidget.h"
+#endif
+
+#if QT_ENABLED && QTLLM_LIBRARY_AVAILABLE == 1
+	// §14a: the panel the controller hands over. Only this file needs the type — everything in
+	// the header speaks QDockWidget, which ChatDockWidget already is.
+	#include <ChatDockWidget.h>
 #endif
 
 namespace PartManager
@@ -339,6 +346,25 @@ namespace PartManager
 		connect(m_partlistPanel, &PartlistPanel::hideRequested, m_partlistDock, &QWidget::hide);
 		connect(m_partlistPanel, &PartlistPanel::stockChanged, this, &MainWindow::reloadCategories);
 
+#if QT_ENABLED && QTLLM_LIBRARY_AVAILABLE == 1
+		// §14a: the assistant as a third dock, tabbed against the BOM panel. Both live on the
+		// right and neither is the thing the window is for, so sharing one area is what keeps the
+		// part table its width. The controller is built here and nowhere else, and it goes with
+		// the window: §1b switches database by closing this window and building a new one, which
+		// is exactly what the tool handlers need — each captured the old DatabaseHandle*, and
+		// handing them a new one is the live-handle swap this window already refused.
+		if (m_controller.handle() != nullptr)
+		{
+			m_llm = new LlmController(*m_controller.handle(), this, this);
+			m_chatDock = m_llm->chatDock();
+			addDockWidget(Qt::RightDockWidgetArea, m_chatDock);
+			tabifyDockWidget(m_partlistDock, m_chatDock);
+			// ...and in front, because the partlist dock beside it starts hidden and a tab nobody
+			// raised is a panel nobody finds.
+			m_chatDock->raise();
+		}
+#endif
+
 		// The drag half of the same feature. DragOnly: the table itself accepts nothing, so a row
 		// dropped back onto it does nothing rather than reordering the category.
 		m_ui->partTable->setDragEnabled(true);
@@ -437,6 +463,17 @@ namespace PartManager
 			preview -= over - fromTree;
 		}
 		m_ui->bodySplitter->setSizes({ tree, total - tree - preview, preview });
+
+		// §14a's panel opens at a third of the window. Without this the dock area takes whatever
+		// the chat's own size hint asks for, which is a conversation's worth of width on a window
+		// whose point is the part table. Once, like everything else here — from then on it is the
+		// user's, and the View menu is how it goes away entirely.
+		// isHidden(), not isVisible(): this runs from the window's own showEvent, where a child
+		// that was never hidden can still report itself invisible.
+		if (m_chatDock != nullptr && !m_chatDock->isHidden())
+		{
+			resizeDocks({ m_chatDock }, { width() / 3 }, Qt::Horizontal);
+		}
 	}
 
 	MainWindow::~MainWindow()
@@ -586,6 +623,9 @@ namespace PartManager
 	void MainWindow::onSettings()
 	{
 		SettingsDialog dialog(m_controller.handle(), this);
+		// §14: the assistant's own settings live in QtLLM's dialog, not copied into this one.
+		// The tab is only a way in — it hides itself when the app was built without QtLLM.
+		dialog.setLlmController(m_llm);
 		dialog.exec();
 		if (dialog.restoredFromBackup())
 		{
@@ -683,6 +723,8 @@ namespace PartManager
 		// re-docked by eventFilter() the moment anything closes it, so its tick could never come
 		// off. A menu entry that does nothing is worse than a menu that is one line long.
 		// The action is the dock's own toggleViewAction(), so it keeps ticking itself.
+		// §14a's assistant qualifies on the same test: it is a panel with a job of its own, it
+		// can be switched off without the window losing anything, and it stays off.
 		QMenu* viewMenu = menuBar()->addMenu(tr("&View"));
 		connect(viewMenu, &QMenu::aboutToShow, this, [this, viewMenu]()
 			{
@@ -690,6 +732,10 @@ namespace PartManager
 				if (m_partlistDock != nullptr)
 				{
 					viewMenu->addAction(m_partlistDock->toggleViewAction());
+				}
+				if (m_chatDock != nullptr)
+				{
+					viewMenu->addAction(m_chatDock->toggleViewAction());
 				}
 			});
 
@@ -1151,6 +1197,10 @@ namespace PartManager
 		}
 
 		PartEditorDialog editor(m_controller.handle(), partId, this);
+		// §14d: what puts the "Generate description" button beside the description field. Null
+		// here means the button stays hidden, which is what every other caller of this dialog
+		// gets — the panel it would inject into belongs to this window.
+		editor.setLlmController(m_llm);
 		editor.exec();
 		// The editor autosaved as it went (§10), so the table is stale by the time it closes — and
 		// since the quantity field is editable there, the tree's in-stock counts can be too.
@@ -1252,6 +1302,9 @@ namespace PartManager
 		// shows the user that happened, and is where everything else about it gets filled in.
 		PartEditorDialog editor(m_controller.handle(), partId, this);
 		editor.setDatasheetSourceUrl(datasheetUrl);
+		// §14d, as above: a part that has just been created is the one most likely to want a
+		// description written for it.
+		editor.setLlmController(m_llm);
 		editor.exec();
 
 		// A new part changes the tree's in-stock counts as well as the table.

@@ -37,6 +37,10 @@ namespace PartManager
 	class Model3DViewer;
 	class TagFilterButton;
 	class PartlistPanel;
+	// §14a. Forward-declared unconditionally even though the class itself only exists when
+	// QtLLM is available: a pointer to an incomplete type costs nothing, and gating the
+	// declaration would make this header say something different to moc than to the compiler.
+	class LlmController;
 
 	class MainWindow : public QMainWindow
 	{
@@ -210,6 +214,15 @@ namespace PartManager
 		// where they sit. Both owned by the window (Qt parent).
 		QDockWidget* m_browserDock = nullptr;
 		QDockWidget* m_partlistDock = nullptr;
+		// §14a's chat panel, tabbed against the partlist dock so neither takes width from the
+		// part table. Held as a plain QDockWidget* because QtLLM::ChatDockWidget already is one —
+		// that keeps a library type out of this header, and out of every file that includes it.
+		// Owned by the window (Qt parent) from the moment addDockWidget() takes it.
+		QDockWidget* m_chatDock = nullptr;
+		// §1b: rebuilt with the window rather than re-pointed at the new database, because every
+		// registered tool handler captured the old DatabaseHandle*. Null when the app was built
+		// without QtLLM. Owned by the window (Qt parent).
+		LlmController* m_llm = nullptr;
 		// §5a: the part's schematic symbol and PCB footprint, under its photo. Built in code
 		// rather than in the .ui, which would need them promoted there first.
 		KicadPreviewWidget* m_symbolPreview = nullptr;
