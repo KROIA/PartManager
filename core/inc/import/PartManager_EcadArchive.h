@@ -83,7 +83,34 @@ namespace PartManager
 		// True when `path` has a segment that is exactly "kicad", case-insensitively.
 		static bool isUnderKicadFolder(const std::string& path);
 
+		// True when `fileName` looks like the vendor's download for `partNumber`. Everything but
+		// letters and digits comes off both sides, lowercased, and the rest has to contain the
+		// part number: a vendor names the archive `LIB_74HC4051PW-Q100,11(5).zip` for the part
+		// `74HC4051PW-Q100,11`, where the comma, the brackets and a browser's duplicate-download
+		// counter all differ from the part number and none of them survives this.
+		//
+		// The extension is dropped before squashing, so a part number that ends in "zip" cannot
+		// match every archive in the folder. An empty part number matches nothing — the caller is
+		// usually a search box or a tool argument, and "match everything" is never the answer.
+		//
+		// ASCII: bytes outside it are dropped from both sides alike, so a UTF-8 part number keeps
+		// matching by the ASCII it has, and one made of nothing else matches nothing rather than
+		// everything.
+		//
+		// One rule, two callers — the ECAD download dialog's folder watch and the assistant's
+		// `list_downloaded_libraries`. It lives here because two copies of a matching rule drift,
+		// and the assistant offering the user an archive the dialog would not have taken is a
+		// disagreement neither of them can explain.
+		static bool matchesPartNumber(const std::string& fileName, const std::string& partNumber);
+
 #if QT_ENABLED
+		// What `zipPath` holds, without extracting any of it — the entry list is in the ZIP's
+		// central directory, so this costs one directory read where `read()` costs the bytes.
+		// Separate from `read()` because the assistant's read-only `inspect_downloaded_library`
+		// answers exactly this, and a 3D model runs to tens of megabytes it would then discard.
+		// `ok` false with `errorMessage` set is an unreadable or empty archive.
+		static EcadArchiveContents inspect(const std::string& zipPath);
+
 		// Opens `zipPath`, classifies it, and reads out whatever it found.
 		// ponytail: QZipReader is a QtGui *private* header — Qt 5 publishes no zip API at all,
 		// and core already links Gui, so this costs one include path rather than a dependency.

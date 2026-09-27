@@ -26,6 +26,7 @@ public:
 		ADD_TEST(TST_EcadArchive::legacyOnlyArchiveSaysSoInsteadOfLookingBroken);
 		ADD_TEST(TST_EcadArchive::choiceIsStableWhenSeveralCandidatesExist);
 		ADD_TEST(TST_EcadArchive::readsAnActualZip);
+		ADD_TEST(TST_EcadArchive::vendorFilenameMatchesThePartNumber);
 	}
 
 private:
@@ -127,6 +128,44 @@ private:
 		TEST_ASSERT(PartManager::EcadArchive::isUnderKicadFolder("a/kicad/b.kicad_sym"));
 		TEST_ASSERT(!PartManager::EcadArchive::isUnderKicadFolder("a/KiCad"));
 		TEST_ASSERT(!PartManager::EcadArchive::isUnderKicadFolder("a/KiCadish/b.lib"));
+	}
+
+	// The rule the ECAD download dialog's folder watch and the assistant's
+	// `list_downloaded_libraries` both run, which is why it is here and not in either of them.
+	TEST_FUNCTION(vendorFilenameMatchesThePartNumber)
+	{
+		TEST_START;
+
+		using PartManager::EcadArchive;
+
+		// The real download, and the whole reason the rule exists: "LIB_", the comma, the
+		// brackets and the browser's duplicate-download counter all differ from the part number.
+		TEST_ASSERT(EcadArchive::matchesPartNumber("LIB_74HC4051PW-Q100,11(5).zip",
+			"74HC4051PW-Q100,11"));
+		TEST_ASSERT(EcadArchive::matchesPartNumber("74HC4051PW-Q100_11.zip", "74HC4051PW-Q100,11"));
+		TEST_ASSERT(EcadArchive::matchesPartNumber("lib_74hc4051pwq10011.ZIP",
+			"74HC4051PW-Q100,11"));
+		// A different part in the same family is not the same part.
+		TEST_ASSERT(!EcadArchive::matchesPartNumber("LIB_74HC4052PW-Q100,11.zip",
+			"74HC4051PW-Q100,11"));
+		TEST_ASSERT_M(!EcadArchive::matchesPartNumber("some-other-download.zip", "STM32F103C8T6"),
+			"an unrelated archive must not be offered for a part");
+
+		// Empty matches nothing. It would otherwise match every archive in the folder, which is
+		// the worst possible answer to an empty search box or an omitted tool argument.
+		TEST_ASSERT(!EcadArchive::matchesPartNumber("LIB_anything.zip", ""));
+		TEST_ASSERT(!EcadArchive::matchesPartNumber("LIB_anything.zip", " ,-_ "));
+
+		// The extension comes off before squashing, so a part number ending in "zip" cannot match
+		// every archive there is.
+		TEST_ASSERT(!EcadArchive::matchesPartNumber("LIB_ABC123.zip", "zip"));
+		TEST_ASSERT_M(EcadArchive::matchesPartNumber("ZIP-100.zip", "ZIP100"),
+			"a part really called ZIP-100 must still match its own archive");
+
+		// A name is a name: the rule is fed file names and must not be talked into matching on a
+		// folder the file happens to sit in.
+		TEST_ASSERT(!EcadArchive::matchesPartNumber("74HC4051PW-Q100,11/other.zip",
+			"74HC4051PW-Q100,11"));
 	}
 
 	// The half classify() cannot cover: that the archive is really opened and the bytes come out.

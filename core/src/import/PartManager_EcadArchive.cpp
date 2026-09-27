@@ -65,6 +65,40 @@ namespace PartManager
 				|| toLower(path).find("__macosx/") != std::string::npos;
 		}
 
+		// Letters and digits only, lowercased. See matchesPartNumber() in the header for why the
+		// rest has to go.
+		std::string squashed(const std::string& text)
+		{
+			std::string out;
+			out.reserve(text.size());
+			for (unsigned char c : text)
+			{
+				if (std::isalnum(c))
+				{
+					out += static_cast<char>(std::tolower(c));
+				}
+			}
+			return out;
+		}
+
+		// "LIB_74HC4051PW-Q100,11(5).zip" -> "LIB_74HC4051PW-Q100,11(5)". Only a trailing dot
+		// segment of the last path component, so a part number carrying dots keeps them.
+		std::string withoutExtension(const std::string& fileName)
+		{
+			const std::string base = fileName;
+			const size_t dot = base.find_last_of('.');
+			const size_t separator = base.find_last_of("/\\");
+			if (dot == std::string::npos || dot == 0)
+			{
+				return base;
+			}
+			if (separator != std::string::npos && dot < separator)
+			{
+				return base;
+			}
+			return base.substr(0, dot);
+		}
+
 		// Better = under a KiCad folder first, then fewer path segments, then a shorter name.
 		// Deterministic all the way down, so the same archive always yields the same choice.
 		bool isBetterCandidate(const std::string& candidate, const std::string& incumbent)
@@ -87,6 +121,35 @@ namespace PartManager
 			}
 			return candidate.size() < incumbent.size();
 		}
+
+#if QT_ENABLED
+		// The archive's file entries. False with `outError` set for an archive that will not open
+		// (a download still in flight has no readable central directory yet) or holds nothing.
+		bool fileEntriesOf(QZipReader& reader, const std::string& zipPath,
+			std::vector<std::string>& outEntries, std::string& outError)
+		{
+			if (!reader.isReadable() || reader.status() != QZipReader::NoError)
+			{
+				outError = "Cannot read the archive: " + zipPath;
+				return false;
+			}
+			const QVector<QZipReader::FileInfo> infos = reader.fileInfoList();
+			for (const QZipReader::FileInfo& info : infos)
+			{
+				if (!info.isFile)
+				{
+					continue;
+				}
+				outEntries.push_back(info.filePath.toStdString());
+			}
+			if (outEntries.empty())
+			{
+				outError = "The archive is empty.";
+				return false;
+			}
+			return true;
+		}
+#endif
 	}
 
 	bool EcadArchive::isUnderKicadFolder(const std::string& path)
@@ -101,6 +164,16 @@ namespace PartManager
 			}
 		}
 		return false;
+	}
+
+	bool EcadArchive::matchesPartNumber(const std::string& fileName, const std::string& partNumber)
+	{
+		const std::string wanted = squashed(partNumber);
+		if (wanted.empty())
+		{
+			return false;
+		}
+		return squashed(withoutExtension(baseNameOf(fileName))).find(wanted) != std::string::npos;
 	}
 
 	EcadArchiveContents EcadArchive::classify(const std::vector<std::string>& entryPaths)
@@ -159,30 +232,26 @@ namespace PartManager
 
 #if QT_ENABLED
 
+	EcadArchiveContents EcadArchive::inspect(const std::string& zipPath)
+	{
+		EcadArchiveContents contents;
+		QZipReader reader(QString::fromStdString(zipPath));
+		std::vector<std::string> entryPaths;
+		if (!fileEntriesOf(reader, zipPath, entryPaths, contents.errorMessage))
+		{
+			return contents;
+		}
+		return classify(entryPaths);
+	}
+
 	EcadArchivePayload EcadArchive::read(const std::string& zipPath)
 	{
 		EcadArchivePayload payload;
 
 		QZipReader reader(QString::fromStdString(zipPath));
-		if (!reader.isReadable() || reader.status() != QZipReader::NoError)
-		{
-			payload.contents.errorMessage = "Cannot read the archive: " + zipPath;
-			return payload;
-		}
-
 		std::vector<std::string> entryPaths;
-		const QVector<QZipReader::FileInfo> infos = reader.fileInfoList();
-		for (const QZipReader::FileInfo& info : infos)
+		if (!fileEntriesOf(reader, zipPath, entryPaths, payload.contents.errorMessage))
 		{
-			if (!info.isFile)
-			{
-				continue;
-			}
-			entryPaths.push_back(info.filePath.toStdString());
-		}
-		if (entryPaths.empty())
-		{
-			payload.contents.errorMessage = "The archive is empty.";
 			return payload;
 		}
 
