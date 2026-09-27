@@ -1,7 +1,9 @@
 #pragma once
 
 #include "UnitTest.h"
+#include "kicad/PartManager_FootprintVariants.h"
 #include "kicad/PartManager_KicadEditTracker.h"
+#include "kicad/PartManager_KicadGeometry.h"
 #include "kicad/PartManager_KicadLibraryGenerator.h"
 #include "kicad/PartManager_KicadLibTable.h"
 #include "kicad/PartManager_KicadSymbolWriter.h"
@@ -41,6 +43,9 @@ public:
 		ADD_TEST(TST_KicadLibrary::aFootprintWithNoUsablePadsDerivesNothing);
 		ADD_TEST(TST_KicadLibrary::aVendorFootprintDerivesOnePinPerPad);
 		ADD_TEST(TST_KicadLibrary::footprintFileNamesAreAsciiAndComeFromThePackage);
+		ADD_TEST(TST_KicadLibrary::variantsGroupByContentNotByName);
+		ADD_TEST(TST_KicadLibrary::overlaidDrawingsShareOneBoundingBox);
+		ADD_TEST(TST_KicadLibrary::theOverlayComparesCopperAndNothingElse);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
 		ADD_TEST(TST_KicadLibrary::onePackageIsOneFootprintFileOnDisk);
 		ADD_TEST(TST_KicadLibrary::differentPadsCannotShareAPackageName);
@@ -494,6 +499,171 @@ private:
 			std::string("LT1506CR-3.3_PBF"));
 		TEST_COMPARE(KicadLibraryGenerator::sanitizeFootprintName("\xC2\xB5\xC2\xB5"),
 			std::string("Unnamed"));
+	}
+
+	// The grouping behind the variant browser. Two parts hold the same footprint when their
+	// *bytes* match, whatever the file was called when it was imported — that is the case that
+	// needs no decision from the user, so it has to fall out of the grouping rather than being
+	// spotted by eye.
+	TEST_FUNCTION(variantsGroupByContentNotByName)
+	{
+		TEST_START;
+
+		using PartManager::FootprintPartRef;
+		using PartManager::FootprintVariants;
+
+		std::vector<FootprintPartRef> refs;
+		// Two 0402s with identical bytes under different vendor names, one 0402 that differs,
+		// and an 0805 on its own.
+		refs.push_back({ 1, "CAP-B", "0402", "aaaa", "aa/aaaa.kicad_mod" });
+		refs.push_back({ 2, "CAP-A", "0402", "aaaa", "aa/aaaa-other-name.kicad_mod" });
+		refs.push_back({ 3, "CAP-C", "0402", "bbbb", "bb/bbbb.kicad_mod" });
+		refs.push_back({ 4, "RES-A", "0805", "cccc", "cc/cccc.kicad_mod" });
+		// No footprint attached: nothing to compare, so it must not invent a group.
+		refs.push_back({ 5, "RES-B", "0805", "", "" });
+
+		const std::vector<PartManager::FootprintPackageGroup> groups = FootprintVariants::group(refs);
+		TEST_COMPARE(groups.size(), static_cast<size_t>(2));
+		TEST_COMPARE(groups[0].package, std::string("0402"));
+		TEST_COMPARE(groups[1].package, std::string("0805"));
+
+		// 0402: two variants, and the one two parts already use comes first — it is the
+		// likeliest answer to "which of these is authoritative", offered by position.
+		TEST_COMPARE(groups[0].variants.size(), static_cast<size_t>(2));
+		TEST_COMPARE(groups[0].variants[0].contentHash, std::string("aaaa"));
+		TEST_COMPARE(groups[0].variants[0].parts.size(), static_cast<size_t>(2));
+		// Sorted by part name, so the same database always lists them the same way round.
+		TEST_COMPARE(groups[0].variants[0].parts[0].partName, std::string("CAP-A"));
+		TEST_COMPARE(groups[0].partCount(), 3);
+		TEST_ASSERT_M(!groups[0].consistent(), "two pad layouts under one package is the work list");
+
+		// 0805: one variant, because the part with no footprint contributes nothing.
+		TEST_COMPARE(groups[1].variants.size(), static_cast<size_t>(1));
+		TEST_COMPARE(groups[1].partCount(), 1);
+		TEST_ASSERT_M(groups[1].consistent(), "one layout means this package is already settled");
+
+		const std::vector<PartManager::FootprintPackageGroup> needWork =
+			FootprintVariants::inconsistentOnly(groups);
+		TEST_COMPARE(needWork.size(), static_cast<size_t>(1));
+		TEST_COMPARE(needWork[0].package, std::string("0402"));
+
+		// Parts with no package each write a file named after themselves, so however many
+		// distinct footprints they have between them, none of them is claiming a name another
+		// wants. Counting those as a clash put 11 of the user's parts at the top of the work
+		// list with nothing to decide about.
+		std::vector<FootprintPartRef> unpackaged;
+		unpackaged.push_back({ 6, "ODD-A", "", "dddd", "dd/dddd.kicad_mod" });
+		unpackaged.push_back({ 7, "ODD-B", "", "eeee", "ee/eeee.kicad_mod" });
+		const std::vector<PartManager::FootprintPackageGroup> loose =
+			FootprintVariants::group(unpackaged);
+		TEST_COMPARE(loose.size(), static_cast<size_t>(1));
+		TEST_COMPARE(loose[0].variants.size(), static_cast<size_t>(2));
+		TEST_ASSERT_M(loose[0].consistent(), "no package means no shared file name to fight over");
+		TEST_COMPARE(FootprintVariants::inconsistentOnly(loose).size(), static_cast<size_t>(0));
+	}
+
+	// The overlay's whole value is that a size difference stays a size difference. Fitting each
+	// drawing to the panel separately — the obvious thing, and what KicadPreviewWidget rightly
+	// does for a single preview — would draw a 0402 and an 0805 at the same apparent size.
+	TEST_FUNCTION(overlaidDrawingsShareOneBoundingBox)
+	{
+		TEST_START;
+
+		const auto padAt = [](double x, double sizeX, double sizeY)
+			{
+				PartManager::KicadShape pad;
+				pad.kind = PartManager::KicadShapeKind::Pad;
+				pad.points.push_back({ x, 0.0 });
+				pad.sizeX = sizeX;
+				pad.sizeY = sizeY;
+				return pad;
+			};
+
+		// Not `small`/`large`: <rpcndr.h> defines `small` as `char`, the same Windows macro trap
+		// `slots` and `near` are (ORIENTATION §7), and the error it produces blames this line.
+		PartManager::KicadDrawing narrow;
+		narrow.yAxisPointsUp = false;
+		narrow.shapes.push_back(padAt(-0.5, 0.6, 0.6));
+		narrow.shapes.push_back(padAt(0.5, 0.6, 0.6));
+
+		PartManager::KicadDrawing wide;
+		wide.yAxisPointsUp = false;
+		wide.shapes.push_back(padAt(-1.0, 1.2, 1.0));
+		wide.shapes.push_back(padAt(1.0, 1.2, 1.0));
+
+		// Named, not a brace list inside the macro: the comma between two initialisers is a
+		// macro argument separator and TEST_ASSERT would be handed two arguments.
+		std::vector<PartManager::KicadDrawing> both;
+		both.push_back(narrow);
+		both.push_back(wide);
+
+		PartManager::KicadPoint min, max;
+		TEST_ASSERT(PartManager::KicadGeometry::unionBounds(both, min, max));
+		// The union is the wider one's box: -1.0 - 0.6 .. 1.0 + 0.6 across, ±0.5 tall.
+		TEST_ASSERT_M(std::abs(min.x + 1.6) < 1e-9, std::to_string(min.x));
+		TEST_ASSERT_M(std::abs(max.x - 1.6) < 1e-9, std::to_string(max.x));
+		TEST_ASSERT_M(std::abs(max.y - 0.5) < 1e-9, std::to_string(max.y));
+
+		// Measured alone, the narrow one is genuinely narrower — exactly the difference a
+		// shared box preserves and a per-drawing fit throws away.
+		PartManager::KicadPoint ownMin, ownMax;
+		TEST_ASSERT(narrow.bounds(ownMin, ownMax));
+		TEST_ASSERT_M(ownMax.x < max.x,
+			"the narrow footprint must not measure as wide as the wide one");
+
+		// An empty drawing contributes nothing rather than dragging the box to the origin: a
+		// variant whose file failed to parse must not shrink the ones that did.
+		std::vector<PartManager::KicadDrawing> withEmpty;
+		withEmpty.push_back(PartManager::KicadDrawing());
+		withEmpty.push_back(wide);
+		PartManager::KicadPoint emptyMin, emptyMax;
+		TEST_ASSERT(PartManager::KicadGeometry::unionBounds(withEmpty, emptyMin, emptyMax));
+		TEST_ASSERT_M(std::abs(emptyMin.x + 1.6) < 1e-9, std::to_string(emptyMin.x));
+
+		const std::vector<PartManager::KicadDrawing> none;
+		TEST_ASSERT(!PartManager::KicadGeometry::unionBounds(none, emptyMin, emptyMax));
+	}
+
+	// Physical interchangeability is decided by the copper, so the overlay draws pads and
+	// nothing else. Silkscreen is the busiest layer in most vendor files and two footprints
+	// that drop into the same board look quite unalike once their outlines are stacked.
+	TEST_FUNCTION(theOverlayComparesCopperAndNothingElse)
+	{
+		TEST_START;
+
+		// A real vendor footprint's shape: two pads, a silkscreen line, a courtyard rectangle.
+		const std::string text =
+			"(footprint \"R_0603\" (version 20240108) (layer \"F.Cu\")\n"
+			"  (fp_line (start -1.5 -0.9) (end 1.5 -0.9) (layer \"F.SilkS\") (width 0.12))\n"
+			"  (fp_rect (start -1.6 -1.0) (end 1.6 1.0) (layer \"F.CrtYd\") (width 0.05))\n"
+			"  (pad \"1\" smd roundrect (at -0.8 0) (size 0.9 0.95)"
+			" (layers \"F.Cu\" \"F.Paste\" \"F.Mask\"))\n"
+			"  (pad \"2\" smd roundrect (at 0.8 0) (size 0.9 0.95)"
+			" (layers \"F.Cu\" \"F.Paste\" \"F.Mask\"))\n"
+			")\n";
+
+		const PartManager::KicadDrawing whole = PartManager::KicadGeometry::footprint(text);
+		TEST_ASSERT_M(whole.shapes.size() > 2, "the fixture must carry more than its pads");
+
+		const PartManager::KicadDrawing pads = PartManager::KicadGeometry::padsOnly(whole);
+		TEST_COMPARE(pads.shapes.size(), static_cast<size_t>(2));
+		for (const PartManager::KicadShape& shape : pads.shapes)
+		{
+			TEST_ASSERT(shape.kind == PartManager::KicadShapeKind::Pad);
+		}
+		// Same footprint, fewer shapes: the axis direction has to survive or the pads mirror.
+		TEST_COMPARE(pads.yAxisPointsUp, whole.yAxisPointsUp);
+		TEST_COMPARE(pads.name, whole.name);
+
+		// And the box shrinks to the copper. The courtyard was the widest thing in the file, so
+		// an overlay measured on the whole drawing would frame itself by geometry it no longer
+		// draws and leave the pads small in the middle of the panel.
+		PartManager::KicadPoint wholeMin, wholeMax, padMin, padMax;
+		TEST_ASSERT(whole.bounds(wholeMin, wholeMax));
+		TEST_ASSERT(pads.bounds(padMin, padMax));
+		TEST_ASSERT_M(padMax.x < wholeMax.x, std::to_string(padMax.x) + " vs "
+			+ std::to_string(wholeMax.x));
+		TEST_ASSERT_M(std::abs(padMax.x - 1.25) < 1e-9, std::to_string(padMax.x));
 	}
 
 	TEST_FUNCTION(footprintReferenceUsesTheLibraryNickname)

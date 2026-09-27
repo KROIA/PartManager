@@ -303,6 +303,54 @@ namespace PartManager
 		return any;
 	}
 
+	KicadDrawing KicadGeometry::padsOnly(const KicadDrawing& drawing)
+	{
+		KicadDrawing out;
+		out.name = drawing.name;
+		out.yAxisPointsUp = drawing.yAxisPointsUp;
+		out.model3D = drawing.model3D;
+		for (const KicadShape& shape : drawing.shapes)
+		{
+			// The kind, not the layer string: a pad is already its own kind in this model, and
+			// it carries the layer list of every copper/mask/paste layer it touches — matching
+			// on "F.Cu" would drop a through-hole pad, which names `*.Cu`.
+			if (shape.kind == KicadShapeKind::Pad)
+			{
+				out.shapes.push_back(shape);
+			}
+		}
+		return out;
+	}
+
+	bool KicadGeometry::unionBounds(const std::vector<KicadDrawing>& drawings,
+		KicadPoint& outMin, KicadPoint& outMax)
+	{
+		bool any = false;
+		for (const KicadDrawing& drawing : drawings)
+		{
+			KicadPoint min;
+			KicadPoint max;
+			if (!drawing.bounds(min, max))
+			{
+				// An empty drawing contributes nothing rather than collapsing the box to the
+				// origin — a variant that failed to parse must not shrink the others.
+				continue;
+			}
+			if (!any)
+			{
+				outMin = min;
+				outMax = max;
+				any = true;
+				continue;
+			}
+			outMin.x = std::min(outMin.x, min.x);
+			outMin.y = std::min(outMin.y, min.y);
+			outMax.x = std::max(outMax.x, max.x);
+			outMax.y = std::max(outMax.y, max.y);
+		}
+		return any;
+	}
+
 	KicadDrawing KicadGeometry::symbol(const std::string& libraryText, const std::string& symbolName)
 	{
 		KicadDrawing drawing;

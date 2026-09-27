@@ -34,6 +34,7 @@ namespace PartManager
 		static constexpr const char* Tags = "tags";
 		static constexpr const char* TypeTemplates = "type-templates";
 		static constexpr const char* KicadLibrary = "kicad-library";
+		static constexpr const char* FootprintVariants = "footprint-variants";
 		static constexpr const char* Settings = "settings";
 		static constexpr const char* NewPart = "new-part";
 		static constexpr const char* MouserSearch = "mouser-search";

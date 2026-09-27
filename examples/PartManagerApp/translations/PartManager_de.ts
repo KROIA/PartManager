@@ -237,6 +237,29 @@
     </message>
 </context>
 <context>
+    <name>FootprintVariantsDialog</name>
+    <message>
+        <source>Footprint Variants</source>
+        <translation>Footprint-Varianten</translation>
+    </message>
+    <message>
+        <source>Only packages that disagree</source>
+        <translation>Nur Gehäuse mit Abweichungen</translation>
+    </message>
+    <message>
+        <source>View</source>
+        <translation>Ansicht</translation>
+    </message>
+    <message>
+        <source>Package</source>
+        <translation>Gehäuse</translation>
+    </message>
+    <message>
+        <source>Parts</source>
+        <translation>Bauteile</translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
         <source>PartManager</source>
@@ -1739,6 +1762,80 @@ Trotzdem schließen?</translation>
     </message>
 </context>
 <context>
+    <name>PartManager::FootprintVariantsDialog</name>
+    <message>
+        <source>Overlaid and side by side</source>
+        <translation>Überlagert und nebeneinander</translation>
+    </message>
+    <message>
+        <source>Overlaid</source>
+        <translation>Überlagert</translation>
+    </message>
+    <message>
+        <source>Side by side</source>
+        <translation>Nebeneinander</translation>
+    </message>
+    <message>
+        <source>No database is open.</source>
+        <translation>Es ist keine Datenbank geöffnet.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n package(s) with a footprint</source>
+        <translation>
+            <numerusform>%n Gehäuse mit Footprint</numerusform>
+            <numerusform>%n Gehäuse mit Footprint</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>, %n of them claimed by different pad layouts</source>
+        <translation>
+            <numerusform>, davon %n mit unterschiedlichen Pad-Layouts</numerusform>
+            <numerusform>, davon %n mit unterschiedlichen Pad-Layouts</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source> — %n distinct footprint(s) in total.</source>
+        <translation>
+            <numerusform> — insgesamt %n verschiedener Footprint.</numerusform>
+            <numerusform> — insgesamt %n verschiedene Footprints.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>(no package)</source>
+        <translation>(kein Gehäuse)</translation>
+    </message>
+    <message>
+        <source>These parts have no package, so each writes a footprint file named after itself. Nothing here is in conflict.</source>
+        <translation>Diese Bauteile haben kein Gehäuse, also schreibt jedes eine nach sich selbst benannte Footprint-Datei. Hier steht nichts im Konflikt.</translation>
+    </message>
+    <message>
+        <source>Every part with this package uses the same footprint.</source>
+        <translation>Alle Bauteile mit diesem Gehäuse verwenden denselben Footprint.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n different footprint(s) under one package.</source>
+        <translation>
+            <numerusform>%n Footprint unter einem Gehäuse.</numerusform>
+            <numerusform>%n verschiedene Footprints unter einem Gehäuse.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Variant %1</source>
+        <translation>Variante %1</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 · %n part(s)</source>
+        <translation>
+            <numerusform>%1 · %n Bauteil</numerusform>
+            <numerusform>%1 · %n Bauteile</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Variant %1: %2</source>
+        <translation>Variante %1: %2</translation>
+    </message>
+</context>
+<context>
     <name>PartManager::KicadLibraryDialog</name>
     <message>
         <source>KiCad Libraries</source>
@@ -1909,6 +2006,13 @@ Fortfahren?</translation>
     <message>
         <source>Footprint generated but no symbol: none is attached, and the footprint&apos;s pads carry no pin numbers to derive one from: %1</source>
         <translation>Footprint erzeugt, aber kein Symbol: Es ist keines angehängt, und die Pads des Footprints tragen keine Pin-Nummern, aus denen sich eines ableiten ließe: %1</translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::KicadVariantView</name>
+    <message>
+        <source>Pick a package in the tree to compare its footprints.</source>
+        <translation>Wählen Sie links ein Gehäuse, um dessen Footprints zu vergleichen.</translation>
     </message>
 </context>
 <context>
@@ -2427,6 +2531,10 @@ Die Projektseite enthält die README, die derzeit die gesamte Dokumentation ausm
     <message>
         <source>Moved &quot;%1&quot; to %2.</source>
         <translation>„%1“ nach %2 verschoben.</translation>
+    </message>
+    <message>
+        <source>Footprint Variants</source>
+        <translation>Footprint-Varianten</translation>
     </message>
 </context>
 <context>

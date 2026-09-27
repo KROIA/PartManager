@@ -85,6 +85,8 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KeywordCheckLi
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_DimensionLineEdit.cpp")
 ## The part editor and the main window preview both embed the KiCad symbol/footprint painter.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KicadPreviewWidget.cpp")
+## ...whose shape loop is shared with the footprint-variant overlay, so it lives beside it.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KicadShapePainter.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_TypeIconPainter.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttachmentIconPainter.cpp")
 

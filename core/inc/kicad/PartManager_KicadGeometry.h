@@ -167,6 +167,31 @@ namespace PartManager
 		static std::string withModelPath(const std::string& footprintText,
 			const std::string& newPath);
 
+		// Just the pads of a footprint — every other layer dropped.
+		//
+		// **Physical interchangeability is decided by the pads.** Two footprints with the same
+		// copper will drop into the same board whatever their silkscreen says, and silkscreen is
+		// usually the busiest layer in the file: overlaying two compatible footprints complete
+		// with their outlines, courtyards and assembly drawings makes them look different when
+		// they are not. So the comparison view draws copper and nothing else.
+		//
+		// `yAxisPointsUp` and the model placement come across unchanged — this is the same
+		// footprint, with fewer shapes.
+		static KicadDrawing padsOnly(const KicadDrawing& drawing);
+
+		// The extent of several drawings measured together, for a view that overlays them.
+		//
+		// **Fitting each drawing to the panel separately is the wrong thing here**, and it is
+		// the obvious thing: it scales every footprint to the same apparent size and so
+		// normalises away the difference the overlay exists to show. A 0402 and a 0603 drawn
+		// that way look identical. Measured against one shared box, a 0.1 mm pad difference is
+		// 0.1 mm of difference on screen.
+		//
+		// False when none of them has anything to measure, which spares the caller a
+		// divide-by-zero guard exactly as KicadDrawing::bounds() does.
+		static bool unionBounds(const std::vector<KicadDrawing>& drawings,
+			KicadPoint& outMin, KicadPoint& outMax);
+
 		// KiCad stores an arc as three points on it. Anything that wants to draw one — a painter
 		// with a bounding box and two angles, a mesh builder walking it in steps — needs the
 		// circle behind those three points first, so the circumcentre maths lives here rather

@@ -6,6 +6,7 @@
 #include "ui/PartManager_CategoryExportDialog.h"
 #include "ui/PartManager_CategoryImportDialog.h"
 #include "ui/PartManager_CategoryReconcileDialog.h"
+#include "ui/PartManager_FootprintVariantsDialog.h"
 #include "ui/PartManager_ColumnsDialog.h"
 #include "ui/PartManager_DatabaseSelectorDialog.h"
 #include "ui/PartManager_ManageTagsDialog.h"
@@ -582,6 +583,18 @@ namespace PartManager
 		}
 		ModelessDialogs::show(ModelessDialogs::KicadLibrary,
 			new KicadLibraryDialog(m_controller.handle(), this));
+	}
+
+	void MainWindow::onFootprintVariants()
+	{
+		// Nothing to refresh on close: §5a's variant browser is read-only in this slice, so the
+		// tree and table behind it cannot have gone stale because of it.
+		if (ModelessDialogs::raise(ModelessDialogs::FootprintVariants) != nullptr)
+		{
+			return;
+		}
+		ModelessDialogs::show(ModelessDialogs::FootprintVariants,
+			new FootprintVariantsDialog(m_controller.handle(), this));
 	}
 
 	void MainWindow::onOpenOnMouser()
@@ -2217,6 +2230,10 @@ namespace PartManager
 		addButton(mouserGroup, tr("Orders"), QStringLiteral(":/icons/orders.png"), &MainWindow::onManageOrders);
 
 		addButton(kicadGroup, tr("Generate Libraries"), QStringLiteral(":/icons/viewer-3d.png"), &MainWindow::onGenerateKicadLibraries);
+		// Beside Generate rather than on its own tab: this screen answers what generation
+		// reported — the packages whose parts disagree about their pads — so it belongs where
+		// the user was standing when they read that number.
+		addButton(kicadGroup, tr("Footprint Variants"), QStringLiteral(":/icons/tabelle.png"), &MainWindow::onFootprintVariants);
 #endif
 	}
 

@@ -163,6 +163,9 @@ namespace PartManager
 		void onColumnResized(int logicalIndex, int oldSize, int newSize);
 		// Parts tab's KiCad group (§5a) — regenerate the symbol/footprint libraries.
 		void onGenerateKicadLibraries();
+		// KiCad tab's Footprint Variants button (§5a): which packages have parts disagreeing
+		// about their pad layout. Read-only — it browses, it does not reassign anything.
+		void onFootprintVariants();
 		// §6's "Open on Mouser" for the selected part, from the preview panel.
 		void onOpenOnMouser();
 		// Preview panel: hands the selected part's stored datasheet to the system PDF viewer.
