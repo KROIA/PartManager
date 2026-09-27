@@ -102,6 +102,13 @@ namespace PartManager
 		// Overlay only: two footprints, and the question is where they differ. The side-by-side
 		// tiles answer "what are they", which the user already knows — one is the download.
 		m_view->setMode(KicadVariantView::Mode::Overlay);
+		// **Peers, not a highlight.** The view's default draws the top entry opaque, which on a
+		// two-footprint comparison paints the amber reference straight over the blue candidate
+		// wherever their pads agree — hiding exactly the copper the user is here to judge. Both
+		// translucent means a shared pad comes out a third colour and a pad that is a fraction
+		// of a millimetre wider in one of them shows as a fringe in that one's own colour. The
+		// variant browser keeps the default: it has *N* entries, and blending N is unreadable.
+		m_view->setOverlayBlend(KicadVariantView::Blend::Peers);
 		m_ui->viewLayout->addWidget(m_view);
 
 		m_ui->candidateTree->header()->setStretchLastSection(false);

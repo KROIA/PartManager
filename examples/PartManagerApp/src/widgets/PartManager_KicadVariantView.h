@@ -18,6 +18,14 @@
 // drives `setHighlighted()` from the *hover* over its tree, so swiping down the
 // list flips through the variants in place — which is how the user asked to read
 // them, and it is much faster than clicking each in turn.
+//
+// **Two footprints are not N footprints, and `Blend` is where that shows.** With a
+// list to sweep, one opaque entry on top is the right answer. With exactly two —
+// the suggestion dialog's reference against one candidate — the opaque one hides
+// the pads that overlap, which are the only pads worth looking at, so both go
+// translucent and an overlap becomes a third colour. The default is the former;
+// the latter is opt-in, because the caller is the only thing that knows which of
+// the two screens it is.
 // @see docs/design/ARCHITECTURE.md §5a, §12a
 // @see PartManager_KicadShapePainter.h, PartManager_FootprintVariantsDialog.h
 #pragma once
@@ -40,6 +48,21 @@ namespace PartManager
 		// questions are usually asked in that order and a mode switch between them loses
 		// the place.
 		enum class Mode { SideBySide, Overlay, Both };
+
+		// How the overlay shares the panel between the footprints on it.
+		enum class Blend
+		{
+			// One entry opaque and on top, the rest faint behind it. The variant browser's
+			// scheme and the default: that screen shows *N* variants, where making every one
+			// of them translucent turns the overlap into a colour nothing can be read out of,
+			// and the highlight is the interaction rather than a decoration on it.
+			Highlight,
+			// Every entry translucent, so where two of them cover the same copper the result
+			// is a third colour and both outlines survive. Two footprints only — the
+			// suggestion dialog, where an opaque top entry hides precisely the pads that
+			// answer the question being asked.
+			Peers
+		};
 
 		// One footprint in the comparison.
 		struct Entry
@@ -71,6 +94,13 @@ namespace PartManager
 		void clear();
 		void setMode(Mode mode);
 		Mode mode() const { return m_mode; }
+
+		// Opt-in, and deliberately not decided from the entry count: two entries in the
+		// variant browser are still two of *N* variants read by sweeping the tree, which is
+		// the interaction `Highlight` exists for. Only a screen that knows its two footprints
+		// are peers may say so.
+		void setOverlayBlend(Blend blend);
+		Blend overlayBlend() const { return m_blend; }
 
 		// The entry drawn opaque, on top. An unknown or empty key highlights nothing, which is
 		// a legitimate state — the pointer is outside the tree and nothing is selected.
@@ -112,6 +142,7 @@ namespace PartManager
 		QString m_highlighted;
 		QString m_hint;
 		Mode m_mode = Mode::Both;
+		Blend m_blend = Blend::Highlight;
 	};
 
 }

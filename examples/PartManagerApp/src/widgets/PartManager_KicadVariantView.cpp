@@ -19,6 +19,18 @@ namespace PartManager
 		// only exists on one variant is still visible. Measured by eye against the user's 0603
 		// resistors, where the difference is a fraction of a millimetre of pad width.
 		constexpr double BackgroundOpacity = 0.35;
+		// `Blend::Peers`. The top entry is the *lower* of the two on purpose: it composites
+		// straight onto the board, while the one behind only ever reaches the eye through
+		// `1 - PeerTopOpacity` of itself, so equal numbers would not look equal.
+		//
+		// Chosen by working the arithmetic out on the two colours this actually runs on and
+		// then looking at the result on the user's 0603 resistors. Amber #FFB34D over blue
+		// #4FC3F7 over the #00101C board gives three readable colours: amber alone #A67A3C,
+		// blue alone #3B96C0, and where they overlap #BBA975 — a pale yellow that is neither
+		// of its parents, so a shared pad reads as shared at a glance. Raising the top much
+		// past 0.7 collapses the overlap back onto the amber and the change stops being one.
+		constexpr double PeerTopOpacity = 0.65;
+		constexpr double PeerBackOpacity = 0.75;
 		// The overlay gets the larger share in Both mode: it is the mode that answers the
 		// question, the strip underneath is the legend.
 		constexpr double OverlayShareOfHeight = 0.62;
@@ -103,6 +115,13 @@ namespace PartManager
 		update();
 	}
 
+	void KicadVariantView::setOverlayBlend(Blend blend)
+	{
+		if (m_blend == blend) { return; }
+		m_blend = blend;
+		update();
+	}
+
 	void KicadVariantView::setHighlighted(const QString& key)
 	{
 		if (m_highlighted == key) { return; }
@@ -154,7 +173,12 @@ namespace PartManager
 
 		// Highlighted last so it lands on top of the others; when nothing is highlighted every
 		// variant is drawn at the background opacity, which reads as "pick one" rather than as a
-		// view that has failed.
+		// view that has failed. Under `Blend::Peers` the order still decides which colour wins a
+		// shared pad — source-over is not commutative — so it is kept either way, and the
+		// highlighted entry is still the one the caller wants to read the others against.
+		const bool peers = m_blend == Blend::Peers;
+		const double topOpacity = peers ? PeerTopOpacity : 1.0;
+		const double backOpacity = peers ? PeerBackOpacity : BackgroundOpacity;
 		std::vector<size_t> order;
 		bool haveTop = false;
 		size_t topIndex = 0;
@@ -176,7 +200,7 @@ namespace PartManager
 		{
 			const bool isTop = haveTop && index == topIndex;
 			painter.save();
-			painter.setOpacity(isTop ? 1.0 : BackgroundOpacity);
+			painter.setOpacity(isTop ? topOpacity : backOpacity);
 			painter.translate(usable.center().x(), usable.center().y());
 			painter.scale(scale, scale * (m_pads[index].yAxisPointsUp ? -1.0 : 1.0));
 			painter.translate(-centreX, -centreY);

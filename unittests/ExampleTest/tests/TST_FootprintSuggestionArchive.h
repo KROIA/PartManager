@@ -10,6 +10,7 @@
 #include "kicad/PartManager_KicadGeometry.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "ui/PartManager_FootprintSuggestionDialog.h"
+#include "widgets/PartManager_KicadVariantView.h"
 
 #include <QAbstractButton>
 #include <QDialogButtonBox>
@@ -52,6 +53,7 @@ public:
 		ADD_TEST(TST_FootprintSuggestionArchive::aUserRequestedOfferKeepsTheCandidatesAnIdenticalOneWouldHaveWiped);
 		ADD_TEST(TST_FootprintSuggestionArchive::anImportOfferStaysSilentOnTheSameDatabase);
 		ADD_TEST(TST_FootprintSuggestionArchive::aUserRequestedOfferSaysWhyItFoundNothing);
+		ADD_TEST(TST_FootprintSuggestionArchive::theOverlayBlendsItsTwoFootprintsAndTheDefaultDoesNot);
 	}
 
 private:
@@ -1018,6 +1020,62 @@ public:
 		// The poller the other cases rely on is not armed here on purpose: every call above must
 		// have returned without showing anything, and a dialog left in exec() would hang the suite
 		// rather than fail it. Reaching this line is the assertion.
+		handle->close();
+		std::error_code ec;
+		std::filesystem::remove_all(folder, ec);
+	}
+
+	// Reported by the user: where the two footprints overlap, the opaque amber reference covered
+	// the blue candidate completely — so the pads that agree, which are most of them, showed only
+	// one of the two. The fix is `Blend::Peers`, and the opacities it picks are painting that no
+	// assertion can see; they were chosen by eye on the user's own 0603 resistors. What is checked
+	// here is the seam underneath them.
+	//
+	// The second half is the one worth having. `KicadVariantView` is shared with the KiCad tab's
+	// variant browser, which never calls the setter and so runs on the **default** — a screen the
+	// user has said works as it is, and one showing N variants, where blending every one of them
+	// would be unreadable. Changing that default is therefore a silent rewrite of another screen,
+	// and this is what would catch it.
+	TEST_FUNCTION(theOverlayBlendsItsTwoFootprintsAndTheDefaultDoesNot)
+	{
+		TEST_START;
+
+		TEST_ASSERT(UnitTest::Gui::ensureApplication());
+
+		PartManager::KicadVariantView untouched;
+		TEST_ASSERT_M(untouched.overlayBlend()
+			== PartManager::KicadVariantView::Blend::Highlight,
+			"the variant browser sets no blend, so the default *is* its behaviour");
+
+		std::filesystem::path folder;
+		std::string error;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			makeDatabase("blend", folder, error);
+		TEST_ASSERT_M(handle != nullptr, "createNew failed: " + error);
+
+		PartManager::PartEditorController controller(handle.get());
+		SQLiteWrapper::SQLite& db = handle->connection();
+
+		const int existing = makePart(db, "RC0603FR-074K7L");
+		const int migrating = makePart(db, "RC0603FR-0710KL");
+		TEST_ASSERT_M(controller.attachRoleBytes(existing,
+			PartManager::PartFileRole::KicadFootprint, chipLand("R_0603_1608Metric", "0.875"),
+			"R_0603_1608Metric.kicad_mod", &error) != 0, "attach failed: " + error);
+
+		const std::string downloaded = chipLand("RESC1608X55N", "0.9");
+		PartManager::FootprintSuggestionDialog dialog(handle.get(), migrating,
+			QByteArray(downloaded.data(), static_cast<int>(downloaded.size())),
+			QStringLiteral("RESC1608X55N.kicad_mod"));
+		TEST_ASSERT(dialog.hasSuggestions());
+
+		PartManager::KicadVariantView* view =
+			dialog.findChild<PartManager::KicadVariantView*>();
+		TEST_ASSERT(view != nullptr);
+		TEST_ASSERT_M(view->overlayBlend() == PartManager::KicadVariantView::Blend::Peers,
+			"an opaque reference hides the very pads this overlay is read for");
+		TEST_ASSERT_M(view->mode() == PartManager::KicadVariantView::Mode::Overlay,
+			"and the blend must not have cost the overlay-only layout");
+
 		handle->close();
 		std::error_code ec;
 		std::filesystem::remove_all(folder, ec);
