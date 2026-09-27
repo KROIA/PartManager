@@ -521,9 +521,26 @@ namespace PartManager
 			// The same tail MainWindow::openNewPart() runs. The §6 datasheet download already
 			// happened inside New Part; the URL is handed on so a retry after a dead link costs
 			// one click.
-			PartEditorDialog editor(m_controller.handle(), partId, this);
-			editor.setDatasheetSourceUrl(datasheetUrl);
-			editor.exec();
+			bool alreadyOpen = false;
+			PartEditorDialog* editor =
+				PartEditorDialog::open(m_controller.handle(), partId, this, &alreadyOpen);
+			if (!alreadyOpen)
+			{
+				editor->setDatasheetSourceUrl(datasheetUrl);
+				// The worklist deliberately does not move on until the editor closes. It never
+				// did — the editor used to be modal, so the two lines below could not run any
+				// earlier — and advancing under an open editor would leave the wizard pointing at
+				// one row while the user is still filling in the previous one.
+				connect(editor, &QDialog::finished, this, [this, row](int)
+					{
+						selectNextPending(row);
+						updateButtons();
+					});
+				return;
+			}
+			// A part created one statement ago cannot already have an editor open on it, so this
+			// falls through to advance rather than waiting on a handler that belongs to someone
+			// else's call.
 		}
 
 		selectNextPending(row);
@@ -693,13 +710,24 @@ namespace PartManager
 			return;
 		}
 
-		PartEditorDialog editor(m_controller.handle(),
-			m_rows[static_cast<size_t>(row)].matchedPartId, this);
-		editor.exec();
-
-		m_parts = m_controller.allParts();
-		writeWorklistRow(row);
-		updateButtons();
+		bool alreadyOpen = false;
+		PartEditorDialog* editor = PartEditorDialog::open(m_controller.handle(),
+			m_rows[static_cast<size_t>(row)].matchedPartId, this, &alreadyOpen);
+		if (alreadyOpen)
+		{
+			// Same part, already being edited from another row of this worklist — two pasted
+			// lines can resolve to one part. The editor is raised and the earlier handler still
+			// carries the re-read.
+			return;
+		}
+		// Modeless, so the row is re-read when the editor closes rather than after exec()
+		// returns: the part it shows can have gained a name, a stock count or an attachment.
+		connect(editor, &QDialog::finished, this, [this, row](int)
+			{
+				m_parts = m_controller.allParts();
+				writeWorklistRow(row);
+				updateButtons();
+			});
 	}
 
 	void PartMigrationDialog::bookSelectedStock()

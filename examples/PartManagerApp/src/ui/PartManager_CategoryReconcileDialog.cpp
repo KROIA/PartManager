@@ -384,10 +384,16 @@ namespace PartManager
 
 		// The real editor, not a cut-down "fill in this one field" form: the value that is missing
 		// often only makes sense beside the ones that are not, and §10 autosave means there is no
-		// result to read back — closing it is the commit.
-		PartEditorDialog dialog(m_handle, partId, this);
-		dialog.exec();
-		refreshIncompleteParts();
+		// result to read back — closing it is the commit. It opens modeless, so the list below
+		// is refreshed from a finished() callback rather than after an exec() returns; `this` as
+		// the context object is what keeps it from firing into a dialog that has been closed.
+		bool alreadyOpen = false;
+		PartEditorDialog* editor = PartEditorDialog::open(m_handle, partId, this, &alreadyOpen);
+		if (alreadyOpen)
+		{
+			return;
+		}
+		connect(editor, &QDialog::finished, this, [this](int) { refreshIncompleteParts(); });
 	}
 
 	void CategoryReconcileDialog::updateProgress()

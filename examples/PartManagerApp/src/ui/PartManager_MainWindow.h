@@ -17,6 +17,7 @@
 
 #include "controllers/PartManager_MainWindowController.h"
 #include "controllers/PartManager_StockController.h"
+#include "llm/PartManager_LlmUiBridge.h"
 #include <QMainWindow>
 #include <memory>
 
@@ -42,7 +43,13 @@ namespace PartManager
 	// declaration would make this header say something different to moc than to the compiler.
 	class LlmController;
 
-	class MainWindow : public QMainWindow
+	// SelectPartResult lives in PartManager_LlmUiBridge.h, beside the interface that returns it —
+	// a toolset that must not include this header still has to be able to read the answer.
+
+	// QMainWindow first, as moc requires; LlmUiBridge is a pure interface with no Q_OBJECT of its
+	// own. The second base is what §14a's UI tools see, and all they see: including this header
+	// would hand them the controllers, Qt3D and every dialog the window opens.
+	class MainWindow : public QMainWindow, public LlmUiBridge
 	{
 		Q_OBJECT
 	public:
@@ -55,6 +62,54 @@ namespace PartManager
 		// dialog, the mesh builder and the partlist panel hold a raw DatabaseHandle* taken from
 		// this one, and none of them would notice it being exchanged underneath them.
 		std::unique_ptr<DatabaseHandle> takeSwitchTarget();
+
+		// What the Home tab is showing, and how to aim it somewhere else — LlmUiBridge's half of
+		// this class. The window has always known all of this privately; it is public because the
+		// selection *is* the app's current context, and anything acting on "the part I am looking
+		// at" — the §14a assistant first — has to be able to read it and to move it without
+		// reaching into the widgets.
+		// The setters go through the widgets rather than around them, so the §7a debounce, the
+		// syntax-error border and the AppPreferences write all still happen exactly as they do
+		// when a person types.
+		int selectedCategoryId() const override { return m_currentTypeId; }
+		QString selectedCategoryName() const override { return m_currentTypeName; }
+		// The selected row's part, 0 when none. `outName` takes its name along the way. The
+		// default is this class's own convenience — the interface requires the argument, because a
+		// default argument on a virtual is bound to the static type and would be a place the two
+		// declarations could silently disagree.
+		int selectedPartId(QString* outName = nullptr) const override;
+
+		// Makes `typeId` the current category, expanding whatever it is buried under — a tree
+		// item can be selected while invisible, which selects a category the user cannot see.
+		// False when no item carries that id: the category does not exist, or one of the two
+		// tree filters is leaving it out.
+		bool selectCategory(int typeId) override;
+		// Selects the part, moving the category and clearing the table filter if that is what it
+		// takes. See SelectPartResult for what it reports back and why it has to.
+		SelectPartResult selectPart(int partId) override;
+
+		// §7a's four filter controls. The tree box re-counts every category, the table box
+		// filters the selected one's rows, the all-categories tick widens the table box to the
+		// whole database, and hide-empty drops categories nothing is filed under.
+		QString treeFilter() const override;
+		void setTreeFilter(const QString& text) override;
+		QString tableFilter() const override;
+		void setTableFilter(const QString& text) override;
+		bool allCategoriesSearch() const override;
+		void setAllCategoriesSearch(bool enabled) override;
+		bool hideEmptyCategories() const override;
+		void setHideEmptyCategories(bool enabled) override;
+
+		// The §10 part editor on `partId`, through the same PartEditorDialog::open() and the same
+		// post-close reload that double-clicking a row goes through — so an editor the assistant
+		// opened behaves in every way like one the user opened, including refreshing the table on
+		// the way out. False when there is no open database to edit against.
+		bool openPartEditor(int partId, bool* raisedExisting) override;
+
+		// Reloads an open editor after a tool wrote that part's row behind it. The editor is
+		// modeless, so it outlives the call that opened it and its next §10 autosave would
+		// otherwise put its stale copy back — see PartEditorDialog::reloadIfOpen().
+		bool reloadOpenPartEditor(int partId) override;
 
 	private slots:
 		// Attaches a file to the selected part under a role picked in the dialog — the ribbon's
@@ -156,11 +211,15 @@ namespace PartManager
 		void openNewPart(int partId, const QString& datasheetUrl);
 		// Shared body of the two Stock buttons — prompt, then one transaction through the controller.
 		void changeStock(bool restocking);
-		// part id of the selected table row, 0 when nothing is selected; outName gets its name.
-		int selectedPartId(QString* outName = nullptr) const;
 
 		// Re-renders the currently selected category, after an edit changed what it shows.
 		void refreshCurrentCategory();
+
+		// The tree item carrying `typeId`, or null. The tree is small and this walks it, rather
+		// than an id→item map that every rebuild would have to keep in step.
+		QTreeWidgetItem* categoryItem(int typeId) const;
+		// The table row showing `partId`, or -1. The id rides on the first cell of each row.
+		int partRow(int partId) const;
 
 		// The category item a part is being dragged over, or null when this drop would not be a
 		// move: nothing draggable in it, no category under the cursor, or the part is already

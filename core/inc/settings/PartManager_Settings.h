@@ -82,6 +82,15 @@ namespace PartManager
 		std::string llmSystemPrompt;          // empty = the built-in prompt
 		bool llmShowToolCalls = true;
 		int  llmFontSizePercent = 100;
+
+		// §14f. A second folder the assistant's `list_downloaded_libraries` may look in, beside
+		// the system Downloads folder it always has. Empty — the default — means Downloads and
+		// nothing else, and that is the state to leave it in unless the user keeps their vendor
+		// ZIPs somewhere else. It is a *root*, not a path the model supplies: the assistant still
+		// names a file out of a listing and never a path of its own, and nothing outside these
+		// two folders is reachable at all. No Settings-dialog field yet, deliberately — the
+		// boundary is worth understanding before it is worth widening by mouse.
+		std::string llmDownloadFolder;
 	};
 
 	// One remembered CSV/BOM column mapping (§5). Keyed by `headerSignature` — the file's own

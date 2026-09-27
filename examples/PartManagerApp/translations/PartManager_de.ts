@@ -1046,6 +1046,14 @@ This editor closes, because the answer and the tool calls behind it appear in th
 
 Dieser Editor schließt sich dabei, denn die Antwort und die Werkzeugaufrufe dahinter erscheinen im Panel des Hauptfensters — vor dem ein modaler Editor stehen würde. Alles, was Sie eingegeben haben, ist bereits gespeichert.</translation>
     </message>
+    <message>
+        <source>From Mouser</source>
+        <translation>Von Mouser</translation>
+    </message>
+    <message>
+        <source>Fetch the product photo Mouser publishes for this part&apos;s article number.</source>
+        <translation>Holt das Produktfoto, das Mouser zur Artikelnummer dieses Bauteils veröffentlicht.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::AttachmentIconPainter</name>
@@ -3779,6 +3787,42 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
     <message>
         <source>The assistant is still answering. Wait for it to finish, then ask again.</source>
         <translation>Der Assistent antwortet noch. Warten Sie, bis er fertig ist, und fragen Sie dann erneut.</translation>
+    </message>
+    <message>
+        <source>This part has no Mouser article number yet.</source>
+        <translation>Dieses Bauteil hat noch keine Mouser-Artikelnummer.</translation>
+    </message>
+    <message>
+        <source>No Mouser API key — set the %1 environment variable and restart the app.</source>
+        <translation>Kein Mouser-API-Schlüssel — setzen Sie die Umgebungsvariable %1 und starten Sie die App neu.</translation>
+    </message>
+    <message>
+        <source>Mouser knows no article %1.</source>
+        <translation>Mouser kennt den Artikel %1 nicht.</translation>
+    </message>
+    <message>
+        <source>Mouser publishes no product photo for %1.</source>
+        <translation>Mouser veröffentlicht zu %1 kein Produktfoto.</translation>
+    </message>
+    <message>
+        <source>Asking Mouser for the product photo…</source>
+        <translation>Produktfoto wird bei Mouser abgefragt…</translation>
+    </message>
+    <message>
+        <source>Could not fetch the image from Mouser</source>
+        <translation>Das Bild konnte nicht von Mouser geholt werden</translation>
+    </message>
+    <message>
+        <source>Enter this part&apos;s Mouser article number first — the photo is looked up by article number, not by the MPN.</source>
+        <translation>Geben Sie zuerst die Mouser-Artikelnummer dieses Bauteils ein — das Foto wird über die Artikelnummer gesucht, nicht über die MPN.</translation>
+    </message>
+    <message>
+        <source>Fetch the product photo Mouser publishes for this part&apos;s article number.</source>
+        <translation>Holt das Produktfoto, das Mouser zur Artikelnummer dieses Bauteils veröffentlicht.</translation>
+    </message>
+    <message>
+        <source>Product photo fetched from Mouser.</source>
+        <translation>Produktfoto von Mouser geholt.</translation>
     </message>
 </context>
 <context>

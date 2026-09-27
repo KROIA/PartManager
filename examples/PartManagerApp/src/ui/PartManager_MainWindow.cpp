@@ -9,6 +9,7 @@
 #include "ui/PartManager_ColumnsDialog.h"
 #include "ui/PartManager_DatabaseSelectorDialog.h"
 #include "ui/PartManager_ManageTagsDialog.h"
+#include "ui/PartManager_ModelessDialogs.h"
 #include "ui/PartManager_MouserSearchDialog.h"
 #include "ui/PartManager_MovePartDialog.h"
 #include "ui/PartManager_NewPartDialog.h"
@@ -355,7 +356,9 @@ namespace PartManager
 		// handing them a new one is the live-handle swap this window already refused.
 		if (m_controller.handle() != nullptr)
 		{
-			m_llm = new LlmController(*m_controller.handle(), this, this);
+			// Three roles, one object: the database's window, the parent its dialogs open over,
+			// and §14a's LlmUiBridge — the Component Browser the UI tools read and drive.
+			m_llm = new LlmController(*m_controller.handle(), this, this, this);
 			m_chatDock = m_llm->chatDock();
 			addDockWidget(Qt::RightDockWidgetArea, m_chatDock);
 			tabifyDockWidget(m_partlistDock, m_chatDock);
@@ -478,6 +481,14 @@ namespace PartManager
 
 	MainWindow::~MainWindow()
 	{
+		// First, while m_controller still holds the open database. Every dialog in the app is
+		// modeless and parented to this window, so Qt would otherwise delete them from
+		// ~QWidget — after every member here, the DatabaseHandle included, has already been
+		// destroyed — and anything one of them writes on the way down (§10) would go through a
+		// dangling handle. Editors before the screens that own them, so a wizard's editor is
+		// already gone by the time the wizard is deleted.
+		PartEditorDialog::closeAll();
+		ModelessDialogs::closeAll();
 #if RIBBON_WIDGET_LIBRARY_AVAILABLE == 1
 		delete m_ribbon;
 #endif
@@ -562,8 +573,15 @@ namespace PartManager
 
 	void MainWindow::onGenerateKicadLibraries()
 	{
-		KicadLibraryDialog dialog(m_controller.handle(), this);
-		dialog.exec();
+		// Modeless, like every screen the user might sit in front of: generating libraries is
+		// exactly the moment someone wants to check what a part is called in the table behind.
+		// Nothing to do when it closes — it writes files, not rows.
+		if (ModelessDialogs::raise(ModelessDialogs::KicadLibrary) != nullptr)
+		{
+			return;
+		}
+		ModelessDialogs::show(ModelessDialogs::KicadLibrary,
+			new KicadLibraryDialog(m_controller.handle(), this));
 	}
 
 	void MainWindow::onOpenOnMouser()
@@ -606,18 +624,27 @@ namespace PartManager
 				tr("Select a part first — the 3D viewer shows that part's model."));
 			return;
 		}
+		// Keyed per part, not per screen: two parts' models side by side is a comparison worth
+		// having, and they share nothing that could race.
+		const QString key = QStringLiteral("model-3d:%1").arg(partId);
+		if (ModelessDialogs::raise(key) != nullptr)
+		{
+			return;
+		}
+
 		// Opens whether or not the part has a model: attaching one is the same screen, because
 		// the first thing anyone does after attaching is check it is the right file.
-		Model3DDialog dialog(m_controller.handle(), m_meshBuilder, partId, name, this);
+		Model3DDialog* dialog = new Model3DDialog(m_controller.handle(), m_meshBuilder, partId,
+			name, this);
 		// A model attached in there is a new STEP file to tessellate and a new glyph in the Files
 		// column, neither of which the dialog can do on its own.
-		connect(&dialog, &Model3DDialog::modelChanged, this, [this]()
+		connect(dialog, &Model3DDialog::modelChanged, this, [this]()
 			{
 				if (m_meshBuilder != nullptr) { m_meshBuilder->rescan(); }
 				refreshCurrentCategory();
 				updatePreview();
 			});
-		dialog.exec();
+		ModelessDialogs::show(key, dialog);
 	}
 
 	void MainWindow::onSettings()
@@ -1008,24 +1035,51 @@ namespace PartManager
 		}
 		m_ui->categoryTree->expandAll();
 
-		QTreeWidgetItem* target = nullptr;
-		for (QTreeWidgetItemIterator it(m_ui->categoryTree); *it && !target; ++it)
+		if (!selectCategory(previousTypeId))
 		{
-			if ((*it)->data(0, TypeIdRole).toInt() == previousTypeId)
+			// Open on the first category rather than an empty table — the mockup shows a
+			// selected category, and there is nothing else the Home tab could usefully show.
+			if (QTreeWidgetItem* first = m_ui->categoryTree->topLevelItem(0))
 			{
-				target = *it;
+				m_ui->categoryTree->setCurrentItem(first);
 			}
 		}
-		// Open on the first category rather than an empty table — the mockup shows a
-		// selected category, and there is nothing else the Home tab could usefully show.
-		if (!target)
+	}
+
+	QTreeWidgetItem* MainWindow::categoryItem(int typeId) const
+	{
+		for (QTreeWidgetItemIterator it(m_ui->categoryTree); *it; ++it)
 		{
-			target = m_ui->categoryTree->topLevelItem(0);
+			if ((*it)->data(0, TypeIdRole).toInt() == typeId)
+			{
+				return *it;
+			}
 		}
-		if (target)
+		return nullptr;
+	}
+
+	bool MainWindow::selectCategory(int typeId)
+	{
+		QTreeWidgetItem* item = categoryItem(typeId);
+		if (item == nullptr)
 		{
-			m_ui->categoryTree->setCurrentItem(target);
+			return false;
 		}
+		// A collapsed branch hides its children without unselecting them, so setting the current
+		// item on its own can leave the tree highlighting something nobody can see. reloadCategories()
+		// expands everything, but the user is free to collapse a branch afterwards — and a caller
+		// that asked for a category is asking to be shown it.
+		for (QTreeWidgetItem* ancestor = item->parent(); ancestor != nullptr;
+			ancestor = ancestor->parent())
+		{
+			ancestor->setExpanded(true);
+		}
+		// Emits itemSelectionChanged, which refills the table — synchronously, so the rows are
+		// there by the time this returns and selectPart() can go looking for one. Setting the
+		// item that is already current emits nothing, which is equally correct: there is
+		// nothing to refresh.
+		m_ui->categoryTree->setCurrentItem(item);
+		return true;
 	}
 
 	void MainWindow::addCategoryItem(const CategoryNode& node, QTreeWidgetItem* parent)
@@ -1196,96 +1250,179 @@ namespace PartManager
 		{
 			return;
 		}
+		openPartEditor(partId, nullptr);
+	}
 
-		PartEditorDialog editor(m_controller.handle(), partId, this);
+	bool MainWindow::openPartEditor(int partId, bool* raisedExisting)
+	{
+		if (m_controller.handle() == nullptr)
+		{
+			return false;
+		}
+		bool alreadyOpen = false;
+		PartEditorDialog* editor =
+			PartEditorDialog::open(m_controller.handle(), partId, this, &alreadyOpen);
+		if (raisedExisting != nullptr)
+		{
+			*raisedExisting = alreadyOpen;
+		}
+		if (alreadyOpen)
+		{
+			// Raised rather than opened again; the handler below is already on it. Still a success
+			// — the part is in front of the user, which is what was asked for.
+			return true;
+		}
 		// §14d: what puts the "Generate description" button beside the description field. Null
 		// here means the button stays hidden, which is what every other caller of this dialog
 		// gets — the panel it would inject into belongs to this window.
-		editor.setLlmController(m_llm);
-		editor.exec();
+		editor->setLlmController(m_llm);
 		// The editor autosaved as it went (§10), so the table is stale by the time it closes — and
-		// since the quantity field is editable there, the tree's in-stock counts can be too.
-		reloadCategories();
+		// since the quantity field is editable there, the tree's in-stock counts can be too. It is
+		// modeless now, so this runs as a callback minutes later; `this` as the context object is
+		// what stops it running against a window that is gone.
+		connect(editor, &QDialog::finished, this, [this](int) { reloadCategories(); });
+		return true;
+	}
+
+	bool MainWindow::reloadOpenPartEditor(int partId)
+	{
+		// The window keeps no list of its own: PartEditorDialog::open() already owns the registry
+		// that makes "one editor per part" true, and a second one here would be a second thing to
+		// keep correct.
+		return PartEditorDialog::reloadIfOpen(partId);
 	}
 
 	void MainWindow::onNewPart()
 	{
-		NewPartDialog dialog(m_controller.handle(), this);
-		if (dialog.exec() != QDialog::Accepted)
+		if (ModelessDialogs::raise(ModelessDialogs::NewPart) != nullptr)
 		{
 			return;
 		}
-		openNewPart(dialog.createdPartId(), QString());
+		NewPartDialog* dialog = new NewPartDialog(m_controller.handle(), this);
+		connect(dialog, &QDialog::finished, this, [this, dialog](int result)
+			{
+				if (result == QDialog::Accepted)
+				{
+					openNewPart(dialog->createdPartId(), QString());
+				}
+			});
+		ModelessDialogs::show(ModelessDialogs::NewPart, dialog);
 	}
 
 	void MainWindow::onNewPartFromMouser()
 	{
-		MouserSearchDialog search(this);
-		if (search.exec() != QDialog::Accepted)
+		if (ModelessDialogs::raise(ModelessDialogs::MouserSearch) != nullptr)
 		{
 			return;
 		}
+		// Two screens in a row, so the second opens from the first one's finished() instead of
+		// from the next statement. Same order as before: search, then the form, then the editor.
+		MouserSearchDialog* search = new MouserSearchDialog(this);
+		connect(search, &QDialog::finished, this, [this, search](int result)
+			{
+				if (result != QDialog::Accepted
+					|| ModelessDialogs::raise(ModelessDialogs::NewPart) != nullptr)
+				{
+					return;
+				}
 
-		// Same form as the manual flow, only pre-populated — §6 is "auto-fill what's possible,
-		// correct the rest", so the user still confirms every field and presses Create.
-		const MouserPartPrefill& prefill = search.selectedPrefill();
-		NewPartDialog dialog(m_controller.handle(), this);
-		dialog.setPrefill(prefill);
-		if (dialog.exec() != QDialog::Accepted)
-		{
-			return;
-		}
-		openNewPart(dialog.createdPartId(), QString::fromStdString(prefill.datasheetUrl));
+				// Same form as the manual flow, only pre-populated — §6 is "auto-fill what's
+				// possible, correct the rest", so the user still confirms every field and
+				// presses Create. Taken by value, not by reference as it used to be: `search` is
+				// on its way to deleteLater() and the datasheet URL is read further down, after
+				// a form the user may sit in for minutes has closed.
+				const MouserPartPrefill prefill = search->selectedPrefill();
+				NewPartDialog* dialog = new NewPartDialog(m_controller.handle(), this);
+				dialog->setPrefill(prefill);
+				connect(dialog, &QDialog::finished, this, [this, dialog, prefill](int created)
+					{
+						if (created == QDialog::Accepted)
+						{
+							openNewPart(dialog->createdPartId(),
+								QString::fromStdString(prefill.datasheetUrl));
+						}
+					});
+				ModelessDialogs::show(ModelessDialogs::NewPart, dialog);
+			});
+		ModelessDialogs::show(ModelessDialogs::MouserSearch, search);
 	}
 
 	void MainWindow::onImportPartList()
 	{
 		// No openNewPart() tail here: the dialog creates any number of parts and offers the editor
 		// per part itself, behind a check box that is off by default.
-		PartMigrationDialog dialog(m_controller.handle(), this);
-		dialog.exec();
-		if (dialog.createdCount() > 0)
+		// This is the screen the whole modeless change was asked for: working a pasted list is
+		// exactly when the user needs to look up what they already own.
+		if (ModelessDialogs::raise(ModelessDialogs::ImportPartList) != nullptr)
 		{
-			reloadCategories();
+			return;
 		}
+		PartMigrationDialog* dialog = new PartMigrationDialog(m_controller.handle(), this);
+		connect(dialog, &QDialog::finished, this, [this, dialog](int)
+			{
+				if (dialog->createdCount() > 0)
+				{
+					reloadCategories();
+				}
+			});
+		ModelessDialogs::show(ModelessDialogs::ImportPartList, dialog);
 	}
 
 	void MainWindow::onExportCategories()
 	{
 		// Nothing to reload: an export reads and writes a file, and leaves this database exactly
 		// as it found it.
-		CategoryExportDialog dialog(m_controller.handle(), this);
-		dialog.exec();
+		if (ModelessDialogs::raise(ModelessDialogs::ExportCategories) != nullptr)
+		{
+			return;
+		}
+		ModelessDialogs::show(ModelessDialogs::ExportCategories,
+			new CategoryExportDialog(m_controller.handle(), this));
 	}
 
 	void MainWindow::onImportCategories()
 	{
-		CategoryImportDialog dialog(m_controller.handle(), this);
-		dialog.exec();
-		if (!dialog.applied())
+		if (ModelessDialogs::raise(ModelessDialogs::ImportCategories) != nullptr)
 		{
 			return;
 		}
-		// The tree on screen is stale the moment the merge commits — names, parents and part
-		// counts can all have moved — and so is the table, whose columns are resolved from the
-		// category's §7b list columns. Both are rebuilt rather than patched: the merge can touch
-		// any number of categories, and working out which of them the current view depends on is
-		// more code than simply asking again.
-		reloadCategories();
-		refreshCurrentCategory();
+		CategoryImportDialog* dialog = new CategoryImportDialog(m_controller.handle(), this);
+		connect(dialog, &QDialog::finished, this, [this, dialog](int)
+			{
+				if (!dialog->applied())
+				{
+					return;
+				}
+				// The tree on screen is stale the moment the merge commits — names, parents and
+				// part counts can all have moved — and so is the table, whose columns are
+				// resolved from the category's §7b list columns. Both are rebuilt rather than
+				// patched: the merge can touch any number of categories, and working out which
+				// of them the current view depends on is more code than asking again.
+				reloadCategories();
+				refreshCurrentCategory();
+			});
+		ModelessDialogs::show(ModelessDialogs::ImportCategories, dialog);
 	}
 
 	void MainWindow::onReconcileCategories()
 	{
 		// No plan to hand over — reopened from the ribbon there is no import in progress, which is
 		// exactly the case the dialog's empty-vector constructor is for.
-		CategoryReconcileDialog dialog(m_controller.handle(), std::vector<int>(), this);
-		dialog.exec();
-		if (dialog.movedPartCount() > 0)
+		if (ModelessDialogs::raise(ModelessDialogs::ReconcileCategories) != nullptr)
 		{
-			reloadCategories();
-			refreshCurrentCategory();
+			return;
 		}
+		CategoryReconcileDialog* dialog =
+			new CategoryReconcileDialog(m_controller.handle(), std::vector<int>(), this);
+		connect(dialog, &QDialog::finished, this, [this, dialog](int)
+			{
+				if (dialog->movedPartCount() > 0)
+				{
+					reloadCategories();
+					refreshCurrentCategory();
+				}
+			});
+		ModelessDialogs::show(ModelessDialogs::ReconcileCategories, dialog);
 	}
 
 	void MainWindow::openNewPart(int partId, const QString& datasheetUrl)
@@ -1301,15 +1438,22 @@ namespace PartManager
 
 		// §2d seeded the new part's tags inside insertPart(); opening the editor is what
 		// shows the user that happened, and is where everything else about it gets filled in.
-		PartEditorDialog editor(m_controller.handle(), partId, this);
-		editor.setDatasheetSourceUrl(datasheetUrl);
+		// A part created a moment ago cannot already have an editor, so the raised-existing case
+		// is not one this flow can reach — it is passed anyway rather than assumed away.
+		bool alreadyOpen = false;
+		PartEditorDialog* editor =
+			PartEditorDialog::open(m_controller.handle(), partId, this, &alreadyOpen);
+		if (alreadyOpen)
+		{
+			return;
+		}
+		editor->setDatasheetSourceUrl(datasheetUrl);
 		// §14d, as above: a part that has just been created is the one most likely to want a
 		// description written for it.
-		editor.setLlmController(m_llm);
-		editor.exec();
+		editor->setLlmController(m_llm);
 
 		// A new part changes the tree's in-stock counts as well as the table.
-		reloadCategories();
+		connect(editor, &QDialog::finished, this, [this](int) { reloadCategories(); });
 	}
 
 	void MainWindow::updateKicadPreviews(const PartPreview& preview)
@@ -1417,29 +1561,46 @@ namespace PartManager
 
 	void MainWindow::onManageOrders()
 	{
-		OrderManagerDialog dialog(m_controller.handle(), this);
-		dialog.exec();
+		// The same key the partlist panel's "Order Missing Parts" uses, so the two ways in land
+		// on one window rather than two views of the same orders.
+		if (ModelessDialogs::raise(ModelessDialogs::Orders) != nullptr)
+		{
+			return;
+		}
+		OrderManagerDialog* dialog = new OrderManagerDialog(m_controller.handle(), this);
 		// Confirming an arrival restocks, so the counts in the tree and the table have moved.
-		reloadCategories();
+		connect(dialog, &QDialog::finished, this, [this](int) { reloadCategories(); });
+		ModelessDialogs::show(ModelessDialogs::Orders, dialog);
 	}
 
 	void MainWindow::onManageTags()
 	{
-		ManageTagsDialog dialog(m_controller.handle(), this);
-		dialog.exec();
+		if (ModelessDialogs::raise(ModelessDialogs::Tags) != nullptr)
+		{
+			return;
+		}
+		ManageTagsDialog* dialog = new ManageTagsDialog(m_controller.handle(), this);
 		// A renamed/recoloured/deleted tag changes the chips painted in the table, and the
 		// vocabulary the filter drop-down offers.
-		reloadTagFilter();
-		refreshCurrentCategory();
+		connect(dialog, &QDialog::finished, this, [this](int)
+			{
+				reloadTagFilter();
+				refreshCurrentCategory();
+			});
+		ModelessDialogs::show(ModelessDialogs::Tags, dialog);
 	}
 
 	void MainWindow::onEditTypeTemplates()
 	{
-		TypeTemplateDialog dialog(m_controller.handle(), this);
-		dialog.exec();
+		if (ModelessDialogs::raise(ModelessDialogs::TypeTemplates) != nullptr)
+		{
+			return;
+		}
+		TypeTemplateDialog* dialog = new TypeTemplateDialog(m_controller.handle(), this);
 		// The types themselves are the §7a tree, and a type's attributes are the §7b columns of
 		// whichever category is open — both have to be re-read, not just repainted.
-		reloadCategories();
+		connect(dialog, &QDialog::finished, this, [this](int) { reloadCategories(); });
+		ModelessDialogs::show(ModelessDialogs::TypeTemplates, dialog);
 	}
 
 	int MainWindow::selectedPartId(QString* outName) const
@@ -1455,6 +1616,117 @@ namespace PartManager
 			*outName = item->text();
 		}
 		return item->data(Qt::UserRole).toInt();
+	}
+
+	int MainWindow::partRow(int partId) const
+	{
+		for (int row = 0; row < m_ui->partTable->rowCount(); ++row)
+		{
+			const QTableWidgetItem* cell = m_ui->partTable->item(row, 0);
+			if (cell != nullptr && cell->data(Qt::UserRole).toInt() == partId)
+			{
+				return row;
+			}
+		}
+		return -1;
+	}
+
+	SelectPartResult MainWindow::selectPart(int partId)
+	{
+		SelectPartResult result;
+
+		// The part is looked up before anything moves: an id that names nothing must leave the
+		// view exactly as it was, rather than half-aimed at a category that turns out to be
+		// empty of it.
+		Part part;
+		PartEditorController parts(m_controller.handle());
+		if (partId == 0 || !parts.loadPart(partId, part))
+		{
+			return result;
+		}
+		result.found = true;
+
+		// §7a's all-categories scope already has every part in reach, so the tree is left alone
+		// there — moving it would drop the scope for no gain (see setupFilters()).
+		if (!m_ui->allCategoriesCheck->isChecked() && part.partTypeId != m_currentTypeId)
+		{
+			if (!selectCategory(part.partTypeId))
+			{
+				// The category is not in the tree — filtered out, or gone. Nothing was touched,
+				// and clearing a filter to make a category appear is a bigger decision than this
+				// method gets to take on the caller's behalf.
+				return result;
+			}
+			result.categoryChanged = true;
+		}
+
+		if (partRow(partId) < 0 && !m_ui->tableFilterEdit->text().isEmpty())
+		{
+			// The right category, and still no row: the table filter is hiding it. Clearing the
+			// box is a visible change to a search the user typed, which is why it is reported.
+			m_ui->tableFilterEdit->clear();
+			result.filterCleared = true;
+			// The box refills the table on a 200 ms debounce (§7a) and the row has to exist now.
+			// Doing it here as well costs one extra query and makes the refresh synchronous; the
+			// debounced one lands afterwards and re-selects the same part, because showParts()
+			// restores m_selectedPartId.
+			refreshCurrentCategory();
+		}
+
+		const int row = partRow(partId);
+		if (row < 0)
+		{
+			return result;
+		}
+		m_ui->partTable->selectRow(row);
+		result.selected = true;
+		return result;
+	}
+
+	QString MainWindow::treeFilter() const
+	{
+		return m_ui->treeFilterEdit->text();
+	}
+
+	void MainWindow::setTreeFilter(const QString& text)
+	{
+		// Through the widget, not around it: setText() emits textChanged, which is what the §7a
+		// debounce timer is wired to, so the tree re-counts itself exactly as it would for a
+		// typed query — including the red border when the query is malformed. The same is true
+		// of all three setters below.
+		m_ui->treeFilterEdit->setText(text);
+	}
+
+	QString MainWindow::tableFilter() const
+	{
+		return m_ui->tableFilterEdit->text();
+	}
+
+	void MainWindow::setTableFilter(const QString& text)
+	{
+		m_ui->tableFilterEdit->setText(text);
+	}
+
+	bool MainWindow::allCategoriesSearch() const
+	{
+		return m_ui->allCategoriesCheck->isChecked();
+	}
+
+	void MainWindow::setAllCategoriesSearch(bool enabled)
+	{
+		m_ui->allCategoriesCheck->setChecked(enabled);
+	}
+
+	bool MainWindow::hideEmptyCategories() const
+	{
+		return m_ui->hideEmptyCheck->isChecked();
+	}
+
+	void MainWindow::setHideEmptyCategories(bool enabled)
+	{
+		// The tick is also a §9 preference, and the toggled() handler is what persists it —
+		// another reason this goes through the widget rather than straight to reloadCategories().
+		m_ui->hideEmptyCheck->setChecked(enabled);
 	}
 
 	void MainWindow::onRestock()
@@ -1699,14 +1971,10 @@ namespace PartManager
 		// and clearing the tree empties the table first, so by now the table itself has forgotten.
 		if (m_selectedPartId != 0)
 		{
-			for (int rowIndex = 0; rowIndex < m_ui->partTable->rowCount(); ++rowIndex)
+			const int row = partRow(m_selectedPartId);
+			if (row >= 0)
 			{
-				const QTableWidgetItem* cell = m_ui->partTable->item(rowIndex, 0);
-				if (cell && cell->data(Qt::UserRole).toInt() == m_selectedPartId)
-				{
-					m_ui->partTable->selectRow(rowIndex);
-					break;
-				}
+				m_ui->partTable->selectRow(row);
 			}
 		}
 		// Refilling the table drops the selection without always emitting the signal, and the

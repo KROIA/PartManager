@@ -2,6 +2,7 @@
 #include "ui_PartManager_PartlistPanel.h"
 
 #include "controllers/PartManager_PartEditorController.h"
+#include "ui/PartManager_ModelessDialogs.h"
 #include "ui/PartManager_OrderManagerDialog.h"
 #include "ui/PartManager_PartEditorDialog.h"
 #include "ui/PartManager_PartPickerDialog.h"
@@ -217,14 +218,24 @@ namespace PartManager
 
 	void PartlistPanel::importPartlist()
 	{
-		PartlistImportDialog import(m_controller, this);
-		if (import.exec() != QDialog::Accepted)
+		// Modeless: resolving a BOM's unmatched rows is the case for having the part table
+		// reachable at the same time, which is the whole reason for this change.
+		if (ModelessDialogs::raise(ModelessDialogs::PartlistImport) != nullptr)
 		{
 			return;
 		}
-		// Straight into the grid: an import that left rows unresolved is exactly what the user
-		// has to look at next.
-		showPartlist(import.createdPartlistId());
+		PartlistImportDialog* import = new PartlistImportDialog(m_controller, this);
+		connect(import, &QDialog::finished, this, [this, import](int result)
+			{
+				if (result != QDialog::Accepted)
+				{
+					return;
+				}
+				// Straight into the grid: an import that left rows unresolved is exactly what
+				// the user has to look at next.
+				showPartlist(import->createdPartlistId());
+			});
+		ModelessDialogs::show(ModelessDialogs::PartlistImport, import);
 	}
 
 	void PartlistPanel::deletePartlist()
@@ -790,12 +801,22 @@ namespace PartManager
 		QAction* open = menu.addAction(tr("Open Component Editor…"));
 		connect(open, &QAction::triggered, this, [this, partId]()
 			{
-				PartEditorDialog dialog(m_controller.handle(), partId, this);
-				dialog.exec();
+				bool alreadyOpen = false;
+				PartEditorDialog* editor =
+					PartEditorDialog::open(m_controller.handle(), partId, this, &alreadyOpen);
+				if (alreadyOpen)
+				{
+					return;
+				}
 				// The editor autosaves as it goes (§10), so stock, name and attachments can all
-				// have moved by the time it closes — and the browser above is just as stale.
-				reload();
-				emit stockChanged();
+				// have moved by the time it closes — and the browser above is just as stale. The
+				// editor is modeless, so this outlives the menu that opened it; the panel is the
+				// context object, which is what makes the callback safe once the panel is gone.
+				connect(editor, &QDialog::finished, this, [this](int)
+					{
+						reload();
+						emit stockChanged();
+					});
 			});
 
 		QAction* mouser = menu.addAction(tr("Open on Mouser"));
@@ -891,13 +912,28 @@ namespace PartManager
 			return;
 		}
 
-		OrderManagerDialog dialog(m_controller.handle(), this);
-		dialog.selectOrder(orderId);
-		dialog.exec();
+		// The ribbon's Orders button shares this key: one orders window, whichever door it was
+		// opened by. An already-open one is raised and told to show the new draft.
+		if (QDialog* open = ModelessDialogs::raise(ModelessDialogs::Orders))
+		{
+			// qobject_cast rather than a static one: the registry speaks QDialog, and a key that
+			// ever named a different screen should fail visibly here instead of quietly.
+			if (OrderManagerDialog* orders = qobject_cast<OrderManagerDialog*>(open))
+			{
+				orders->selectOrder(orderId);
+			}
+			return;
+		}
+		OrderManagerDialog* dialog = new OrderManagerDialog(m_controller.handle(), this);
+		dialog->selectOrder(orderId);
 		// Confirming an arrival in there restocks, which moves every shortfall on this screen —
 		// and every stock count in the table above it.
-		reload();
-		emit stockChanged();
+		connect(dialog, &QDialog::finished, this, [this](int)
+			{
+				reload();
+				emit stockChanged();
+			});
+		ModelessDialogs::show(ModelessDialogs::Orders, dialog);
 	}
 
 }

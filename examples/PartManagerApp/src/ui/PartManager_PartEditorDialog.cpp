@@ -7,6 +7,8 @@
 #include "widgets/PartManager_KeywordCheckList.h"
 #include "widgets/PartManager_KicadPreviewWidget.h"
 #include "widgets/PartManager_TypeIconPainter.h"
+#include "mouser/PartManager_MouserClient.h"
+#include "mouser/PartManager_MouserSearchService.h"
 #include "search/PartManager_SearchEngine.h"
 
 #include <fstream>
@@ -44,6 +46,27 @@ namespace PartManager
 		// §10 debounce: long enough that typing a word is one write, short enough that
 		// closing the window right after a keystroke never races the flush in done().
 		constexpr int AutosaveDelayMs = 400;
+
+		// The open editors, by part id — see PartEditorDialog::open(). Function-local rather
+		// than a file-scope object so it cannot be used before it is built, and so the one
+		// thing that keeps the "one editor per part" promise is visible in one place.
+		QHash<int, PartEditorDialog*>& openEditors()
+		{
+			static QHash<int, PartEditorDialog*> editors;
+			return editors;
+		}
+
+		// Drops an editor from the registry by pointer, not by part id: deletePart() zeroes
+		// m_part.id, so a removal keyed on the id it was opened with would miss on exactly the
+		// path that matters — and leave a dangling pointer for the next open() to raise.
+		void forgetEditor(PartEditorDialog* editor)
+		{
+			const int partId = openEditors().key(editor, 0);
+			if (partId != 0)
+			{
+				openEditors().remove(partId);
+			}
+		}
 
 		QString toQt(const std::string& text)
 		{
@@ -264,7 +287,10 @@ namespace PartManager
 
 		// The Mouser number is committed on editingFinished rather than per keystroke: every
 		// change rewrites the seller link row, and doing that mid-word would churn the table and
-		// throw away the stored product URL on the way through.
+		// throw away the stored product URL on the way through. editingFinished is also the one
+		// signal a programmatic setText() does not emit — this field and the quantity spin box
+		// are the two that will not write themselves back when something other than a human
+		// fills them, which is why both commits are public (see the header).
 		connect(m_ui->mouserEdit, &QLineEdit::editingFinished,
 			this, &PartEditorDialog::commitMouserPartNumber);
 		connect(m_ui->openMouserButton, &QPushButton::clicked, this, &PartEditorDialog::openOnMouser);
@@ -272,6 +298,8 @@ namespace PartManager
 		connect(m_ui->attachImageButton, &QPushButton::clicked, this, &PartEditorDialog::attachImage);
 		connect(m_ui->downloadImageButton, &QPushButton::clicked, this, &PartEditorDialog::downloadImage);
 		connect(m_ui->removeImageButton, &QPushButton::clicked, this, &PartEditorDialog::removeImage);
+		connect(m_ui->fetchMouserImageButton, &QPushButton::clicked,
+			this, &PartEditorDialog::fetchImageFromMouser);
 
 		connect(m_ui->importEcadButton, &QPushButton::clicked, this, &PartEditorDialog::importEcadArchive);
 		connect(m_ui->attachSymbolButton, &QPushButton::clicked, this, &PartEditorDialog::attachKicadSymbol);
@@ -281,6 +309,71 @@ namespace PartManager
 
 		connect(m_ui->deletePartButton, &QPushButton::clicked, this, &PartEditorDialog::deletePart);
 		connect(m_ui->closeButton, &QPushButton::clicked, this, &PartEditorDialog::accept);
+	}
+
+	PartEditorDialog* PartEditorDialog::open(DatabaseHandle* handle, int partId, QWidget* parent,
+		bool* raisedExisting)
+	{
+		if (raisedExisting != nullptr)
+		{
+			*raisedExisting = false;
+		}
+
+		const auto existing = openEditors().constFind(partId);
+		if (existing != openEditors().constEnd())
+		{
+			PartEditorDialog* editor = *existing;
+			// A minimised window is still an open one, and raise() on a minimised window leaves
+			// it minimised — so the user would click "edit" and watch nothing happen.
+			if (editor->isMinimized())
+			{
+				editor->showNormal();
+			}
+			editor->raise();
+			editor->activateWindow();
+			if (raisedExisting != nullptr)
+			{
+				*raisedExisting = true;
+			}
+			return editor;
+		}
+
+		PartEditorDialog* editor = new PartEditorDialog(handle, partId, parent);
+		// Qt owns it from here: nothing keeps this pointer, and the caller's finished() handler
+		// runs before the deferred delete, so it is safe to touch the dialog from in there.
+		editor->setAttribute(Qt::WA_DeleteOnClose);
+		openEditors().insert(partId, editor);
+		editor->show();
+		return editor;
+	}
+
+	void PartEditorDialog::closeAll()
+	{
+		// Deleted, not close()d: WA_DeleteOnClose defers the delete to the event loop, and the
+		// caller is on its way out of one — the flush has to have happened by the time this
+		// returns. The list is copied first because every destructor drops its own entry.
+		const QList<PartEditorDialog*> editors = openEditors().values();
+		openEditors().clear();
+		qDeleteAll(editors);
+	}
+
+	bool PartEditorDialog::reloadIfOpen(int partId)
+	{
+		const auto existing = openEditors().constFind(partId);
+		if (existing == openEditors().constEnd())
+		{
+			return false;
+		}
+		// A debounced §10 write may be pending, holding the last few hundred milliseconds of
+		// typing. It is **dropped rather than flushed**, and that is the deliberate half: flushing
+		// would write this editor's *stale* copy of the row the caller has just changed, which is
+		// the exact bug this function exists to prevent. Losing a keystroke typed inside the 400 ms
+		// window is the smaller failure, and the visible one.
+		(*existing)->m_saveTimer->stop();
+		// Everything the editor shows comes from here, the datasheet row included, so there is no
+		// second thing to refresh.
+		(*existing)->loadPart();
+		return true;
 	}
 
 	void PartEditorDialog::setDatasheetSourceUrl(const QString& url)
@@ -344,19 +437,30 @@ namespace PartManager
 			return;
 		}
 
-		// The editor is modal and the chat panel is in the window behind it, so an open editor
-		// puts the answer somewhere the user can neither read nor copy from. Closing is the one
-		// way out that leaves them looking at the reply: §10 has already written every field,
-		// done() flushes anything still pending, and the prompt asks the assistant to store the
-		// text with update_part — so the part they come back to is the part the answer was about.
-		// The table behind it is reloaded on close as usual; the model's own write lands minutes
-		// later and needs a Refresh, which is true of every background write in the app.
+		// Still closes now that the editor is modeless, for a better reason than the one this
+		// started with: the prompt asks the assistant to store the text with update_part, and a
+		// tool write landing in a row that an open editor also has loaded would be overwritten by
+		// that editor's next autosave (§10) — its fields are a snapshot from before the answer.
+		// Closing takes the second writer out. §10 has already written every field and done()
+		// flushes anything still pending, so nothing is lost on the way out, and the user ends up
+		// looking at the chat panel, which is where the reply is. The table behind it is reloaded
+		// on close as usual; the model's own write lands minutes later and needs a Refresh, which
+		// is true of every background write in the app.
 		accept();
 #endif
 	}
 
 	PartEditorDialog::~PartEditorDialog()
 	{
+		// Flushing here as well as in done(), rather than proving every close path goes through
+		// done(): most do — Close, Esc and the window's ✕ all funnel through QDialog::closeEvent
+		// → reject() — but a plain `delete` does not, and the editor is now a modeless child that
+		// its parent can take with it (the migration wizard closing, the app quitting). The
+		// second flush is free: done() stopped the timer and both commits are no-ops when the
+		// value has not moved.
+		m_destroying = true;
+		flushPendingEdits();
+		forgetEditor(this);
 		delete m_ui;
 	}
 
@@ -645,6 +749,109 @@ namespace PartManager
 			return;
 		}
 		updateImageState();
+	}
+
+	bool PartEditorDialog::downloadMouserImage(const std::string& number, QString* outError)
+	{
+		auto fail = [outError](const QString& text)
+		{
+			if (outError != nullptr)
+			{
+				*outError = text;
+			}
+			return false;
+		};
+
+		if (number.empty())
+		{
+			return fail(tr("This part has no Mouser article number yet."));
+		}
+		if (!MouserClient::hasApiKey())
+		{
+			return fail(tr("No Mouser API key — set the %1 environment variable and restart the "
+				"app.").arg(QLatin1String(MouserClient::ApiKeyEnvVar)));
+		}
+
+		MouserClient client;
+		const MouserSearchResult result = client.searchByPartNumber(number);
+		if (!result.ok)
+		{
+			return fail(toQt(result.errorMessage));
+		}
+		if (result.parts.empty())
+		{
+			return fail(tr("Mouser knows no article %1.").arg(toQt(number)));
+		}
+
+		// Mouser answers an article number with its packaging variants too, and they do not all
+		// carry the same photo. rankByMatch() is the same ordering the §6 search dialog shows the
+		// user, so the picture that lands here is the one they would have picked.
+		std::vector<MouserPartDto> parts = result.parts;
+		MouserSearchService::rankByMatch(parts, number);
+		const std::string url = MouserSearchService::previewImageUrl(parts.front().imagePath);
+		if (url.empty())
+		{
+			// A real and fairly common answer, not a malfunction: plenty of passives are listed
+			// with no photo at all. Said plainly so nobody goes looking for a broken download.
+			return fail(tr("Mouser publishes no product photo for %1.").arg(toQt(number)));
+		}
+
+		std::string error;
+		if (m_controller.downloadRoleFile(m_part.id, PartFileRole::Image, url, &error) == 0)
+		{
+			return fail(toQt(error));
+		}
+		// No autosave: nothing on `part` points at the image row, so unlike the datasheet this
+		// leaves the part record untouched — and therefore cannot be undone by anyone else's
+		// stale copy of it either.
+		updateImageState();
+		return true;
+	}
+
+	void PartEditorDialog::fetchImageFromMouser()
+	{
+		const std::string number = m_controller.mouserPartNumber(m_part.id);
+
+		// Synchronous, like every other §6 call in this dialog: one search plus one download, both
+		// with MouserClient's own timeout. The window really does stop responding for a moment, so
+		// it says what it is doing first.
+		m_ui->statusLabel->setText(tr("Asking Mouser for the product photo…"));
+		QApplication::setOverrideCursor(Qt::WaitCursor);
+		QString error;
+		const bool ok = downloadMouserImage(number, &error);
+		QApplication::restoreOverrideCursor();
+		m_ui->statusLabel->setText(tr("Changes are saved automatically."));
+
+		if (!ok)
+		{
+			QMessageBox::warning(this, tr("Could not fetch the image from Mouser"), error);
+		}
+	}
+
+	void PartEditorDialog::updateMouserImageButton()
+	{
+		const bool hasNumber = !m_controller.mouserPartNumber(m_part.id).empty();
+		const bool hasKey = MouserClient::hasApiKey();
+		m_ui->fetchMouserImageButton->setEnabled(hasNumber && hasKey);
+
+		// Disabled with a reason, never disabled silently: which of the two is missing decides
+		// what the user has to go and do, and they are different jobs.
+		if (!hasKey)
+		{
+			m_ui->fetchMouserImageButton->setToolTip(tr("No Mouser API key — set the %1 "
+				"environment variable and restart the app.")
+				.arg(QLatin1String(MouserClient::ApiKeyEnvVar)));
+		}
+		else if (!hasNumber)
+		{
+			m_ui->fetchMouserImageButton->setToolTip(tr("Enter this part's Mouser article number "
+				"first — the photo is looked up by article number, not by the MPN."));
+		}
+		else
+		{
+			m_ui->fetchMouserImageButton->setToolTip(
+				tr("Fetch the product photo Mouser publishes for this part's article number."));
+		}
 	}
 
 	void PartEditorDialog::removeImage()
@@ -1089,15 +1296,29 @@ namespace PartManager
 
 	void PartEditorDialog::done(int result)
 	{
+		flushPendingEdits();
+		// Before QDialog::done(), which emits finished() — a handler that reopens this part must
+		// not be handed the editor that is on its way out. The destructor does this too, for the
+		// paths that never reach here.
+		forgetEditor(this);
+		QDialog::done(result);
+	}
+
+	void PartEditorDialog::flushPendingEdits()
+	{
 		// Arrow-clicking the spin box and closing at once never fires editingFinished, so the
 		// pending count is committed here as well — a no-op when nothing changed.
 		commitStockQuantity();
+		// Same for the Mouser number, and for the same reason. It was missing here until
+		// 2026-09-27: typing an article number and clicking Close without ever leaving the field
+		// dropped it silently, which is the one field where that is expensive — it is what the
+		// Cart API orders by (§6), so the part simply could not be ordered afterwards.
+		commitMouserPartNumber();
 		// A keystroke less than the debounce interval old would otherwise be lost on close.
 		if (m_saveTimer->isActive())
 		{
 			autosave();
 		}
-		QDialog::done(result);
 	}
 
 	void PartEditorDialog::reloadTags()
@@ -1216,6 +1437,8 @@ namespace PartManager
 			? tr("Enter this part's Mouser article number first — it is what the cart orders by, "
 				 "and it is not the same as the MPN.")
 			: tr("Opens %1 on mouser.com.").arg(QString::fromStdString(number)));
+		// The image button follows the same number, so it is refreshed from the same place.
+		updateMouserImageButton();
 	}
 
 	void PartEditorDialog::commitMouserPartNumber()
@@ -1231,12 +1454,36 @@ namespace PartManager
 		}
 		// The stored product URL is carried over when the number is unchanged, and deliberately
 		// dropped when it changes: a URL for the old article would open the wrong page.
-		if (!m_controller.setMouserPartNumber(m_part.id, number))
+		if (!m_controller.setMouserPartNumber(m_part.id, number) && !m_destroying)
 		{
+			// Not while the window is being destroyed: a modal box whose parent is half gone is
+			// not a thing to put in front of someone who is closing the app, and there is no
+			// longer an editor for them to correct the number in.
 			QMessageBox::warning(this, tr("Could not save the Mouser part number"),
 				tr("The database rejected the change."));
 		}
 		updateMouserState();
+
+		// §6, the user's own words: "as soon as I enter a Mouser nr it should fetch the image".
+		// Three conditions, each because the opposite would be worse than doing nothing:
+		//   - a part that already has a picture keeps it. Replacing one the user chose, because
+		//     they typed an article number, is the assistant-shaped failure this must not have;
+		//     the button beside it is how they ask for the replacement.
+		//   - no key means no lookup, and this path must not open a dialog to say so.
+		//   - failure is a status line, not a message box. Nobody asked for this fetch, and
+		//     "Mouser publishes no photo for this article" is a normal answer for a passive.
+		PartFile existing;
+		if (!number.empty() && !m_controller.roleFile(m_part.id, PartFileRole::Image, existing)
+			&& MouserClient::hasApiKey() && !m_destroying)
+		{
+			m_ui->statusLabel->setText(tr("Asking Mouser for the product photo…"));
+			QApplication::setOverrideCursor(Qt::WaitCursor);
+			QString error;
+			const bool ok = downloadMouserImage(number, &error);
+			QApplication::restoreOverrideCursor();
+			m_ui->statusLabel->setText(ok
+				? tr("Product photo fetched from Mouser.") : error);
+		}
 	}
 
 	void PartEditorDialog::openOnMouser()

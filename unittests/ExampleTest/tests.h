@@ -56,4 +56,5 @@
 #include "tests/TST_PdfText.h"
 #include "tests/TST_LlmDatasheetToolset.h"
 #include "tests/TST_LlmMigration.h"
+#include "tests/TST_LlmEcadDownloadToolset.h"
 //#include "test_nasted.h"

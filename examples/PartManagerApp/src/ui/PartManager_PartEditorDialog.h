@@ -5,6 +5,12 @@
 // deliberately **no Save button**: §10 autosave writes the already-existing
 // record whenever a field finishes editing, and closing is always silent.
 //
+// It is the one **modeless** dialog in the app. An application-modal editor
+// blocks the window the §14a chat dock lives in, so the assistant could neither
+// be read nor asked anything while a part was open. Everything that follows from
+// that is in open(): a registry so one part cannot be edited by two windows at
+// once, WA_DeleteOnClose, and finished() instead of a return from exec().
+//
 // Layout lives in PartManager_PartEditorDialog.ui; only the two genuinely
 // data-driven parts are built in code — the attribute rows (AttributeFormWidget)
 // and the §2d tag chips, which are one button per tag the part actually carries.
@@ -40,6 +46,35 @@ namespace PartManager
 		PartEditorDialog(DatabaseHandle* handle, int partId, QWidget* parent = nullptr);
 		~PartEditorDialog() override;
 
+		// The one way in: every call site opens the editor through here, nobody constructs one.
+		// Shows it modeless, owned by Qt (WA_DeleteOnClose) — the caller connects to
+		// QDialog::finished() for whatever it used to do after exec() and then forgets the
+		// pointer. Nothing is ever read back off the dialog; §10 means closing *is* the commit.
+		//
+		// **One editor per part.** Two windows autosaving the same row would race, and §10 has
+		// no merge — so a part that is already open is raised and that same editor returned
+		// rather than a second one built. `raisedExisting`, when given, says that is what
+		// happened: the earlier caller's finished() handler is still attached and doing the
+		// refresh, so a second one must not be connected on top of it.
+		static PartEditorDialog* open(DatabaseHandle* handle, int partId, QWidget* parent,
+			bool* raisedExisting = nullptr);
+
+		// Deletes every open editor, flushing each (see ~PartEditorDialog) while the database it
+		// was opened against is still there. The window that owns the DatabaseHandle has to call
+		// this before it goes: a dialog parented to it is a QObject child, and Qt deletes
+		// children from ~QWidget — which runs *after* the members holding the handle are already
+		// gone. Leaving it to Qt would flush the last keystroke into freed memory.
+		static void closeAll();
+
+		// Reloads the editor open on `partId` from the database, false when that part is not open.
+		//
+		// **The editor is modeless, so anything else that writes a part row is writing behind it.**
+		// The editor holds its own copy of the part and §10 autosaves the whole record, so the next
+		// keystroke in an open editor would put the *old* value back — the assistant's
+		// `set_part_datasheet` is the first caller that can hit this, but nothing about it is
+		// specific to that tool. Call this after writing a part row that may be open.
+		static bool reloadIfOpen(int partId);
+
 		// §6: the DataSheetUrl a Mouser prefill carried, used to pre-fill the Download prompt.
 		// Mouser answers with an empty one for most real parts, which is why attaching a file by
 		// hand is the main road and this only saves typing when the URL happens to be there.
@@ -55,6 +90,23 @@ namespace PartManager
 		// opened from is gone rather than merely edited.
 		bool partWasDeleted() const { return m_deleted; }
 
+		// The two fields that do **not** write themselves back when something other than a human
+		// types in them. Every other widget in here is wired to textChanged/valueChanged, which
+		// a programmatic setText()/setValue() emits — these two are on editingFinished, which it
+		// does not. So anything filling the editor from code (a tool, a test, a prefill) has to
+		// call the matching commit itself, which is why both are reachable from outside rather
+		// than private. Both are no-ops when the value did not actually change.
+	public slots:
+		// §3: the quantity field is a correction, not a write — it logs the difference as
+		// `manual_adjust` through StockRepository, so `part.stock_qty` can never drift from the
+		// log. A no-op when the number did not actually change.
+		void commitStockQuantity();
+		// §6: the Mouser article number, which is what the Cart API orders by — `part.mpn` is the
+		// *manufacturer's* number and Mouser rejects it. Filled in automatically for a part
+		// created from a Mouser search; editable here because a part imported from CSV, or one
+		// that turns out to duplicate an existing row, has none and cannot otherwise be ordered.
+		void commitMouserPartNumber();
+
 	protected:
 		// Every way out of a QDialog (Close, Esc, the window's X) funnels through here,
 		// so it is the one place a still-pending debounced write has to be flushed.
@@ -66,10 +118,6 @@ namespace PartManager
 		// Rebuilds the §2d chip row from the part's current tags.
 		void reloadTags();
 
-		// §3: the quantity field is a correction, not a write — it logs the difference as
-		// `manual_adjust` through StockRepository, so `part.stock_qty` can never drift from the
-		// log. A no-op when the number did not actually change.
-		void commitStockQuantity();
 		// Fills the history table from the part's transactions, oldest first.
 		void reloadHistory();
 
@@ -85,6 +133,11 @@ namespace PartManager
 		void attachImage();
 		void downloadImage();
 		void removeImage();
+		// §6: the product photo for the part's *Mouser article number*, looked up through the
+		// Search API. The URL comes from `MouserPart.ImagePath` and never from the product page —
+		// www.mouser.* answers a scraper with a DataDome challenge, and only the image CDN is
+		// ungated (measured 2026-09-02, MouserSearchService::datasheetUrlFor()'s note).
+		void fetchImageFromMouser();
 
 		// §5c KiCad slots. The symbol and footprint the generated library is built from, and that
 		// a KiCad edit is synced back into.
@@ -109,11 +162,6 @@ namespace PartManager
 		// comment at the implementation for why.
 		void generateDescription();
 
-		// §6: the Mouser article number, which is what the Cart API orders by — `part.mpn` is the
-		// *manufacturer's* number and Mouser rejects it. Filled in automatically for a part
-		// created from a Mouser search; editable here because a part imported from CSV, or one
-		// that turns out to duplicate an existing row, has none and cannot otherwise be ordered.
-		void commitMouserPartNumber();
 		// Opens the part's mouser.com page. Falls back to a search for the article number when
 		// no product URL was stored (a hand-typed number has none).
 		void openOnMouser();
@@ -123,6 +171,10 @@ namespace PartManager
 		void loadPart();
 		// Restarts the §10 debounce — a burst of keystrokes becomes one write.
 		void scheduleSave();
+		// Everything a field might still be holding on to: the debounced write, and the two
+		// fields that only commit on editingFinished. Called from done() and again from the
+		// destructor — see both for why the second one is not redundant.
+		void flushPendingEdits();
 		// §11: re-renders the category's naming pattern against what the fields hold right now,
 		// and disables the button when the name it produces is the one the part already has.
 		// Reads the widgets rather than m_part, so it is current before the autosave has run.
@@ -143,6 +195,17 @@ namespace PartManager
 		void updateKicadPreviews();
 		// Fills the Mouser row and enables Open only when there is something to open.
 		void updateMouserState();
+		// Enables "From Mouser" only when there is an article number *and* a key to look it up
+		// with, and says in the tooltip which of the two is missing. Driven from updateMouserState()
+		// rather than from updateImageState(): what it depends on is the article number, and an
+		// image already attached is no reason to refuse a better one.
+		void updateMouserImageButton();
+		// The shared half of the button and the automatic fetch: looks `number` up through the
+		// Search API and downloads the photo into the part's image slot. False with `outError` set
+		// on every failure — no key, no result, no photo published, download refused — because the
+		// two callers report it differently: the button with a dialog, the automatic path with one
+		// status line, since nobody asked it to run.
+		bool downloadMouserImage(const std::string& number, QString* outError);
 
 		Ui::PartEditorDialog* m_ui;
 		PartEditorController m_controller;
@@ -166,6 +229,10 @@ namespace PartManager
 		// Blocks autosave while loadPart() writes into the widgets.
 		bool m_loading = true;
 		bool m_deleted = false;
+		// Set by the destructor before its flush. A failed write normally earns a message box,
+		// and a modal box parented to a widget that is half destroyed is not something to do on
+		// the way out of the process — during destruction the failure goes nowhere instead.
+		bool m_destroying = false;
 		QString m_datasheetSourceUrl;
 		// §14d. Not owned — it belongs to the main window, which outlives this dialog.
 		LlmController* m_llm = nullptr;

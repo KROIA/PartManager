@@ -745,7 +745,19 @@ Three rules here are load-bearing, each because the opposite was observed:
    junk down the whole §2b subtree. A parameter description therefore says what
    the value means in PartManager's terms, not just what it is called.
 
-A fourth thing was expected and turned out false: **a longer tool list did not
+A fourth rule joined them from the same kind of observation, one level down —
+about argument *shapes* rather than about vocabulary. **An optional parameter is
+absent when it is `null` and when it is `""`.** Measured on `gpt-oss:20b`
+(2026-09-27): asked for a filtered listing it sent `"modifiedAfter": null` on
+one call and `"modifiedAfter": ""` on the next, and a handler that accepted the
+first while refusing the second as an unparseable date cost a whole turn to
+teach the model nothing — the two mean the same thing and only one of them was
+understood. So every handler is forgiving about *shape* and strict about
+*meaning*: integers are read out of `"5"`, booleans out of `"true"` and `1`,
+and an empty optional is an omission rather than a value to validate. What is
+still refused, loudly, is a value that means something wrong.
+
+A fifth thing was expected and turned out false: **a longer tool list did not
 make the model worse.** The same migration ran in 6 calls / 103 s with four
 tools advertised and 5 calls / 71 s with fourteen — the extra tools
 (`mouser_suggest_category`, `mouser_import_part`) *shortened* the loop by making
@@ -830,6 +842,80 @@ the longer the tool list gets).
   through typed tools; a general file-write tool adds nothing to that and removes
   the guarantee that the assistant can only touch parts.
 
+**The one exception, and the boundary that replaces the old rule (2026-09-27).**
+This section used to say that *no* tool touches the filesystem and that no tool
+takes a path. The first half is no longer true and the second half now is, more
+strictly than before.
+
+What changed it is the user's own sentence: *"migrate this part — I already
+downloaded the ECAD zip into my downloads folder"*. Every step of that was
+already built except the one the user had done themselves, and the alternatives
+were worse than a narrow opening: re-downloading the archive the assistant
+cannot see, or having the user paste a path into a chat that must not accept one.
+`EcadDownloadToolset` (`examples/PartManagerApp/src/llm/`, §5c) is the answer,
+and the shape of it *is* the safety argument:
+
+- **The model never supplies a path — it supplies a name it was given.**
+  `list_downloaded_libraries` hands back bare file names; `inspect_downloaded_library`
+  and `attach_downloaded_library` take one back. Everything that becomes a path
+  is built by `resolveArchive()` out of a name plus an allowed root.
+- **A name that is not a name is an error that says so.** A path separator, a
+  `:`, a `..`, or anything not ending in `.zip` is refused by a message naming
+  the rule — not by an empty result, which cannot tell "I may not ask for that"
+  from "there is no such file".
+- **The resolved path is checked after canonicalisation**, and its parent folder
+  must *be* an allowed root rather than start with one: that defeats both a
+  symlink pointing out of the folder and the `Downloads2\` prefix trick.
+- **The allow-list is two folders at most.** The system Downloads folder
+  (`QStandardPaths::DownloadLocation`, falling back to `HomeLocation` the way
+  `EcadFetchDialog` already does), plus `AppPreferences::llmDownloadFolder`,
+  which defaults empty and has deliberately no Settings-dialog field yet.
+- **One extension per tool, and only four operations**: list the folder's
+  archives, classify one, attach one to a part the model named, or attach a
+  datasheet. No tool reads arbitrary file *content* back to the model, lists an
+  arbitrary directory, or writes anything outside the filestore — both writes go
+  through `PartEditorController` (`importEcadArchive()`,
+  `downloadDatasheet()`/`attachDatasheet()`), the same calls the dialogs make, so
+  each write path is one path and not two.
+
+**The second relaxation: `set_part_datasheet` also takes an absolute path.**
+A bare name still resolves inside the allowed roots like everything else, and a
+path is accepted *in addition* — because the user asked for it in those words,
+and a datasheet is saved wherever they happened to be looking rather than in
+Downloads. The narrowing that makes it acceptable is the extension and the
+verb: `.pdf` only, the file must exist, the refusal names which of those failed,
+and the only thing done with the file is "copy it into the filestore as this
+part's datasheet". The model never gets the bytes back — it gets
+`readable`/`looksScanned`/`pageCount` from `PdfText` (§14g), which is what tells
+it whether `search_datasheet` can answer anything from this file or whether it
+must say it cannot read it. This is the one tool in the app that takes a path,
+and only one the user typed.
+
+**A modeless editor makes any part write a two-writer problem.** Part editors
+outlive the call that opens them (§10) and hold their own copy of the row, so a
+tool that writes a part behind an open editor has its change undone by that
+editor's next autosave. `set_part_datasheet` therefore calls
+`LlmUiBridge::reloadOpenPartEditor()` after writing, which reaches
+`PartEditorDialog::reloadIfOpen()` — the editor re-reads and stops being stale.
+A pending debounced write is dropped rather than flushed there: flushing would
+write the stale copy back, which is the bug being prevented, and losing a
+keystroke typed inside the 400 ms window is both smaller and visible. Note that
+this is a *general* exposure and only the one tool is covered: `update_part` and
+`set_part_attribute` live in `core/llm/`, which is widget-free by §12a and
+cannot call the bridge at all, so the general fix is not this one (§14h).
+
+So the rule is now: **the assistant reaches parts through typed tools, and
+reaches the filesystem only as "a ZIP the user downloaded", by a name that came
+out of a listing.** The KiCad and datasheet toolsets still take no path at all
+(§14c, §14g) — a file there only ever arrives from another part in the same
+database, and that has not been relaxed.
+
+The filename-matching rule the listing filters by is
+`EcadArchive::matchesPartNumber()` in `core/import/`, shared with the download
+dialog's folder watch rather than copied into the toolset: an assistant offering
+an archive the dialog would not have taken is a disagreement neither of them can
+explain. It is pure, so it is unit-tested (`TST_EcadArchive`).
+
 ### 14g. Reading datasheets
 
 `core/pdf/PdfText` pulls text out of a PDF, and `DatasheetToolset` is the three
@@ -869,3 +955,13 @@ Two honest limits, both load-bearing:
   and reports "identical" separately from merely compatible — but merging them
   into one shared library artifact is an open design question, not something a
   tool should settle on its own.
+- **The general "a tool wrote a part an open editor is holding" problem.**
+  `set_part_datasheet` handles its own case (§14f), but `update_part` and
+  `set_part_attribute` have the same exposure now that editors are modeless, and
+  they cannot use the same fix: they live in `core/llm/`, which is widget-free by
+  §12a and cannot see `LlmUiBridge`. The shape of a real answer is therefore a
+  notification rather than a call — something the write side raises and the app
+  subscribes to (a "part N changed" signal on `DatabaseHandle` is the obvious
+  candidate, and would also cover the part table and the tree) — or an editor
+  that re-reads on focus, which is cheaper and covers less. Deliberately not
+  decided here.

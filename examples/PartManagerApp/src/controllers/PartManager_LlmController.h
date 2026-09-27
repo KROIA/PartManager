@@ -36,13 +36,21 @@ namespace PartManager
 {
 
 	class DatabaseHandle;
+	class LlmUiBridge;
 	struct Part;
 
 	class LlmController : public QObject
 	{
 		Q_OBJECT
 	public:
-		LlmController(DatabaseHandle& handle, QWidget* dialogParent, QObject* parent = nullptr);
+		// `ui` is the window the §14a UI toolset reads and drives — the selection, the §7a filter
+		// boxes, the part editor. Null is a supported state and means those five tools are not
+		// registered at all: a host with no Component Browser has nothing for them to report, and
+		// a tool that answers every call with "there is no window" is worse than a tool the model
+		// was never offered. Not owned; it outlives this controller, being the same object that
+		// is passed as `dialogParent`.
+		LlmController(DatabaseHandle& handle, QWidget* dialogParent, LlmUiBridge* ui = nullptr,
+			QObject* parent = nullptr);
 		~LlmController() override;
 
 		// The panel to dock. Created once, owned by the controller until the

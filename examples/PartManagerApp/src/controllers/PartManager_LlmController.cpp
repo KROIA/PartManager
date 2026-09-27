@@ -5,10 +5,12 @@
 #include "database/PartManager_DatabaseHandle.h"
 #include "domain/PartManager_Part.h"
 #include "llm/PartManager_DatasheetToolset.h"
+#include "llm/PartManager_EcadDownloadToolset.h"
 #include "llm/PartManager_KicadToolset.h"
 #include "llm/PartManager_LlmTool.h"
 #include "llm/PartManager_MouserToolset.h"
 #include "llm/PartManager_PartToolset.h"
+#include "llm/PartManager_UiToolset.h"
 #include "settings/PartManager_Settings.h"
 
 #include <BuiltinTools.h>
@@ -113,7 +115,10 @@ namespace PartManager
 			return QStringLiteral(
 				"You are the assistant built into PartManager, a local inventory for electronic "
 				"components. The user's parts live in a database you reach only through the tools "
-				"you were given; you cannot read or write files.\n"
+				"you were given. The only files you can reach are the ZIP archives in their "
+				"download folder, through list_downloaded_libraries and the two tools that take a "
+				"name from it, and a datasheet PDF the user names for set_part_datasheet. You "
+				"cannot open, read or write any other file.\n"
 				"Rules that matter:\n"
 				"- Never invent an id. A categoryId or partId must have come out of a tool result "
 				"in this conversation.\n"
@@ -121,6 +126,28 @@ namespace PartManager
 				"instead of repeating it.\n"
 				"- Look a part up with mouser_search before guessing its ratings.\n"
 				"- After any tool that writes, say what you changed and name the part or category.\n"
+				// §14a. Without this the model has no idea a window exists, and answers "the
+				// selected component" by picking a part out of a search it ran itself.
+				"- You can see and drive the app's Component Browser. When the user says \"the "
+				"selected part\", \"this component\" or anything else that points at their screen, "
+				"call ui_get_state to find out which part and category they have selected instead "
+				"of guessing one.\n"
+				// §5c/§14f. Without this the model answers "I downloaded the library already" by
+				// asking for a path — which is the one thing it may not be given.
+				"- When the user says they already downloaded a symbol/footprint library or an "
+				"ECAD zip, call list_downloaded_libraries (filter by mpn, or by "
+				"modifiedWithinHours with current_date_time for \"today\"), then "
+				"attach_downloaded_library with the part's id. Never ask them for a file path and "
+				"never make one up: pass back the \"file\" name a listing gave you.\n"
+				// §3/§14g. The one tool that does take a path, and the one answer that must not be
+				// read as "stored, therefore readable".
+				"- set_part_datasheet gives a part its datasheet, from a link or from a PDF the "
+				"user names. It is the only tool that accepts a path, and only one they typed. If "
+				"it answers \"readable\": false, the PDF is a scan: say it is attached but that "
+				"you cannot read it, and never answer specifications out of it.\n"
+				"- ui_select_part, ui_set_filter and ui_open_part_editor change what the user is "
+				"looking at. Use them to show them what you mean, and say afterwards what you "
+				"changed — those are their own search boxes.\n"
 				"- Answer in the language the user writes in.");
 		}
 
@@ -162,6 +189,8 @@ namespace PartManager
 		LlmController& owner;
 		DatabaseHandle& database;
 		QWidget* dialogParent = nullptr;
+		// §14a's window bridge, or null when the host has no Component Browser. Not owned.
+		LlmUiBridge* ui = nullptr;
 		QtLLM::Client* client = nullptr;
 		// Guarded rather than owned outright: addDockWidget() reparents the panel to the window,
 		// and from that moment the window deletes it. The destructor cleans up only the case
@@ -525,11 +554,13 @@ namespace PartManager
 		savePreferences();
 	}
 
-	LlmController::LlmController(DatabaseHandle& handle, QWidget* dialogParent, QObject* parent)
+	LlmController::LlmController(DatabaseHandle& handle, QWidget* dialogParent, LlmUiBridge* ui,
+		QObject* parent)
 		: QObject(parent)
 		, m_impl(new Impl(*this, handle))
 	{
 		m_impl->dialogParent = dialogParent;
+		m_impl->ui = ui;
 
 		// §14b. An empty setting is "whatever the default is now", never a stored empty value —
 		// which is what lets a changed ANTHROPIC_FOUNDRY_BASE_URL be followed rather than
@@ -625,6 +656,36 @@ namespace PartManager
 		// is answered as exactly that, because the failure this feature must not have is an empty
 		// answer the model fills in from its own memory of what the part does.
 		registerLlmTools(*m_impl->client, DatasheetToolset::tools(context));
+		// §5c/§14f: the one toolset that reaches the filesystem, and the one place that rule is
+		// relaxed. The model never supplies a path — it supplies a file name that came back from
+		// list_downloaded_libraries, resolved against the user's download folder and nothing else.
+		// Registered only when there is a folder to look in, for the same reason as the UI tools
+		// below: three tools that answer every call with "there is no folder" are worse than none.
+		const QStringList downloadRoots = EcadDownloadContext::defaultRoots();
+		if (!downloadRoots.isEmpty())
+		{
+			EcadDownloadContext downloadContext;
+			downloadContext.database = &m_impl->database;
+			downloadContext.allowWrites = true;
+			downloadContext.allowedRoots = downloadRoots;
+			// Null when this host has no Component Browser, and then nothing has an editor open to
+			// go stale. set_part_datasheet is the one tool here that writes a *part row*, so it is
+			// the one that has to tell an open editor to re-read (§10).
+			downloadContext.ui = m_impl->ui;
+			registerLlmTools(*m_impl->client, EcadDownloadToolset::tools(downloadContext));
+		}
+		// §14a: the only toolset that is not in core/, because a selection is a widget fact and
+		// core/ is widget-free (§12a). It goes through LlmUiBridge rather than MainWindow, so
+		// nothing here — or in the test binary — pulls the app's dialog stack in behind it.
+		// Registered only when there is a window: five tools that answer every call with "there is
+		// no Component Browser" are worse than five tools the model was never offered.
+		if (m_impl->ui != nullptr)
+		{
+			UiToolContext uiContext;
+			uiContext.ui = m_impl->ui;
+			uiContext.database = &m_impl->database;
+			registerLlmTools(*m_impl->client, UiToolset::tools(uiContext));
+		}
 
 		// §14f: the filesystem built-ins (read_text_file, write_text_file, list_directory) are
 		// deliberately absent — the assistant reaches parts through typed tools and nothing else,

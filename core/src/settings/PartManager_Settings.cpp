@@ -76,6 +76,7 @@ namespace PartManager
 				, llmSystemPrompt("llmSystemPrompt", QString())
 				, llmShowToolCalls("llmShowToolCalls", true)
 				, llmFontSizePercent("llmFontSizePercent", 100)
+				, llmDownloadFolder("llmDownloadFolder", QString())
 			{
 				addSetting(language);
 				addSetting(theme);
@@ -94,6 +95,7 @@ namespace PartManager
 				addSetting(llmSystemPrompt);
 				addSetting(llmShowToolCalls);
 				addSetting(llmFontSizePercent);
+				addSetting(llmDownloadFolder);
 			}
 
 			AppSettings::Setting language;
@@ -113,6 +115,7 @@ namespace PartManager
 			AppSettings::Setting llmSystemPrompt;
 			AppSettings::Setting llmShowToolCalls;
 			AppSettings::Setting llmFontSizePercent;
+			AppSettings::Setting llmDownloadFolder;
 		};
 
 		// Keys inside one remembered-mapping QVariantMap.
@@ -260,6 +263,8 @@ namespace PartManager
 		preferences.llmShowToolCalls = group.llmShowToolCalls.getValue().toBool();
 		preferences.llmFontSizePercent = clamped(group.llmFontSizePercent.getValue().toInt(),
 			MinLlmFontSizePercent, MaxLlmFontSizePercent);
+		// §14f: empty is the normal state and means the system Downloads folder only.
+		preferences.llmDownloadFolder = group.llmDownloadFolder.getValue().toString().toStdString();
 
 		// An empty string is what a never-written setting reads back as on some AppSettings
 		// versions; the struct's own defaults are the right answer then, not "no language".
@@ -299,6 +304,7 @@ namespace PartManager
 		group.llmShowToolCalls.setValue(preferences.llmShowToolCalls);
 		group.llmFontSizePercent.setValue(clamped(preferences.llmFontSizePercent,
 			MinLlmFontSizePercent, MaxLlmFontSizePercent));
+		group.llmDownloadFolder.setValue(QString::fromStdString(preferences.llmDownloadFolder));
 		instance().save();
 #else
 		PM_UNUSED(preferences);

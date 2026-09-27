@@ -23,6 +23,15 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_KicadContr
 ## that is tested will not link without it. (Its own body is behind QTLLM_LIBRARY_AVAILABLE,
 ## so a build without QtLLM compiles this to an empty translation unit.)
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/controllers/PartManager_LlmController.cpp")
+## ...which registers §14a's UI toolset beside the four core ones. It is an app source because a
+## selection is a widget fact and core/ is widget-free, so it has to be named here too — the
+## controller above will not link without it. It reaches the window through LlmUiBridge, which is
+## a header of pure virtuals, so this adds no dialog and no Qt3D to the test binary.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/llm/PartManager_UiToolset.cpp")
+## ...and §5c's downloaded-ECAD-archive tools, which are app sources because they drive
+## PartEditorController and read the desktop's Downloads folder. Same reason as above: the
+## controller names them, so the link fails without them.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/llm/PartManager_EcadDownloadToolset.cpp")
 
 ## The app's display setup, so the GUI tests render at the same scale and font size the user's
 ## app does. A suite that runs unscaled cannot see a layout that only breaks on the real screen.
@@ -47,6 +56,9 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_NewPartDialog.cpp")
 ## ...whose category field opens the §2b type tree instead of a flat combo (TST_PartTypePickerDialogGui).
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartTypePickerDialog.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_PartlistPanel.cpp")
+## ...whose CSV import and Orders button are modeless now, so they go through the registry that
+## keeps one window per screen and deletes them all before the database goes.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_ModelessDialogs.cpp")
 ## ...whose "+ Add Part" and Part-column repair both open the picker.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_PartPickerDialog.cpp")
 ## ...and a row's context menu opens the part editor.

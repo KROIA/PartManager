@@ -29,24 +29,6 @@ namespace PartManager
 {
 	namespace
 	{
-		// Everything but letters and digits, lowercased. A vendor names its archive
-		// "LIB_74HC4051PW-Q100,11(5).zip" for the part "74HC4051PW-Q100,11" — comma, brackets and
-		// a browser's duplicate-download counter all differ from the part number, and none of them
-		// survives this.
-		QString squashed(const QString& text)
-		{
-			QString out;
-			out.reserve(text.size());
-			for (QChar c : text)
-			{
-				if (c.isLetterOrNumber())
-				{
-					out += c.toLower();
-				}
-			}
-			return out;
-		}
-
 		QString downloadsFolder()
 		{
 			const QString folder = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
@@ -303,8 +285,8 @@ namespace PartManager
 			return;
 		}
 
-		const QString wanted = squashed(d->mpn);
-		if (wanted.isEmpty())
+		const std::string wanted = d->mpn.toStdString();
+		if (wanted.empty())
 		{
 			return;
 		}
@@ -320,7 +302,10 @@ namespace PartManager
 			{
 				continue;
 			}
-			if (!squashed(entry.completeBaseName()).contains(wanted))
+			// EcadArchive's rule, not a copy of it: the assistant's list_downloaded_libraries
+			// offers the user the archives this watch would have picked up, and two copies of a
+			// filename rule drift.
+			if (!EcadArchive::matchesPartNumber(entry.fileName().toStdString(), wanted))
 			{
 				continue;
 			}
