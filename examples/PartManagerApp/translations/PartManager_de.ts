@@ -1802,10 +1802,6 @@ Trotzdem schließen?</translation>
         <translation>Versatz %1 mm · Größe %2 mm</translation>
     </message>
     <message>
-        <source>%1 pads vs %2</source>
-        <translation>%1 Pads statt %2</translation>
-    </message>
-    <message>
         <source>Compatible</source>
         <comment>footprint fit verdict</comment>
         <translation>Kompatibel</translation>
@@ -1819,10 +1815,6 @@ Trotzdem schließen?</translation>
         <source>No</source>
         <comment>footprint fit verdict: not compatible at all</comment>
         <translation>Nein</translation>
-    </message>
-    <message>
-        <source>%1 pads against %2 — a different number of pads is a different part.</source>
-        <translation>%1 Pads statt %2 — eine andere Pad-Anzahl ist ein anderes Bauteil.</translation>
     </message>
     <message numerus="yes">
         <source>Same %n pad(s). Largest position difference %1 mm, largest size difference %2 mm.</source>
@@ -1850,6 +1842,16 @@ Trotzdem schließen?</translation>
     <message>
         <source>The database rejected the change.</source>
         <translation>Die Datenbank hat die Änderung abgelehnt.</translation>
+    </message>
+    <message>
+        <source>Same package (%1)</source>
+        <comment>footprint candidate group header; %1 is a package name such as 0603</comment>
+        <translation>Gleiches Gehäuse (%1)</translation>
+    </message>
+    <message>
+        <source>Other packages</source>
+        <comment>footprint candidate group header</comment>
+        <translation>Andere Gehäuse</translation>
     </message>
 </context>
 <context>

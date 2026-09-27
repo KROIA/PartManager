@@ -6,6 +6,8 @@
 #include "controllers/PartManager_PartEditorController.h"
 #include "database/PartManager_DatabaseHandle.h"
 #include "filestore/PartManager_FileStore.h"
+#include "kicad/PartManager_FootprintCompatibility.h"
+#include "kicad/PartManager_KicadGeometry.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "ui/PartManager_FootprintSuggestionDialog.h"
 
@@ -41,6 +43,9 @@ public:
 		ADD_TEST(TST_FootprintSuggestionArchive::anArchiveImportOffersTheFootprintAlreadyInTheDatabase);
 		ADD_TEST(TST_FootprintSuggestionArchive::decliningLeavesTheImportExactlyAsItWas);
 		ADD_TEST(TST_FootprintSuggestionArchive::anArchiveWithoutAFootprintAsksNothing);
+		ADD_TEST(TST_FootprintSuggestionArchive::aDifferentPadCountIsNeverListed);
+		ADD_TEST(TST_FootprintSuggestionArchive::nothingIsSuggestedWhenEveryCandidateIsFilteredOut);
+		ADD_TEST(TST_FootprintSuggestionArchive::theSamePackageIsListedBeforeABetterScoringStranger);
 	}
 
 private:
@@ -57,6 +62,23 @@ private:
 			"  (pad \"1\" smd rect (at -0.7875 0) (size " + padWidth + " 0.95)\n"
 			"    (layers \"F.Cu\" \"F.Paste\" \"F.Mask\"))\n"
 			"  (pad \"2\" smd rect (at 0.7875 0) (size " + padWidth + " 0.95)\n"
+			"    (layers \"F.Cu\" \"F.Paste\" \"F.Mask\"))\n"
+			")\n";
+	}
+
+	// Four pads where `chipLand` has two, in the same file dialect. Nothing a user can see in the
+	// overlay turns this into a two-pad land pattern, which is why it must not be offered as one
+	// — the fixture behind the pad-count filter.
+	static std::string quadLand(const char* name)
+	{
+		return std::string("(footprint \"") + name + "\" (version 20221018) (layer \"F.Cu\")\n"
+			"  (pad \"1\" smd rect (at -0.7875 -0.5) (size 0.9 0.5)\n"
+			"    (layers \"F.Cu\" \"F.Paste\" \"F.Mask\"))\n"
+			"  (pad \"2\" smd rect (at 0.7875 -0.5) (size 0.9 0.5)\n"
+			"    (layers \"F.Cu\" \"F.Paste\" \"F.Mask\"))\n"
+			"  (pad \"3\" smd rect (at 0.7875 0.5) (size 0.9 0.5)\n"
+			"    (layers \"F.Cu\" \"F.Paste\" \"F.Mask\"))\n"
+			"  (pad \"4\" smd rect (at -0.7875 0.5) (size 0.9 0.5)\n"
 			"    (layers \"F.Cu\" \"F.Paste\" \"F.Mask\"))\n"
 			")\n";
 	}
@@ -91,12 +113,32 @@ private:
 		return PartManager::DatabaseHandle::createNew(outFolder.string(), "Suggestion", outError);
 	}
 
-	static int makePart(SQLiteWrapper::SQLite& db, const std::string& name)
+	static int makePart(SQLiteWrapper::SQLite& db, const std::string& name,
+		const std::string& package = "0603")
 	{
 		PartManager::Part part;
 		part.name = name;
-		part.package = "0603";
+		part.package = package;
 		return PartManager::PartRepository::insertPart(db, part);
+	}
+
+	// The candidates, which are the *children* of the group headers — the tree's top level is
+	// the favourites/others grouping, so topLevelItemCount() counts headers, not choices.
+	static int candidateRowCount(const QTreeWidget* tree)
+	{
+		int rows = 0;
+		for (int i = 0; i < tree->topLevelItemCount(); ++i)
+		{
+			rows += tree->topLevelItem(i)->childCount();
+		}
+		return rows;
+	}
+
+	// The drawing behind a fixture, for asserting what the *metric* says independently of what
+	// the dialog does with it.
+	static PartManager::KicadDrawing drawingOf(const std::string& text)
+	{
+		return PartManager::KicadGeometry::footprint(text);
 	}
 
 	// Clicks one of the dialog's two buttons by role. Both are added in code, so there is no
@@ -178,7 +220,7 @@ public:
 				offered = true;
 				if (QTreeWidget* tree = dialog->findChild<QTreeWidget*>())
 				{
-					candidateRows = tree->topLevelItemCount();
+					candidateRows = candidateRowCount(tree);
 				}
 				clicked = clickByRole(dialog, QDialogButtonBox::AcceptRole);
 			}, 3000);
@@ -329,6 +371,192 @@ public:
 		TEST_ASSERT_M(!PartManager::FileStore::roleFile(db, imported,
 			PartManager::PartFileRole::KicadFootprint, none),
 			"nothing may end up in the footprint slot");
+
+		handle->close();
+		std::error_code ec;
+		std::filesystem::remove_all(folder, ec);
+	}
+
+	// The three cases below build the dialog directly instead of going through `offer()`: they are
+	// about what reaches the list, which is decided in the constructor, and a dialog that is never
+	// shown needs nobody to answer it. The part being given a footprint has none yet — the
+	// pre-attach path, and the one where the part is absent from `FootprintVariants::collect()`
+	// entirely, so its package has to come from its own row.
+
+	// Reported on real data: footprints "that don't even have the same pin counts" were being
+	// offered. A different pad count is a different part and no overlay reading changes that, so
+	// the row is not a decision the user can make — it must not be there at all.
+	TEST_FUNCTION(aDifferentPadCountIsNeverListed)
+	{
+		TEST_START;
+
+		TEST_ASSERT(UnitTest::Gui::ensureApplication());
+
+		std::filesystem::path folder;
+		std::string error;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			makeDatabase("padcount", folder, error);
+		TEST_ASSERT_M(handle != nullptr, "createNew failed: " + error);
+
+		PartManager::PartEditorController controller(handle.get());
+		SQLiteWrapper::SQLite& db = handle->connection();
+
+		const int twoPad = makePart(db, "RC0603FR-074K7L");
+		const int fourPad = makePart(db, "DFN-4-DUMMY");
+		const int migrating = makePart(db, "RC0603FR-0710KL");
+		TEST_ASSERT(twoPad != 0 && fourPad != 0 && migrating != 0);
+
+		TEST_ASSERT_M(controller.attachRoleBytes(twoPad, PartManager::PartFileRole::KicadFootprint,
+			chipLand("R_0603_1608Metric", "0.875"), "R_0603_1608Metric.kicad_mod", &error) != 0,
+			"attach failed: " + error);
+		TEST_ASSERT_M(controller.attachRoleBytes(fourPad, PartManager::PartFileRole::KicadFootprint,
+			quadLand("DFN_4"), "DFN_4.kicad_mod", &error) != 0, "attach failed: " + error);
+
+		const std::string downloaded = chipLand("RESC1608X55N", "0.9");
+		PartManager::FootprintSuggestionDialog dialog(handle.get(), migrating,
+			QByteArray(downloaded.data(), static_cast<int>(downloaded.size())),
+			QStringLiteral("RESC1608X55N.kicad_mod"));
+
+		TEST_ASSERT_M(dialog.hasSuggestions(), "the two-pad footprint next door is still a match");
+		QTreeWidget* tree = dialog.findChild<QTreeWidget*>();
+		TEST_ASSERT(tree != nullptr);
+		TEST_ASSERT_M(candidateRowCount(tree) == 1,
+			"only the footprint with the same pad count may be listed");
+		TEST_ASSERT_M(tree->topLevelItem(0)->child(0)->text(0) ==
+			QStringLiteral("RC0603FR-074K7L"),
+			"the row that survived must be the two-pad one, not the four-pad one");
+
+		handle->close();
+		std::error_code ec;
+		std::filesystem::remove_all(folder, ec);
+	}
+
+	// What the filter made possible and nothing else could: a database that has footprints, all of
+	// them the wrong shape. `hasSuggestions()` has to say no, or `offer()` shows an empty dialog.
+	TEST_FUNCTION(nothingIsSuggestedWhenEveryCandidateIsFilteredOut)
+	{
+		TEST_START;
+
+		TEST_ASSERT(UnitTest::Gui::ensureApplication());
+
+		std::filesystem::path folder;
+		std::string error;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			makeDatabase("allfiltered", folder, error);
+		TEST_ASSERT_M(handle != nullptr, "createNew failed: " + error);
+
+		PartManager::PartEditorController controller(handle.get());
+		SQLiteWrapper::SQLite& db = handle->connection();
+
+		const int fourPad = makePart(db, "DFN-4-DUMMY");
+		const int migrating = makePart(db, "RC0603FR-0710KL");
+		TEST_ASSERT_M(controller.attachRoleBytes(fourPad, PartManager::PartFileRole::KicadFootprint,
+			quadLand("DFN_4"), "DFN_4.kicad_mod", &error) != 0, "attach failed: " + error);
+
+		const std::string downloaded = chipLand("RESC1608X55N", "0.9");
+		const QByteArray bytes(downloaded.data(), static_cast<int>(downloaded.size()));
+		{
+			PartManager::FootprintSuggestionDialog dialog(handle.get(), migrating, bytes,
+				QStringLiteral("RESC1608X55N.kicad_mod"));
+			TEST_ASSERT_M(!dialog.hasSuggestions(),
+				"a list emptied by the pad-count filter is not a suggestion");
+			QTreeWidget* tree = dialog.findChild<QTreeWidget*>();
+			TEST_ASSERT(tree != nullptr && candidateRowCount(tree) == 0);
+			TEST_ASSERT_M(tree->topLevelItemCount() == 0,
+				"no candidates means no group headers either");
+		}
+
+		// And the path that matters: offer() must return without putting anything on screen.
+		bool offered = false;
+		UnitTest::Gui::onNextWindow(QStringLiteral("FootprintSuggestionDialog"),
+			[&offered](QWidget* dialog)
+			{
+				offered = true;
+				if (QDialog* asDialog = qobject_cast<QDialog*>(dialog)) { asDialog->reject(); }
+			}, 500);
+		const bool taken = PartManager::FootprintSuggestionDialog::offer(nullptr, handle.get(),
+			migrating, bytes, QStringLiteral("RESC1608X55N.kicad_mod"));
+		// The poller only runs from the event loop, which nothing entered — give it the chance it
+		// would have had, rather than passing because the timer never ticked.
+		UnitTest::Gui::waitFor([]() { return false; }, 600);
+
+		TEST_ASSERT_M(!taken, "nothing was shown, so nothing can have been chosen");
+		TEST_ASSERT_M(!offered, "an all-filtered list must not open a dialog with no rows in it");
+
+		handle->close();
+		std::error_code ec;
+		std::filesystem::remove_all(folder, ec);
+	}
+
+	// The favourites group. The stranger here measures *better* than the same-package candidate —
+	// identical pads against a 0.025 mm size difference — so score alone would list it first. The
+	// grouping is what puts the 0603 on top, and the score still orders the rows inside a group.
+	TEST_FUNCTION(theSamePackageIsListedBeforeABetterScoringStranger)
+	{
+		TEST_START;
+
+		TEST_ASSERT(UnitTest::Gui::ensureApplication());
+
+		std::filesystem::path folder;
+		std::string error;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			makeDatabase("favourites", folder, error);
+		TEST_ASSERT_M(handle != nullptr, "createNew failed: " + error);
+
+		PartManager::PartEditorController controller(handle.get());
+		SQLiteWrapper::SQLite& db = handle->connection();
+
+		const int samePackage = makePart(db, "RC0603FR-074K7L", "0603");
+		const int stranger = makePart(db, "RC0805FR-0710KL", "0805");
+		const int migrating = makePart(db, "RC0603FR-0710KL", "0603");
+		TEST_ASSERT(samePackage != 0 && stranger != 0 && migrating != 0);
+
+		const std::string favourite = chipLand("R_0603_1608Metric", "0.875");
+		const std::string closer = chipLand("R_0805_2012Metric", "0.9");
+		TEST_ASSERT_M(controller.attachRoleBytes(samePackage,
+			PartManager::PartFileRole::KicadFootprint, favourite,
+			"R_0603_1608Metric.kicad_mod", &error) != 0, "attach failed: " + error);
+		TEST_ASSERT_M(controller.attachRoleBytes(stranger,
+			PartManager::PartFileRole::KicadFootprint, closer,
+			"R_0805_2012Metric.kicad_mod", &error) != 0, "attach failed: " + error);
+
+		const std::string downloaded = chipLand("RESC1608X55N", "0.9");
+		// The premise, asserted rather than assumed: without the grouping the stranger would be
+		// row one. If this ever stops holding, the test below proves nothing.
+		const PartManager::KicadDrawing downloadedDrawing = drawingOf(downloaded);
+		const double favouriteScore = PartManager::FootprintCompatibility::compare(
+			downloadedDrawing, drawingOf(favourite)).score;
+		const double strangerScore = PartManager::FootprintCompatibility::compare(
+			downloadedDrawing, drawingOf(closer)).score;
+		TEST_ASSERT_M(strangerScore > favouriteScore,
+			"the fixture must make the other package the better-scoring one");
+
+		PartManager::FootprintSuggestionDialog dialog(handle.get(), migrating,
+			QByteArray(downloaded.data(), static_cast<int>(downloaded.size())),
+			QStringLiteral("RESC1608X55N.kicad_mod"));
+
+		TEST_ASSERT(dialog.hasSuggestions());
+		QTreeWidget* tree = dialog.findChild<QTreeWidget*>();
+		TEST_ASSERT(tree != nullptr);
+		TEST_ASSERT_M(tree->topLevelItemCount() == 2, "one favourites group and one for the rest");
+		TEST_ASSERT_M(candidateRowCount(tree) == 2, "both footprints have two pads, so both stay");
+
+		QTreeWidgetItem* favourites = tree->topLevelItem(0);
+		// The package name is user data and is never translated, so matching it does not tie the
+		// test to the language the binary happens to start in.
+		TEST_ASSERT_M(favourites->text(0).contains(QStringLiteral("0603")),
+			"the first group must name the package it is the favourites of");
+		TEST_ASSERT_M(favourites->isExpanded(), "a collapsed favourites group hides the point");
+		TEST_ASSERT_M(favourites->childCount() == 1 &&
+			favourites->child(0)->text(0) == QStringLiteral("RC0603FR-074K7L"),
+			"the same-package footprint belongs in the favourites group");
+		TEST_ASSERT_M(!favourites->flags().testFlag(Qt::ItemIsSelectable),
+			"a group header is not a choice and must not be selectable");
+
+		QTreeWidgetItem* others = tree->topLevelItem(1);
+		TEST_ASSERT_M(others->childCount() == 1 &&
+			others->child(0)->text(0) == QStringLiteral("RC0805FR-0710KL"),
+			"the better-scoring stranger goes below, not above");
 
 		handle->close();
 		std::error_code ec;

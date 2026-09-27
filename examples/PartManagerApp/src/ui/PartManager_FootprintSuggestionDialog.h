@@ -15,6 +15,17 @@
 // millimetre. Every row carries its measurements for the same reason: a number
 // the user can check beats a verdict they have to trust.
 //
+// **The one exception is the pad count**, which is not a margin but a count: a
+// candidate with a different number of pads is dropped before it reaches the
+// list. Nothing in the overlay can turn a two-pad land pattern into a four-pad
+// one, so such a row is a decision the user is not able to make — reported on
+// real data, where they were the bulk of what was offered.
+//
+// **Same-package candidates are listed first, as a favourites group.** A part
+// being given a footprint nearly always wants one from its own package, and the
+// score alone scattered those among strangers that happened to measure closer.
+// The ordering *within* each group is still the score, untouched.
+//
 // **Accepting re-points this part's `part_file` row at the file the other part
 // already uses** — `FileStore::useStoredFile()`, the same call the §5a collapse
 // will make. Deliberately *not* "attach the existing bytes": that route runs
@@ -33,6 +44,7 @@
 #include <QString>
 #include <vector>
 
+class QPushButton;
 class QTreeWidgetItem;
 
 namespace Ui { class FootprintSuggestionDialog; }
@@ -96,6 +108,10 @@ namespace PartManager
 			QString relativePath;
 			QString contentHash;
 			QString usedBy;           // part names, for the row and the status line
+			// The package the parts using this footprint carry — `FootprintVariants::group()`
+			// buckets by it, so every part behind one candidate names the same one. Compared
+			// against this part's own package to decide which group the row belongs to.
+			QString package;
 			// Any one of the parts that already use this footprint — the row whose stored file
 			// the chosen part is pointed at. They all name the same file.
 			int examplePartId = 0;
@@ -104,18 +120,30 @@ namespace PartManager
 		};
 
 		void buildCandidates();
+		// One top-level node and the candidate rows under it, by index into `m_candidates`.
+		void addCandidateGroup(const QString& title, const std::vector<size_t>& indices);
+		// The first row a user can actually choose. Not `topLevelItem(0)` — that is a group
+		// header, which is deliberately unselectable.
+		QTreeWidgetItem* firstCandidateItem() const;
 		void showCandidate(int index);
 
 		DatabaseHandle* m_handle = nullptr;
 		int m_partId = 0;
 		QByteArray m_downloaded;
 		QString m_downloadedName;
+		// Read from the part's own row, not from `FootprintVariants::collect()`: on the
+		// pre-attach path this part has no footprint yet, so collect() never lists it and there
+		// would be nothing to match the candidates' packages against. Empty is a real answer —
+		// a part with no package has no favourites.
+		QString m_partPackage;
 		KicadDrawing m_downloadedDrawing;
 		std::vector<Candidate> m_candidates;
 		int m_chosen = -1;
 		bool m_tookExisting = false;
 
 		Ui::FootprintSuggestionDialog* m_ui;
+		// Enabled only while a candidate row is current, so a group header cannot be accepted.
+		QPushButton* m_useExisting = nullptr;
 		// Built in code rather than promoted in the .ui, as everywhere else this view is used.
 		KicadVariantView* m_view = nullptr;
 	};
