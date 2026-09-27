@@ -71,6 +71,20 @@ namespace PartManager
 		static bool offer(QWidget* parent, DatabaseHandle* handle, int partId,
 			const QByteArray& downloaded, const QString& downloadedName);
 
+		// The same offer for the vendor-ZIP paths (§5c), where the archive has *already* attached
+		// its footprint by the time we get here. Reads the attached bytes back out of the store
+		// and hands them to `offer()` as the "download", so the three ZIP entry points — the
+		// editor's Import button, and the manual-download branch of either Fetch dialog — all ask
+		// the same question. Does nothing when the archive brought no footprint.
+		//
+		// **Returns nothing, deliberately.** On the pre-attach paths `offer()`'s `true` means "do
+		// not attach the download"; here there is no attach left to skip. Accepting re-points the
+		// row through `FileStore::useStoredFile()`, declining leaves the import exactly as it was,
+		// and either way the archive's own footprint stays on disk. The symbol and 3D model the
+		// archive also brought are never touched — only the footprint slot is.
+		static void offerAfterArchiveImport(QWidget* parent, const PartEditorController& controller,
+			int partId, bool footprintAttached);
+
 	private slots:
 		void onSelectionChanged(QTreeWidgetItem* current);
 		void onAccept();

@@ -977,6 +977,10 @@ namespace PartManager
 					toQt(summary.errorMessage));
 				return;
 			}
+			// §5a, exactly as the Import button does it: which button reached the ZIP must not
+			// decide whether the sharing question gets asked.
+			FootprintSuggestionDialog::offerAfterArchiveImport(this, m_controller, m_part.id,
+				summary.footprintAttached);
 			updateKicadState();
 			return;
 		}
@@ -1064,25 +1068,9 @@ namespace PartManager
 		}
 
 		// §5a: the vendor ZIP is the case the user described when they asked for this — "the
-		// same package already exists and the user would like to use the shared package". The
-		// archive has already attached its footprint by the time we get here, so the suggestion
-		// re-points that row rather than choosing before the attach; since accepting goes
-		// through FileStore::useStoredFile(), which deletes nothing, the archive's own footprint
-		// stays on disk either way. Declining leaves the import exactly as it was, and the
-		// symbol and 3D model this archive also brought are never touched — only the footprint
-		// slot is.
-		if (summary.footprintAttached)
-		{
-			PartFile attached;
-			if (m_controller.roleFile(m_part.id, PartFileRole::KicadFootprint, attached))
-			{
-				const std::string bytes =
-					readWholeFile(m_controller.roleFilePath(m_part.id, PartFileRole::KicadFootprint));
-				FootprintSuggestionDialog::offer(this, m_controller.handle(), m_part.id,
-					QByteArray(bytes.data(), static_cast<int>(bytes.size())),
-					toQt(attached.originalFilename));   // user data
-			}
-		}
+		// same package already exists and the user would like to use the shared package".
+		FootprintSuggestionDialog::offerAfterArchiveImport(this, m_controller, m_part.id,
+			summary.footprintAttached);
 
 		updateKicadState();
 		updateImageState();

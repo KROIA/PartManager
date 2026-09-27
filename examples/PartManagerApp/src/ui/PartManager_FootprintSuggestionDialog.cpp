@@ -338,4 +338,27 @@ namespace PartManager
 		return true;
 	}
 
+	void FootprintSuggestionDialog::offerAfterArchiveImport(QWidget* parent,
+		const PartEditorController& controller, int partId, bool footprintAttached)
+	{
+		if (!footprintAttached)
+		{
+			return;
+		}
+		PartFile attached;
+		if (!controller.roleFile(partId, PartFileRole::KicadFootprint, attached))
+		{
+			return;
+		}
+		// Read back rather than kept from the import: the archive's entry went through the
+		// filestore, and what the part actually carries now is the only thing worth comparing.
+		const std::string bytes =
+			readWholeFile(controller.roleFilePath(partId, PartFileRole::KicadFootprint));
+		// The result is ignored on purpose — see the header. `offer()` has already done the
+		// re-point when it returns true, and there is no pending attach for false to release.
+		offer(parent, controller.handle(), partId,
+			QByteArray(bytes.data(), static_cast<int>(bytes.size())),
+			QString::fromStdString(attached.originalFilename));   // user data
+	}
+
 }

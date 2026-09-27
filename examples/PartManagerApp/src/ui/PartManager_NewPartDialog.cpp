@@ -684,7 +684,13 @@ namespace PartManager
 
 		if (!dialog.archivePath().isEmpty())
 		{
-			m_controller.importEcadArchive(m_createdPartId, dialog.archivePath().toStdString());
+			const PartEditorController::EcadImportSummary summary =
+				m_controller.importEcadArchive(m_createdPartId, dialog.archivePath().toStdString());
+			// §5a: the archive attaches its own footprint, so the offer comes *after* it and
+			// re-points that row — unlike the download branch below, which asks before attaching.
+			// A part created seconds ago is the cheapest possible moment to share one.
+			FootprintSuggestionDialog::offerAfterArchiveImport(this, m_controller, m_createdPartId,
+				summary.footprintAttached);
 			return;
 		}
 		const auto attach = [this](PartFileRole role, const QByteArray& bytes, const QString& filename)

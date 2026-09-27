@@ -45,6 +45,7 @@
 #include "tests/TST_TypeIcon.h"
 #include "tests/TST_KicadLibrary.h"
 #include "tests/TST_FootprintCompatibility.h"
+#include "tests/TST_FootprintSuggestionArchive.h"
 #include "tests/TST_EasyEda.h"
 #include "tests/TST_MeshBounds.h"
 #include "tests/TST_StepColors.h"
