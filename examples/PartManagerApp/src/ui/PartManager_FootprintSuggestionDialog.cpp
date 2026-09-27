@@ -11,7 +11,9 @@
 #include <iterator>
 
 #include <QDialogButtonBox>
+#include <QEvent>
 #include <QFont>
+#include <QKeyEvent>
 #include <QMessageBox>
 #include <QHeaderView>
 #include <QLabel>
@@ -31,6 +33,43 @@ namespace PartManager
 		// legend and the overlay — "which of these is which" has to be answerable at a glance.
 		const QColor ReferenceColour(0xFF, 0xB3, 0x4D);    // amber
 		const QColor ExistingColour(0x4F, 0xC3, 0xF7);     // blue
+
+		// The reference's key in the view. It is a fixed string rather than a content hash: the
+		// reference is not a variant the tree can address, it is the thing everything else is
+		// measured against, and it is the entry drawn on top in both states of the panel.
+		const QString ReferenceKey = QStringLiteral("reference");
+
+		// A row the user can choose. Group headers and package nodes carry no `CandidateIndexRole`
+		// — testing for it is the same question as "is this a leaf", asked of the data rather
+		// than of `childCount()`, which would call an empty group a choice.
+		bool isCandidateItem(const QTreeWidgetItem* item)
+		{
+			return item != nullptr && item->data(0, CandidateIndexRole).isValid();
+		}
+
+		// Sibling navigation that works at the top level too, where `parent()` is null and the
+		// tree itself is the container.
+		QTreeWidgetItem* siblingOf(QTreeWidget* tree, QTreeWidgetItem* item, int offset)
+		{
+			if (QTreeWidgetItem* parent = item->parent())
+			{
+				const int row = parent->indexOfChild(item) + offset;
+				return row >= 0 && row < parent->childCount() ? parent->child(row) : nullptr;
+			}
+			const int row = tree->indexOfTopLevelItem(item) + offset;
+			return row >= 0 && row < tree->topLevelItemCount() ? tree->topLevelItem(row) : nullptr;
+		}
+
+		// The last row `item` currently shows: its last child's last child, as deep as the
+		// expansions go. Where a step *upwards* lands when it passes a whole group.
+		QTreeWidgetItem* lastVisibleDescendant(QTreeWidgetItem* item)
+		{
+			while (item->isExpanded() && item->childCount() > 0)
+			{
+				item = item->child(item->childCount() - 1);
+			}
+			return item;
+		}
 
 		std::string readWholeFile(const std::string& path)
 		{
@@ -69,6 +108,8 @@ namespace PartManager
 		m_ui->candidateTree->header()->setSectionResizeMode(0, QHeaderView::Stretch);
 		m_ui->candidateTree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
 		m_ui->candidateTree->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+		// Key events go to the tree itself, not to its viewport — the viewport never takes focus.
+		m_ui->candidateTree->installEventFilter(this);
 
 		m_useExisting = m_ui->buttonBox->addButton(tr("Use this footprint"),
 			QDialogButtonBox::AcceptRole);
@@ -111,6 +152,13 @@ namespace PartManager
 			{
 				m_ui->candidateTree->setCurrentItem(first);
 			}
+		}
+		if (m_ui->candidateTree->currentItem() == nullptr)
+		{
+			// Nothing was preselected — every row scored zero, so none is worth proposing. The
+			// panel still opens on the part's own footprint rather than on a blank: `currentItem`
+			// never changed, so nothing would have called `showCandidate()` at all.
+			showCandidate(-1);
 		}
 
 		// Two wordings, because on the button path there is no download to speak of and the
@@ -283,88 +331,246 @@ namespace PartManager
 		}
 		if (!others.empty())
 		{
-			addCandidateGroup(tr("Other packages", "footprint candidate group header"), others);
+			addPackageSplitGroup(tr("Other packages", "footprint candidate group header"), others);
 		}
 	}
 
 	void FootprintSuggestionDialog::addCandidateGroup(const QString& title,
 		const std::vector<size_t>& indices)
 	{
-		QTreeWidgetItem* group = new QTreeWidgetItem(m_ui->candidateTree);
-		group->setText(0, title);
-		group->setFirstColumnSpanned(true);
-		QFont heading = group->font(0);
-		heading.setBold(true);
-		group->setFont(0, heading);
-		// A header is not a choice, so it is not selectable — keyboard navigation steps over it
-		// and the "Use this footprint" button never sees it. It also carries no
-		// `CandidateIndexRole`: an int role that defaulted to 0 would quietly mean candidate zero.
-		group->setFlags(group->flags() & ~Qt::ItemIsSelectable);
-
+		QTreeWidgetItem* group = addHeading(nullptr, title);
 		for (const size_t index : indices)
 		{
-			const Candidate& candidate = m_candidates[index];
-			QTreeWidgetItem* item = new QTreeWidgetItem(group);
-			item->setText(0, candidate.usedBy);   // user data
-			// The badge, never a filter: a footprint that missed the tolerance is still here and
-			// still selectable, because the margin between the two verdicts is hundredths of a
-			// millimetre and the user has the overlay in front of them.
-			// Disambiguated: "Close" here means *nearly a match*, not *shut the window*, and
-			// lupdate's same-text heuristic cheerfully offered "Schließen" for it.
-			item->setText(1, candidate.comparison.compatible
-				? tr("Compatible", "footprint fit verdict")
-				: (candidate.comparison.score > 0.0
-					? tr("Close", "footprint fit verdict: nearly compatible")
-					: tr("No", "footprint fit verdict: not compatible at all")));
-			// Pad counts always match here, so there is one measurement to report and no branch
-			// on which reading applies — the mismatched ones never got this far.
-			item->setText(2, tr("offset %1 mm · size %2 mm")
-				.arg(millimetres(candidate.comparison.maxPositionOffsetMm),
-					millimetres(candidate.comparison.maxSizeDeltaMm)));
-			item->setData(0, CandidateIndexRole, static_cast<int>(index));
-			QPixmap swatch(12, 12);
-			swatch.fill(ExistingColour);
-			item->setIcon(0, QIcon(swatch));
+			addCandidateRow(group, index);
 		}
 		// Expanded from the start: the groups are an ordering, not somewhere to put rows the
 		// user then has to go looking for.
 		group->setExpanded(true);
 	}
 
+	void FootprintSuggestionDialog::addPackageSplitGroup(const QString& title,
+		const std::vector<size_t>& indices)
+	{
+		QTreeWidgetItem* group = addHeading(nullptr, title);
+		// `indices` arrives in score order, which is what turns this into a single grouping pass
+		// with no sort in it: a package is first seen at its own best-scoring candidate, so
+		// keeping the nodes in first-seen order *is* ordering them by best fit. The rows inside
+		// one keep the score order they came in with, exactly as the flat list did.
+		std::vector<QString> packages;
+		std::vector<QTreeWidgetItem*> nodes;
+		for (const size_t index : indices)
+		{
+			const QString& package = m_candidates[index].package;   // user data
+			size_t slot = 0;
+			while (slot < packages.size() && packages[slot] != package) { ++slot; }
+			if (slot == packages.size())
+			{
+				packages.push_back(package);
+				// A part with no package still has a footprint worth offering, and it has to hang
+				// somewhere — a node titled "" would read as a bug rather than as a fact about
+				// the parts under it. Named the way the variant browser names the same case, and
+				// ordered with the rest by its best score: an unnamed package is not a worse
+				// match, and pushing it to the end would say that it is.
+				nodes.push_back(addHeading(group, package.isEmpty()
+					? tr("(no package)", "footprint candidate node for parts that have none")
+					: package));
+			}
+			addCandidateRow(nodes[slot], index);
+		}
+		// Expanded after their rows exist, for the same reason the groups are expanded at all —
+		// three levels of closed nodes would hide every choice behind two clicks.
+		for (QTreeWidgetItem* node : nodes)
+		{
+			node->setExpanded(true);
+		}
+		group->setExpanded(true);
+	}
+
+	QTreeWidgetItem* FootprintSuggestionDialog::addHeading(QTreeWidgetItem* parent,
+		const QString& title)
+	{
+		QTreeWidgetItem* item = parent == nullptr
+			? new QTreeWidgetItem(m_ui->candidateTree)
+			: new QTreeWidgetItem(parent);
+		item->setText(0, title);
+		item->setFirstColumnSpanned(true);
+		QFont heading = item->font(0);
+		heading.setBold(true);
+		item->setFont(0, heading);
+		// A heading is not a choice, so it is not selectable and the "Use this footprint" button
+		// never sees it. It also carries no `CandidateIndexRole`: an int role that defaulted to 0
+		// would quietly mean candidate zero. It stays **enabled** — disabling is the other way to
+		// keep the keyboard off it, and it greys the row out until the tree reads as broken.
+		// `eventFilter()` is what actually keeps Up/Down on the leaves.
+		item->setFlags(item->flags() & ~Qt::ItemIsSelectable);
+		return item;
+	}
+
+	void FootprintSuggestionDialog::addCandidateRow(QTreeWidgetItem* parent, size_t index)
+	{
+		const Candidate& candidate = m_candidates[index];
+		QTreeWidgetItem* item = new QTreeWidgetItem(parent);
+		item->setText(0, candidate.usedBy);   // user data
+		// The badge, never a filter: a footprint that missed the tolerance is still here and
+		// still selectable, because the margin between the two verdicts is hundredths of a
+		// millimetre and the user has the overlay in front of them.
+		// Disambiguated: "Close" here means *nearly a match*, not *shut the window*, and
+		// lupdate's same-text heuristic cheerfully offered "Schließen" for it.
+		item->setText(1, candidate.comparison.compatible
+			? tr("Compatible", "footprint fit verdict")
+			: (candidate.comparison.score > 0.0
+				? tr("Close", "footprint fit verdict: nearly compatible")
+				: tr("No", "footprint fit verdict: not compatible at all")));
+		// Pad counts always match here, so there is one measurement to report and no branch
+		// on which reading applies — the mismatched ones never got this far.
+		item->setText(2, tr("offset %1 mm · size %2 mm")
+			.arg(millimetres(candidate.comparison.maxPositionOffsetMm),
+				millimetres(candidate.comparison.maxSizeDeltaMm)));
+		item->setData(0, CandidateIndexRole, static_cast<int>(index));
+		QPixmap swatch(12, 12);
+		swatch.fill(ExistingColour);
+		item->setIcon(0, QIcon(swatch));
+	}
+
+	QTreeWidgetItem* FootprintSuggestionDialog::stepItem(QTreeWidgetItem* from, bool forward) const
+	{
+		QTreeWidget* tree = m_ui->candidateTree;
+		if (forward)
+		{
+			if (from->isExpanded() && from->childCount() > 0) { return from->child(0); }
+			// Out of this node and on to the next one that has a neighbour — from the last row of
+			// "0805" that is the next package, and from the last row of the last package it is
+			// whatever follows "Other packages", which is nothing.
+			for (QTreeWidgetItem* at = from; at != nullptr; at = at->parent())
+			{
+				if (QTreeWidgetItem* next = siblingOf(tree, at, 1)) { return next; }
+			}
+			return nullptr;
+		}
+		if (QTreeWidgetItem* previous = siblingOf(tree, from, -1))
+		{
+			return lastVisibleDescendant(previous);
+		}
+		return from->parent();
+	}
+
+	QTreeWidgetItem* FootprintSuggestionDialog::nextCandidateItem(QTreeWidgetItem* from,
+		bool forward) const
+	{
+		for (QTreeWidgetItem* at = stepItem(from, forward); at != nullptr;
+			at = stepItem(at, forward))
+		{
+			if (isCandidateItem(at)) { return at; }
+		}
+		return nullptr;
+	}
+
 	QTreeWidgetItem* FootprintSuggestionDialog::firstCandidateItem() const
 	{
-		QTreeWidgetItem* group = m_ui->candidateTree->topLevelItem(0);
-		return group != nullptr && group->childCount() > 0 ? group->child(0) : nullptr;
+		QTreeWidgetItem* first = m_ui->candidateTree->topLevelItem(0);
+		if (first == nullptr) { return nullptr; }
+		return isCandidateItem(first) ? first : nextCandidateItem(first, true);
+	}
+
+	QTreeWidgetItem* FootprintSuggestionDialog::lastCandidateItem() const
+	{
+		const int count = m_ui->candidateTree->topLevelItemCount();
+		if (count == 0) { return nullptr; }
+		QTreeWidgetItem* last =
+			lastVisibleDescendant(m_ui->candidateTree->topLevelItem(count - 1));
+		return isCandidateItem(last) ? last : nextCandidateItem(last, false);
+	}
+
+	void FootprintSuggestionDialog::moveToCandidate(bool forward)
+	{
+		QTreeWidgetItem* current = m_ui->candidateTree->currentItem();
+		// No current row yet — which happens when every candidate scored zero and none was
+		// proposed, and after a click on a heading. Either end of the list is then one press away.
+		QTreeWidgetItem* target = current == nullptr
+			? (forward ? firstCandidateItem() : lastCandidateItem())
+			: nextCandidateItem(current, forward);
+		// Nothing in that direction: stay put rather than clear the current row. Running off the
+		// end of a list should feel like a wall, not like a deselect.
+		if (target != nullptr)
+		{
+			m_ui->candidateTree->setCurrentItem(target);
+		}
+	}
+
+	bool FootprintSuggestionDialog::eventFilter(QObject* watched, QEvent* event)
+	{
+		// **Clearing `ItemIsSelectable` is not enough and the user reported exactly that.** Qt
+		// keeps *current item* and *selection* apart: `QTreeView::moveCursor()` steps to the next
+		// visible row whatever its flags say, and only the selecting half of the key press
+		// consults them — so Up/Down landed on the group headers with nothing selected, which is
+		// the state that empties the panel. Disabling the headers would make Qt skip them, at the
+		// price of greying out the one text that says what the block below it is. So the keys are
+		// answered here instead, and the flags keep doing the job they are right for.
+		//
+		// Only Up and Down. Left and Right fall through untouched, which is what still collapses
+		// and expands a group — and moving current onto a heading with Left is how the keyboard
+		// reaches one to collapse it at all.
+		if (watched == m_ui->candidateTree && event->type() == QEvent::KeyPress)
+		{
+			const int key = static_cast<QKeyEvent*>(event)->key();
+			if (key == Qt::Key_Up || key == Qt::Key_Down)
+			{
+				moveToCandidate(key == Qt::Key_Down);
+				return true;
+			}
+		}
+		return QDialog::eventFilter(watched, event);
+	}
+
+	QString FootprintSuggestionDialog::referenceLegend() const
+	{
+		return m_trigger == Trigger::UserRequested
+			? tr("Already assigned to this part", "footprint overlay legend, amber entry")
+			: tr("The footprint just downloaded", "footprint overlay legend, amber entry");
 	}
 
 	void FootprintSuggestionDialog::showCandidate(int index)
 	{
+		std::vector<KicadVariantView::Entry> entries;
+		KicadVariantView::Entry reference;
+		reference.key = ReferenceKey;
+		reference.label = m_referenceName;
+		reference.legend = referenceLegend();
+		reference.colour = ReferenceColour;
+		reference.drawing = m_referenceDrawing;
+		// Skipped only when there is nothing in it to draw, which leaves the view on its
+		// placeholder rather than on a panel that is blank for no stated reason.
+		if (!m_referenceDrawing.empty())
+		{
+			entries.push_back(reference);
+		}
+
 		if (index < 0 || index >= static_cast<int>(m_candidates.size()))
 		{
-			m_view->clear();
+			// **The reference stays on screen with nothing selected.** This used to `clear()` the
+			// view, so deselecting — or landing on a heading — replaced the footprint the part is
+			// actually carrying with an empty panel. The sentence goes *over* it now, which is
+			// why the view draws it on a plate: it is competing with pads, not with a blank.
+			m_view->setEntries(entries);
+			m_view->setHighlighted(ReferenceKey);
+			m_view->setHintText(tr("Pick a row on the left to see it against this one."));
 			// The status line describes the current row, so it goes with it — a group header
-			// left the last candidate's measurements standing under an empty overlay.
+			// left the last candidate's measurements standing under an unrelated overlay.
 			m_ui->statusLabel->clear();
 			return;
 		}
 		const Candidate& candidate = m_candidates[static_cast<size_t>(index)];
 
-		std::vector<KicadVariantView::Entry> entries;
-		KicadVariantView::Entry reference;
-		reference.key = QStringLiteral("reference");
-		reference.label = m_referenceName;
-		reference.colour = ReferenceColour;
-		reference.drawing = m_referenceDrawing;
-		entries.push_back(reference);
-
 		KicadVariantView::Entry existing;
 		existing.key = candidate.contentHash;
 		existing.label = candidate.usedBy;
+		existing.legend = tr("Selected in the list", "footprint overlay legend, blue entry");
 		existing.colour = ExistingColour;
 		existing.drawing = candidate.drawing;
 		entries.push_back(existing);
 
 		m_view->setEntries(entries);
+		m_view->setHintText(QString());
 		// **The reference is the constant, so it is the one drawn bright and on top.** It is the
 		// only thing that does not change as the user walks the list; the candidates sweep
 		// underneath it in their own colour and the eye compares each against a shape that

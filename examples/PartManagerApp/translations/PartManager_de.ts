@@ -1872,6 +1872,30 @@ Trotzdem schließen?</translation>
             <numerusform>Dieses Bauteil verwendet „%1“. %n Footprints, die andere Bauteile bereits haben, könnten an seine Stelle treten — einen davon zu verwenden heißt, dass sich beide Bauteile eine einzige Datei teilen. Prüfen Sie zuerst die Überlagerung: der jetzt verwendete Footprint ist bernsteinfarben gezeichnet, der betrachtete in Blau.</numerusform>
         </translation>
     </message>
+    <message>
+        <source>(no package)</source>
+        <comment>footprint candidate node for parts that have none</comment>
+        <translation>(kein Gehäuse)</translation>
+    </message>
+    <message>
+        <source>Already assigned to this part</source>
+        <comment>footprint overlay legend, amber entry</comment>
+        <translation>Bereits diesem Bauteil zugewiesen</translation>
+    </message>
+    <message>
+        <source>The footprint just downloaded</source>
+        <comment>footprint overlay legend, amber entry</comment>
+        <translation>Der gerade heruntergeladene Footprint</translation>
+    </message>
+    <message>
+        <source>Pick a row on the left to see it against this one.</source>
+        <translation>Wählen Sie links eine Zeile, um sie mit diesem Footprint zu vergleichen.</translation>
+    </message>
+    <message>
+        <source>Selected in the list</source>
+        <comment>footprint overlay legend, blue entry</comment>
+        <translation>In der Liste ausgewählt</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::FootprintVariantsDialog</name>

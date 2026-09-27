@@ -1,6 +1,8 @@
 #include "widgets/PartManager_KicadVariantView.h"
 #include "widgets/PartManager_KicadShapePainter.h"
 
+#include <QFont>
+#include <QFontMetrics>
 #include <QPaintEvent>
 #include <QPainter>
 
@@ -21,9 +23,43 @@ namespace PartManager
 		// question, the strip underneath is the legend.
 		constexpr double OverlayShareOfHeight = 0.62;
 
+		// The legend and the hint sit on the same plate: the board colour, nearly opaque. Nearly,
+		// rather than fully, because a pad passing under it should still read as "there is
+		// something there" — and fully transparent is what made the old placeholder unreadable.
+		const QColor PlateBackground(0x00, 0x10, 0x1C, 0xD8);
+		const QColor PlateText(0xE8, 0xEC, 0xF0);
+		// The empty panel has no drawing to protect, so it gets a solid, brighter background
+		// instead of a plate — see `paintEvent` for what that replaced.
+		const QColor PlaceholderBackground(0x2C, 0x38, 0x46);
+		// Reported unreadable on the user's own library: near-black text on the #00101C board at
+		// the default point size. The panel is brighter, the text bright, and a third again as
+		// large — enough to read across the room, still a placeholder rather than a banner.
+		constexpr double PlaceholderFontScale = 1.35;
+		constexpr double HintFontScale = 1.1;
+		constexpr int LegendSwatch = 11;
+		constexpr int LegendGap = 6;
+		constexpr int LegendPadding = 7;
+		constexpr double PlateRadius = 4.0;
+
 		QRectF insetBy(const QRectF& area, int margin)
 		{
 			return area.adjusted(margin, margin, -margin, -margin);
+		}
+
+		// A font `factor` times the size of `base`. Both units have to be handled: a font set in
+		// pixels answers -1 to pointSizeF(), and scaling that gives a font Qt then ignores.
+		QFont enlarged(const QFont& base, double factor)
+		{
+			QFont scaled(base);
+			if (scaled.pointSizeF() > 0.0)
+			{
+				scaled.setPointSizeF(scaled.pointSizeF() * factor);
+			}
+			else
+			{
+				scaled.setPixelSize(qRound(scaled.pixelSize() * factor));
+			}
+			return scaled;
 		}
 	}
 
@@ -71,6 +107,13 @@ namespace PartManager
 	{
 		if (m_highlighted == key) { return; }
 		m_highlighted = key;
+		update();
+	}
+
+	void KicadVariantView::setHintText(const QString& text)
+	{
+		if (m_hint == text) { return; }
+		m_hint = text;
 		update();
 	}
 
@@ -169,20 +212,106 @@ namespace PartManager
 		painter.restore();
 	}
 
+	void KicadVariantView::paintLegend(QPainter& painter, const QRectF& area)
+	{
+		// Only the entries that were given wording. The variant browser gives none, so its view
+		// is exactly as it was — the key exists for the suggestion dialog, where the two colours
+		// mean "what you have" and "what you are looking at" and nothing on screen said so.
+		std::vector<const Entry*> keyed;
+		for (const Entry& entry : m_entries)
+		{
+			if (!entry.legend.isEmpty()) { keyed.push_back(&entry); }
+		}
+		if (keyed.empty()) { return; }
+
+		const QFontMetrics metrics(font());
+		const int lineHeight = std::max(metrics.height(), LegendSwatch);
+		int textWidth = 0;
+		for (const Entry* entry : keyed)
+		{
+			textWidth = std::max(textWidth, metrics.horizontalAdvance(entry->legend));
+		}
+		const double plateWidth = 2.0 * LegendPadding + LegendSwatch + LegendGap + textWidth;
+		const double plateHeight = 2.0 * LegendPadding
+			+ lineHeight * static_cast<double>(keyed.size());
+		// Clamped to the panel: the text is elided below rather than allowed to carry the plate
+		// off the right edge, which is where a long line would take it on a narrow splitter.
+		const QRectF plate(area.left() + Margin, area.top() + Margin,
+			std::min(plateWidth, area.width() - 2.0 * Margin), plateHeight);
+		if (plate.width() < MinimumUsable) { return; }
+
+		painter.save();
+		painter.setPen(Qt::NoPen);
+		painter.setBrush(PlateBackground);
+		painter.drawRoundedRect(plate, PlateRadius, PlateRadius);
+		double top = plate.top() + LegendPadding;
+		for (const Entry* entry : keyed)
+		{
+			const QRectF swatch(plate.left() + LegendPadding,
+				top + (lineHeight - LegendSwatch) / 2.0, LegendSwatch, LegendSwatch);
+			painter.setPen(Qt::NoPen);
+			painter.setBrush(entry->colour);
+			painter.drawRect(swatch);
+
+			const QRectF line(swatch.right() + LegendGap, top,
+				plate.right() - LegendPadding - swatch.right() - LegendGap, lineHeight);
+			painter.setPen(PlateText);
+			painter.drawText(line, Qt::AlignLeft | Qt::AlignVCenter,
+				metrics.elidedText(entry->legend, Qt::ElideRight,
+					static_cast<int>(line.width())));
+			top += lineHeight;
+		}
+		painter.restore();
+	}
+
+	void KicadVariantView::paintHint(QPainter& painter, const QRectF& area)
+	{
+		const QFont hintFont = enlarged(font(), HintFontScale);
+		const QFontMetrics metrics(hintFont);
+		const double maxWidth = area.width() - 4.0 * Margin;
+		if (maxWidth < MinimumUsable) { return; }
+
+		const QRect measured = metrics.boundingRect(
+			QRect(0, 0, static_cast<int>(maxWidth), static_cast<int>(area.height())),
+			Qt::AlignHCenter | Qt::TextWordWrap, m_hint);
+		// Along the bottom rather than across the middle: the footprint under it is the thing the
+		// sentence is talking about, and a plate over its pads would hide what the user is being
+		// asked to look at.
+		const QRectF plate(area.center().x() - measured.width() / 2.0 - LegendPadding,
+			area.bottom() - Margin - measured.height() - 2.0 * LegendPadding,
+			measured.width() + 2.0 * LegendPadding, measured.height() + 2.0 * LegendPadding);
+
+		painter.save();
+		painter.setPen(Qt::NoPen);
+		painter.setBrush(PlateBackground);
+		painter.drawRoundedRect(plate, PlateRadius, PlateRadius);
+		painter.setPen(PlateText);
+		painter.setFont(hintFont);
+		painter.drawText(plate, Qt::AlignCenter | Qt::TextWordWrap, m_hint);
+		painter.restore();
+	}
+
 	void KicadVariantView::paintEvent(QPaintEvent* event)
 	{
 		QPainter painter(this);
 		painter.setRenderHint(QPainter::Antialiasing, true);
-		painter.fillRect(event->rect(), KicadShapePainter::boardBackground());
 
 		if (m_entries.empty())
 		{
-			painter.setPen(palette().color(QPalette::Disabled, QPalette::WindowText));
+			// **Both halves of this were unreadable** on the user's library: the disabled
+			// window-text colour on the #00101C board is near-black on near-black, at the default
+			// point size. Lighter panel, bright text, a third again as large — and still nothing
+			// but a line of text, because there is genuinely nothing else to show.
+			painter.fillRect(event->rect(), PlaceholderBackground);
+			painter.setPen(PlateText);
+			painter.setFont(enlarged(font(), PlaceholderFontScale));
 			painter.drawText(insetBy(QRectF(rect()), Margin).toRect(),
 				Qt::AlignCenter | Qt::TextWordWrap,
 				tr("Pick a package in the tree to compare its footprints."));
 			return;
 		}
+
+		painter.fillRect(event->rect(), KicadShapePainter::boardBackground());
 
 		const QRectF full(rect());
 		QRectF overlayArea = full;
@@ -238,6 +367,15 @@ namespace PartManager
 				drawingArea.setBottom(captionStrip.top());
 				paintTile(painter, drawingArea, entry);
 			}
+		}
+
+		// Both last, and both over the whole widget rather than over one of its panels: they are
+		// chrome about what is on screen, and a swatch half-hidden under a pad is a swatch that
+		// has to be worked out instead of read.
+		paintLegend(painter, full);
+		if (!m_hint.isEmpty())
+		{
+			paintHint(painter, full);
 		}
 	}
 

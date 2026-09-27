@@ -34,6 +34,12 @@
 // score alone scattered those among strangers that happened to measure closer.
 // The ordering *within* each group is still the score, untouched.
 //
+// **The strangers are then split by package again**, one node each under "Other
+// packages" — on the user's own library that group is the long one, and the
+// package is what they scan it by. Three levels there, two in the favourites,
+// which all share one package by construction. The score orders the leaves, and
+// it orders the package nodes too, by the best leaf in each.
+//
 // **Accepting re-points this part's `part_file` row at the file the other part
 // already uses** — `FileStore::useStoredFile()`, the same call the §5a collapse
 // will make. Deliberately *not* "attach the existing bytes": that route runs
@@ -156,6 +162,11 @@ namespace PartManager
 		static Outcome offerReplacement(QWidget* parent, const PartEditorController& controller,
 			int partId);
 
+	protected:
+		// Up and Down on the candidate tree, and nothing else — see `moveToCandidate()` for why
+		// the flags on the group rows are not enough on their own.
+		bool eventFilter(QObject* watched, QEvent* event) override;
+
 	private slots:
 		void onSelectionChanged(QTreeWidgetItem* current);
 		void onAccept();
@@ -179,12 +190,45 @@ namespace PartManager
 		};
 
 		void buildCandidates();
-		// One top-level node and the candidate rows under it, by index into `m_candidates`.
+		// One top-level node and the candidate rows under it, by index into `m_candidates`. Two
+		// levels, which is right for the favourites: every row in that group shares one package,
+		// so splitting it further would produce a single node holding all of it.
 		void addCandidateGroup(const QString& title, const std::vector<size_t>& indices);
+		// The same, one level deeper: a node per package with its candidates beneath it. The
+		// "other packages" group is a bag of strangers, and on the user's library it was long
+		// enough that the packages in it were the thing worth scanning first.
+		void addPackageSplitGroup(const QString& title, const std::vector<size_t>& indices);
+		// A row that groups other rows — either level. Bold, spanning the columns, never a choice.
+		QTreeWidgetItem* addHeading(QTreeWidgetItem* parent, const QString& title);
+		// One candidate: the verdict badge, the measurements, the blue swatch that ties it to the
+		// overlay. The only kind of row that carries `CandidateIndexRole`, which is what makes
+		// "is this a leaf" answerable without walking children.
+		void addCandidateRow(QTreeWidgetItem* parent, size_t index);
+
+		// The row on screen immediately below (`forward`) or above `from`, collapsed nodes
+		// skipped. `QTreeWidget::itemBelow()`/`itemAbove()` answer the same question, but only
+		// after the view has laid out — and the first row is picked before the dialog is shown.
+		QTreeWidgetItem* stepItem(QTreeWidgetItem* from, bool forward) const;
+		// The next row that is a candidate, walking `stepItem()` until one turns up. Null at the
+		// end of the list in that direction.
+		QTreeWidgetItem* nextCandidateItem(QTreeWidgetItem* from, bool forward) const;
 		// The first row a user can actually choose. Not `topLevelItem(0)` — that is a group
-		// header, which is deliberately unselectable.
+		// header, which is deliberately unselectable — and not `topLevelItem(0)->child(0)`
+		// either, which under "other packages" is a package node.
 		QTreeWidgetItem* firstCandidateItem() const;
+		QTreeWidgetItem* lastCandidateItem() const;
+		// One Up/Down press: current moves to the next *candidate* in that direction, or stays
+		// where it is at the end of the list.
+		void moveToCandidate(bool forward);
+
+		// What the panel shows for the current row — and, when there is none, the reference on its
+		// own under a hint. The reference is never taken off screen: it is the footprint the part
+		// is actually carrying, and an empty panel says nothing about it.
 		void showCandidate(int index);
+		// The corner legend's wording for the amber entry. Two of them, because that entry is the
+		// arriving download on the import path and the part's own footprint on the button path,
+		// and one sentence covering both would be half-wrong wherever it was shown.
+		QString referenceLegend() const;
 
 		// The footprint `partId` carries right now, as bytes plus the name to show for it. False
 		// when the slot is empty. Shared by the two static entry points so the read-back — the

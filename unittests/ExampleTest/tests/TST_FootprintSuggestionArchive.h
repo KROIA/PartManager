@@ -13,6 +13,7 @@
 
 #include <QAbstractButton>
 #include <QDialogButtonBox>
+#include <QStringList>
 #include <QTreeWidget>
 #include <private/qzipwriter_p.h>
 
@@ -46,6 +47,8 @@ public:
 		ADD_TEST(TST_FootprintSuggestionArchive::aDifferentPadCountIsNeverListed);
 		ADD_TEST(TST_FootprintSuggestionArchive::nothingIsSuggestedWhenEveryCandidateIsFilteredOut);
 		ADD_TEST(TST_FootprintSuggestionArchive::theSamePackageIsListedBeforeABetterScoringStranger);
+		ADD_TEST(TST_FootprintSuggestionArchive::otherPackagesAreSplitIntoOneNodePerPackage);
+		ADD_TEST(TST_FootprintSuggestionArchive::arrowKeysStepFromLeafToLeafOnly);
 		ADD_TEST(TST_FootprintSuggestionArchive::aUserRequestedOfferKeepsTheCandidatesAnIdenticalOneWouldHaveWiped);
 		ADD_TEST(TST_FootprintSuggestionArchive::anImportOfferStaysSilentOnTheSameDatabase);
 		ADD_TEST(TST_FootprintSuggestionArchive::aUserRequestedOfferSaysWhyItFoundNothing);
@@ -125,16 +128,51 @@ private:
 		return PartManager::PartRepository::insertPart(db, part);
 	}
 
-	// The candidates, which are the *children* of the group headers — the tree's top level is
-	// the favourites/others grouping, so topLevelItemCount() counts headers, not choices.
+	// The candidates, which are the tree's *leaves*. Counted recursively rather than as the
+	// headers' children, because "Other packages" now holds a node per package and its children
+	// are those nodes, not choices — and the favourites group is still two levels deep.
+	static int candidateRowCount(const QTreeWidgetItem* item)
+	{
+		if (item->childCount() == 0) { return 1; }
+		int rows = 0;
+		for (int i = 0; i < item->childCount(); ++i)
+		{
+			rows += candidateRowCount(item->child(i));
+		}
+		return rows;
+	}
+
 	static int candidateRowCount(const QTreeWidget* tree)
 	{
 		int rows = 0;
 		for (int i = 0; i < tree->topLevelItemCount(); ++i)
 		{
-			rows += tree->topLevelItem(i)->childCount();
+			rows += candidateRowCount(tree->topLevelItem(i));
 		}
 		return rows;
+	}
+
+	// Every leaf in the order the user walks them with the Down key: depth first, groups in tree
+	// order. What the arrow keys must reproduce and what nothing else in the tree may join.
+	static QStringList leafTexts(const QTreeWidgetItem* item)
+	{
+		if (item->childCount() == 0) { return QStringList(item->text(0)); }
+		QStringList texts;
+		for (int i = 0; i < item->childCount(); ++i)
+		{
+			texts += leafTexts(item->child(i));
+		}
+		return texts;
+	}
+
+	static QStringList leafTexts(const QTreeWidget* tree)
+	{
+		QStringList texts;
+		for (int i = 0; i < tree->topLevelItemCount(); ++i)
+		{
+			texts += leafTexts(tree->topLevelItem(i));
+		}
+		return texts;
 	}
 
 	// The drawing behind a fixture, for asserting what the *metric* says independently of what
@@ -142,6 +180,64 @@ private:
 	static PartManager::KicadDrawing drawingOf(const std::string& text)
 	{
 		return PartManager::KicadGeometry::footprint(text);
+	}
+
+	// What the three-level cases are measured against: the 0.9 mm reference the fixtures below
+	// are spread around.
+	static std::string downloadedChipLand()
+	{
+		return chipLand("RESC1608X55N", "0.9");
+	}
+
+	// A database whose "Other packages" group has to become three levels — two 0805 footprints,
+	// one 1206, and one on a part carrying no package at all — plus a 0603 favourite for the
+	// group that stays two levels. The pad widths are the fixture's real content: they set the
+	// scores, and with them both orderings this suite has to prove.
+	static std::unique_ptr<PartManager::DatabaseHandle> threeLevelDatabase(const std::string& name,
+		std::filesystem::path& outFolder, std::string& outError, int& outMigrated)
+	{
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			makeDatabase(name, outFolder, outError);
+		if (handle == nullptr) { return handle; }
+
+		PartManager::PartEditorController controller(handle.get());
+		SQLiteWrapper::SQLite& db = handle->connection();
+
+		struct Fixture
+		{
+			const char* part;
+			const char* package;
+			const char* footprint;
+			const char* padWidth;
+		};
+		// Against the 0.9 mm reference: 1206 matches it exactly, the nameless part is 0.01 mm
+		// out, the two 0805s are 0.025 and 0.05. So the package nodes must come out
+		// 1206 → (no package) → 0805, which is neither alphabetical nor insertion order — and
+		// the unnamed package lands in the *middle*, which is the only arrangement that shows it
+		// is ordered by its best fit rather than swept to the end for having no name.
+		static const Fixture fixtures[] = {
+			{ "RC0603FR-074K7L", "0603", "R_0603_1608Metric",   "0.875" },
+			{ "RC0805FR-0710KL", "0805", "R_0805_2012Metric",   "0.875" },
+			{ "RC0805FR-0722KL", "0805", "R_0805_2012Metric_B", "0.85"  },
+			{ "RC1206FR-0733KL", "1206", "R_1206_3216Metric",   "0.9"   },
+			{ "NO-PACKAGE-PART", "",     "R_Nameless",          "0.89"  },
+		};
+		for (const Fixture& fixture : fixtures)
+		{
+			const int partId = makePart(db, fixture.part, fixture.package);
+			if (partId == 0 || controller.attachRoleBytes(partId,
+				PartManager::PartFileRole::KicadFootprint,
+				chipLand(fixture.footprint, fixture.padWidth),
+				std::string(fixture.footprint) + ".kicad_mod", &outError) == 0)
+			{
+				handle->close();
+				return nullptr;
+			}
+		}
+		// Last, and with no footprint of its own: the pre-attach path, where the part's package
+		// has to come from its own row because `collect()` has never heard of it.
+		outMigrated = makePart(db, "RC0603FR-0710KL", "0603");
+		return handle;
 	}
 
 	// Clicks one of the dialog's two buttons by role. Both are added in code, so there is no
@@ -556,11 +652,203 @@ public:
 		TEST_ASSERT_M(!favourites->flags().testFlag(Qt::ItemIsSelectable),
 			"a group header is not a choice and must not be selectable");
 
+		// One level deeper on this side: the strangers are split by package, so the group's own
+		// child is the "0805" node and the part hangs under that. The package name is user data
+		// and untranslated, which is what makes matching it safe here.
 		QTreeWidgetItem* others = tree->topLevelItem(1);
 		TEST_ASSERT_M(others->childCount() == 1 &&
-			others->child(0)->text(0) == QStringLiteral("RC0805FR-0710KL"),
+			others->child(0)->text(0) == QStringLiteral("0805"),
+			"the strangers are grouped under a node named after their package");
+		TEST_ASSERT_M(others->child(0)->childCount() == 1 &&
+			others->child(0)->child(0)->text(0) == QStringLiteral("RC0805FR-0710KL"),
 			"the better-scoring stranger goes below, not above");
 
+		handle->close();
+		std::error_code ec;
+		std::filesystem::remove_all(folder, ec);
+	}
+
+	// Reported on the user's own library: "Other packages" was one flat run of rows, and the
+	// package is what they scan it by. It splits into a node per package — three levels — while
+	// the favourites group stays two, because every row in it shares one package by construction
+	// and a sub-level there would be a single node holding the whole group.
+	TEST_FUNCTION(otherPackagesAreSplitIntoOneNodePerPackage)
+	{
+		TEST_START;
+
+		TEST_ASSERT(UnitTest::Gui::ensureApplication());
+
+		std::filesystem::path folder;
+		std::string error;
+		int migrating = 0;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			threeLevelDatabase("threelevel", folder, error, migrating);
+		TEST_ASSERT_M(handle != nullptr, "fixture database failed: " + error);
+		TEST_ASSERT(migrating != 0);
+
+		const std::string downloaded = downloadedChipLand();
+		// The premise, asserted rather than assumed: the node order below is only meaningful if
+		// the fixture really does score 1206 best, then the nameless part, then the 0805s. If a
+		// change to the metric ever reshuffles these, the ordering assertions prove nothing.
+		const PartManager::KicadDrawing reference = drawingOf(downloaded);
+		const double exact = PartManager::FootprintCompatibility::compare(reference,
+			drawingOf(chipLand("R_1206_3216Metric", "0.9"))).score;
+		const double nameless = PartManager::FootprintCompatibility::compare(reference,
+			drawingOf(chipLand("R_Nameless", "0.89"))).score;
+		const double closer0805 = PartManager::FootprintCompatibility::compare(reference,
+			drawingOf(chipLand("R_0805_2012Metric", "0.875"))).score;
+		const double further0805 = PartManager::FootprintCompatibility::compare(reference,
+			drawingOf(chipLand("R_0805_2012Metric_B", "0.85"))).score;
+		TEST_ASSERT_M(exact > nameless && nameless > closer0805 && closer0805 > further0805,
+			"the fixture must spread the four strangers out in that order");
+
+		PartManager::FootprintSuggestionDialog dialog(handle.get(), migrating,
+			QByteArray(downloaded.data(), static_cast<int>(downloaded.size())),
+			QStringLiteral("RESC1608X55N.kicad_mod"));
+
+		TEST_ASSERT(dialog.hasSuggestions());
+		QTreeWidget* tree = dialog.findChild<QTreeWidget*>();
+		TEST_ASSERT(tree != nullptr);
+		TEST_ASSERT_M(tree->topLevelItemCount() == 2, "one favourites group and one for the rest");
+		TEST_ASSERT_M(candidateRowCount(tree) == 5, "all five footprints have two pads");
+
+		// The favourites group is untouched: two levels, its one row directly under the header.
+		QTreeWidgetItem* favourites = tree->topLevelItem(0);
+		TEST_ASSERT_M(favourites->childCount() == 1 &&
+			favourites->child(0)->childCount() == 0,
+			"the favourites group must stay two levels deep");
+		TEST_ASSERT(favourites->child(0)->text(0) == QStringLiteral("RC0603FR-074K7L"));
+
+		QTreeWidgetItem* others = tree->topLevelItem(1);
+		TEST_ASSERT_M(others->childCount() == 3,
+			"three packages among the strangers means three nodes");
+		TEST_ASSERT_M(others->child(0)->text(0) == QStringLiteral("1206"),
+			"the package holding the best-fitting candidate comes first");
+		TEST_ASSERT_M(others->child(2)->text(0) == QStringLiteral("0805"),
+			"and the one holding the worst comes last");
+		// The part with no package at all. Its node's title is translated, so what is asserted is
+		// that it *has* one — a node called "" is the failure this is guarding against.
+		QTreeWidgetItem* namelessNode = others->child(1);
+		TEST_ASSERT_M(!namelessNode->text(0).isEmpty(),
+			"a candidate whose part has no package still needs a node with a name on it");
+		TEST_ASSERT_M(namelessNode->childCount() == 1 &&
+			namelessNode->child(0)->text(0) == QStringLiteral("NO-PACKAGE-PART"),
+			"and the part with no package belongs under it");
+
+		// Inside a package node the score still orders the rows, exactly as it did in the flat
+		// list — the grouping only decides which node they sit in.
+		TEST_ASSERT_M(others->child(2)->childCount() == 2 &&
+			others->child(2)->child(0)->text(0) == QStringLiteral("RC0805FR-0710KL") &&
+			others->child(2)->child(1)->text(0) == QStringLiteral("RC0805FR-0722KL"),
+			"the better-scoring 0805 comes first inside its own package");
+
+		for (int i = 0; i < others->childCount(); ++i)
+		{
+			TEST_ASSERT_M(others->child(i)->isExpanded(),
+				"a collapsed package node hides the rows it was made to organise");
+			TEST_ASSERT_M(!others->child(i)->flags().testFlag(Qt::ItemIsSelectable),
+				"a package node is not a footprint and must not be choosable");
+			TEST_ASSERT_M(others->child(i)->flags().testFlag(Qt::ItemIsEnabled),
+				"and it must stay enabled, or it greys out and reads as broken");
+		}
+
+		handle->close();
+		std::error_code ec;
+		std::filesystem::remove_all(folder, ec);
+	}
+
+	// Reported by the user: Up and Down stopped on the group headers. Clearing `ItemIsSelectable`
+	// is not enough — Qt moves the *current item* by flags it does not consult — so the dialog
+	// answers the two keys itself. With the package nodes there are now two kinds of row to step
+	// over, and every leaf still has to be reachable, the first and the last included.
+	TEST_FUNCTION(arrowKeysStepFromLeafToLeafOnly)
+	{
+		TEST_START;
+
+		TEST_ASSERT(UnitTest::Gui::ensureApplication());
+
+		std::filesystem::path folder;
+		std::string error;
+		int migrating = 0;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			threeLevelDatabase("arrowkeys", folder, error, migrating);
+		TEST_ASSERT_M(handle != nullptr, "fixture database failed: " + error);
+
+		const std::string downloaded = downloadedChipLand();
+		PartManager::FootprintSuggestionDialog dialog(handle.get(), migrating,
+			QByteArray(downloaded.data(), static_cast<int>(downloaded.size())),
+			QStringLiteral("RESC1608X55N.kicad_mod"));
+		TEST_ASSERT(dialog.hasSuggestions());
+
+		QTreeWidget* tree = dialog.findChild<QTreeWidget*>();
+		TEST_ASSERT(tree != nullptr);
+		const QStringList leaves = leafTexts(tree);
+		TEST_ASSERT_M(leaves.size() == 5, "the fixture has five choices in it");
+
+		// Shown, because synthetic key events are refused to a hidden widget — and because a key
+		// press is only worth testing where a user could have made it.
+		TEST_ASSERT_M(UnitTest::Gui::showAndWait(&dialog), "the dialog never became visible");
+
+		// The constructor preselects the best favourite, which is the first leaf.
+		TEST_ASSERT(tree->currentItem() != nullptr);
+		TEST_ASSERT_M(tree->currentItem()->text(0) == leaves.at(0),
+			"the dialog opens on its first choice");
+
+		// Down the whole list. Every stop must be a leaf, in the order the tree shows them —
+		// the headers and the package nodes are the rows this used to land on.
+		for (int i = 1; i < leaves.size(); ++i)
+		{
+			TEST_ASSERT(UnitTest::Gui::keyClick(tree, Qt::Key_Down));
+			QTreeWidgetItem* current = tree->currentItem();
+			TEST_ASSERT_M(current != nullptr && current->childCount() == 0,
+				"Down landed on a row that is not a choice");
+			TEST_ASSERT_M(current->text(0) == leaves.at(i),
+				"Down skipped a leaf or reached them out of order");
+		}
+
+		// Past the end: the last leaf stays current. Clearing it here would empty the overlay
+		// just for running out of list.
+		TEST_ASSERT(UnitTest::Gui::keyClick(tree, Qt::Key_Down));
+		TEST_ASSERT_M(tree->currentItem() != nullptr &&
+			tree->currentItem()->text(0) == leaves.last(),
+			"Down at the end of the list must stay on the last leaf");
+
+		for (int i = leaves.size() - 2; i >= 0; --i)
+		{
+			TEST_ASSERT(UnitTest::Gui::keyClick(tree, Qt::Key_Up));
+			QTreeWidgetItem* current = tree->currentItem();
+			TEST_ASSERT_M(current != nullptr && current->childCount() == 0,
+				"Up landed on a row that is not a choice");
+			TEST_ASSERT_M(current->text(0) == leaves.at(i),
+				"Up skipped a leaf or reached them out of order");
+		}
+		TEST_ASSERT(UnitTest::Gui::keyClick(tree, Qt::Key_Up));
+		TEST_ASSERT_M(tree->currentItem() != nullptr &&
+			tree->currentItem()->text(0) == leaves.at(0),
+			"Up at the top of the list must stay on the first leaf");
+
+		// Left and Right are untouched, which is what still collapses and expands a group. The
+		// current row is put on the header directly rather than reached with Left, so that this
+		// keeps testing the two keys and not Qt's rule for where Left moves from a leaf.
+		QTreeWidgetItem* others = tree->topLevelItem(1);
+		tree->setCurrentItem(others);
+		TEST_ASSERT(UnitTest::Gui::keyClick(tree, Qt::Key_Left));
+		TEST_ASSERT_M(!others->isExpanded(), "Left must still collapse a group");
+
+		// And Down out of a collapsed group skips what it is hiding: the rows under it are not
+		// on screen, so they are not the next row in the direction of travel either.
+		TEST_ASSERT(UnitTest::Gui::keyClick(tree, Qt::Key_Down));
+		TEST_ASSERT_M(tree->currentItem() == others,
+			"there is no leaf below a collapsed last group, so current stays put");
+
+		TEST_ASSERT(UnitTest::Gui::keyClick(tree, Qt::Key_Right));
+		TEST_ASSERT_M(others->isExpanded(), "Right must still expand it again");
+		TEST_ASSERT(UnitTest::Gui::keyClick(tree, Qt::Key_Down));
+		TEST_ASSERT_M(tree->currentItem() != nullptr &&
+			tree->currentItem()->childCount() == 0,
+			"and Down from the header then reaches the first leaf under it");
+
+		dialog.close();
 		handle->close();
 		std::error_code ec;
 		std::filesystem::remove_all(folder, ec);
