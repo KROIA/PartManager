@@ -628,6 +628,16 @@ This editor closes, because the answer and the tool calls behind it appear in th
                </widget>
               </item>
               <item>
+               <widget class="QPushButton" name="shareFootprintButton">
+                <property name="text">
+                 <string>Use a shared footprint…</string>
+                </property>
+                <property name="toolTip">
+                 <string>Offers the footprints other parts in this database already use, ranked against the one this part has now. Needs a footprint to measure against, so attach one first.</string>
+                </property>
+               </widget>
+              </item>
+              <item>
                <widget class="QPushButton" name="removeFootprintButton">
                 <property name="text">
                  <string>Remove</string>

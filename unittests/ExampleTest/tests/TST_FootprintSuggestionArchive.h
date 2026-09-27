@@ -46,6 +46,9 @@ public:
 		ADD_TEST(TST_FootprintSuggestionArchive::aDifferentPadCountIsNeverListed);
 		ADD_TEST(TST_FootprintSuggestionArchive::nothingIsSuggestedWhenEveryCandidateIsFilteredOut);
 		ADD_TEST(TST_FootprintSuggestionArchive::theSamePackageIsListedBeforeABetterScoringStranger);
+		ADD_TEST(TST_FootprintSuggestionArchive::aUserRequestedOfferKeepsTheCandidatesAnIdenticalOneWouldHaveWiped);
+		ADD_TEST(TST_FootprintSuggestionArchive::anImportOfferStaysSilentOnTheSameDatabase);
+		ADD_TEST(TST_FootprintSuggestionArchive::aUserRequestedOfferSaysWhyItFoundNothing);
 	}
 
 private:
@@ -558,6 +561,175 @@ public:
 			others->child(0)->text(0) == QStringLiteral("RC0805FR-0710KL"),
 			"the better-scoring stranger goes below, not above");
 
+		handle->close();
+		std::error_code ec;
+		std::filesystem::remove_all(folder, ec);
+	}
+
+	// The three cases below are about `Trigger`, and the fixture is one database built so the two
+	// triggers must answer differently: the part already shares its footprint with a neighbour —
+	// which is what accepting an earlier suggestion leaves behind, so it is the ordinary state, not
+	// a corner — and a third part holds a different, compatible one.
+	//
+	// Byte-identical candidate present, and it is the *first* thing the search meets.
+	static std::unique_ptr<PartManager::DatabaseHandle> sharedPlusOneDatabase(const std::string& name,
+		std::filesystem::path& outFolder, std::string& outError, int& outMigrated, int& outOther)
+	{
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			makeDatabase(name, outFolder, outError);
+		if (handle == nullptr) { return handle; }
+
+		PartManager::PartEditorController controller(handle.get());
+		SQLiteWrapper::SQLite& db = handle->connection();
+
+		const int neighbour = makePart(db, "RC0603FR-074K7L");
+		outMigrated = makePart(db, "RC0603FR-0710KL");
+		outOther = makePart(db, "RC0603FR-0722KL");
+
+		// Neighbour and migrated carry the *same bytes*, so the content-addressed store has them
+		// on one file already — the state "accept a suggestion" produces.
+		const std::string shared = chipLand("R_0603_1608Metric", "0.875");
+		if (controller.attachRoleBytes(neighbour, PartManager::PartFileRole::KicadFootprint,
+				shared, "R_0603_1608Metric.kicad_mod", &outError) == 0
+			|| controller.attachRoleBytes(outMigrated, PartManager::PartFileRole::KicadFootprint,
+				shared, "R_0603_1608Metric.kicad_mod", &outError) == 0
+			|| controller.attachRoleBytes(outOther, PartManager::PartFileRole::KicadFootprint,
+				chipLand("RESC1608X55N", "0.9"), "RESC1608X55N.kicad_mod", &outError) == 0)
+		{
+			handle->close();
+			return nullptr;
+		}
+		return handle;
+	}
+
+	// The bug the button was added for. `buildCandidates()` ends the whole search on a
+	// byte-identical candidate, which is right after an import and wrong here: the user pressed a
+	// button asking for something *different*, and the identical file is the one candidate that
+	// certainly is not one. Skipping it must leave the rest of the list standing.
+	TEST_FUNCTION(aUserRequestedOfferKeepsTheCandidatesAnIdenticalOneWouldHaveWiped)
+	{
+		TEST_START;
+
+		TEST_ASSERT(UnitTest::Gui::ensureApplication());
+
+		std::filesystem::path folder;
+		std::string error;
+		int migrating = 0;
+		int other = 0;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			sharedPlusOneDatabase("userrequested", folder, error, migrating, other);
+		TEST_ASSERT_M(handle != nullptr, "fixture database failed: " + error);
+		TEST_ASSERT(migrating != 0 && other != 0);
+
+		// The reference is what the part carries now, which is the shared file itself.
+		const std::string current = chipLand("R_0603_1608Metric", "0.875");
+		PartManager::FootprintSuggestionDialog dialog(handle.get(), migrating,
+			QByteArray(current.data(), static_cast<int>(current.size())),
+			QStringLiteral("R_0603_1608Metric.kicad_mod"),
+			PartManager::FootprintSuggestionDialog::Trigger::UserRequested);
+
+		TEST_ASSERT_M(dialog.hasSuggestions(),
+			"an identical candidate must not wipe the list on the user-requested path");
+		QTreeWidget* tree = dialog.findChild<QTreeWidget*>();
+		TEST_ASSERT(tree != nullptr);
+		TEST_ASSERT_M(candidateRowCount(tree) == 1,
+			"the identical one is skipped and the different one survives");
+		TEST_ASSERT_M(tree->topLevelItem(0)->child(0)->text(0) ==
+			QStringLiteral("RC0603FR-0722KL"),
+			"the row that survived must be the part holding the *other* footprint");
+
+		handle->close();
+		std::error_code ec;
+		std::filesystem::remove_all(folder, ec);
+	}
+
+	// The other half of the same fixture: on the import path an identical candidate still means
+	// the store will share the file by itself, so the offer stays out of the way. The two triggers
+	// have to disagree here, or one of them is broken.
+	TEST_FUNCTION(anImportOfferStaysSilentOnTheSameDatabase)
+	{
+		TEST_START;
+
+		TEST_ASSERT(UnitTest::Gui::ensureApplication());
+
+		std::filesystem::path folder;
+		std::string error;
+		int migrating = 0;
+		int other = 0;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			sharedPlusOneDatabase("afterimport", folder, error, migrating, other);
+		TEST_ASSERT_M(handle != nullptr, "fixture database failed: " + error);
+		TEST_ASSERT(migrating != 0 && other != 0);
+
+		const std::string downloaded = chipLand("R_0603_1608Metric", "0.875");
+		PartManager::FootprintSuggestionDialog dialog(handle.get(), migrating,
+			QByteArray(downloaded.data(), static_cast<int>(downloaded.size())),
+			QStringLiteral("R_0603_1608Metric.kicad_mod"));
+
+		TEST_ASSERT_M(!dialog.hasSuggestions(),
+			"a download already in the store byte for byte has nothing to ask about");
+		QTreeWidget* tree = dialog.findChild<QTreeWidget*>();
+		TEST_ASSERT(tree != nullptr && candidateRowCount(tree) == 0);
+
+		handle->close();
+		std::error_code ec;
+		std::filesystem::remove_all(folder, ec);
+	}
+
+	// Silence is the bug the user hit twice, so the button path has to be able to say *why* it
+	// found nothing. Each reason is a different sentence in the part editor, so each has to be
+	// told apart here — and `offerReplacement()` is the real entry point, which also proves the
+	// read-back of the attached footprint. None of these opens a dialog: an empty list returns
+	// before exec(), which is the contract this is checking.
+	TEST_FUNCTION(aUserRequestedOfferSaysWhyItFoundNothing)
+	{
+		TEST_START;
+
+		TEST_ASSERT(UnitTest::Gui::ensureApplication());
+
+		using Outcome = PartManager::FootprintSuggestionDialog::Outcome;
+
+		std::filesystem::path folder;
+		std::string error;
+		std::unique_ptr<PartManager::DatabaseHandle> handle =
+			makeDatabase("emptyreason", folder, error);
+		TEST_ASSERT_M(handle != nullptr, "createNew failed: " + error);
+
+		PartManager::PartEditorController controller(handle.get());
+		SQLiteWrapper::SQLite& db = handle->connection();
+
+		const int bare = makePart(db, "RC0603FR-0733KL");
+		const int alone = makePart(db, "RC0603FR-0710KL");
+		TEST_ASSERT_M(controller.attachRoleBytes(alone, PartManager::PartFileRole::KicadFootprint,
+			chipLand("R_0603_1608Metric", "0.875"), "R_0603_1608Metric.kicad_mod", &error) != 0,
+			"attach failed: " + error);
+
+		TEST_ASSERT_M(PartManager::FootprintSuggestionDialog::offerReplacement(nullptr, controller,
+			bare) == Outcome::NoFootprintAttached,
+			"with an empty slot there is no reference and the button is disabled anyway");
+		TEST_ASSERT_M(PartManager::FootprintSuggestionDialog::offerReplacement(nullptr, controller,
+			alone) == Outcome::NoOtherFootprints,
+			"the only footprint in the database is this part's own");
+
+		// Now give the bare part the very same file. Nothing changes for the user — the two are
+		// already one file — but "nothing to share" would be the wrong sentence for it.
+		TEST_ASSERT(controller.attachRoleBytes(bare, PartManager::PartFileRole::KicadFootprint,
+			chipLand("R_0603_1608Metric", "0.875"), "R_0603_1608Metric.kicad_mod", &error) != 0);
+		TEST_ASSERT_M(PartManager::FootprintSuggestionDialog::offerReplacement(nullptr, controller,
+			alone) == Outcome::OnlyIdenticalOnes,
+			"a database whose other footprints are all this very file says so");
+
+		// And one with a genuinely different footprint that the pad-count filter drops.
+		const int quad = makePart(db, "DFN-4-DUMMY");
+		TEST_ASSERT(controller.attachRoleBytes(quad, PartManager::PartFileRole::KicadFootprint,
+			quadLand("DFN_4"), "DFN_4.kicad_mod", &error) != 0);
+		TEST_ASSERT_M(PartManager::FootprintSuggestionDialog::offerReplacement(nullptr, controller,
+			alone) == Outcome::AllFilteredOut,
+			"a four-pad footprint is not a two-pad one, and the reason must say that");
+
+		// The poller the other cases rely on is not armed here on purpose: every call above must
+		// have returned without showing anything, and a dialog left in exec() would hang the suite
+		// rather than fail it. Reaching this line is the assertion.
 		handle->close();
 		std::error_code ec;
 		std::filesystem::remove_all(folder, ec);

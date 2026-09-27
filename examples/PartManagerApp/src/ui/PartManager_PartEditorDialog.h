@@ -150,6 +150,13 @@ namespace PartManager
 		void removeKicadSymbol();
 		void attachKicadFootprint();
 		void removeKicadFootprint();
+		// §5a on demand: the same sharing offer the import paths make, for a part that already
+		// has a footprint and therefore never reaches one of those moments again. Enabled only
+		// when there is a footprint, because the metric is entirely comparative — with nothing
+		// attached there is no geometry to rank the candidates against. Says out loud when the
+		// answer is nothing: the offer was asked for by a button press, so silence would read
+		// as a button that does not work.
+		void shareKicadFootprint();
 
 		// Deletes the part and closes. Confirmed first, and the confirmation names what goes with
 		// it — the stock history in particular is not recoverable from anywhere else.

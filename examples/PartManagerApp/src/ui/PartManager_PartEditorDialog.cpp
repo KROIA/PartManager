@@ -306,6 +306,7 @@ namespace PartManager
 		connect(m_ui->attachSymbolButton, &QPushButton::clicked, this, &PartEditorDialog::attachKicadSymbol);
 		connect(m_ui->removeSymbolButton, &QPushButton::clicked, this, &PartEditorDialog::removeKicadSymbol);
 		connect(m_ui->attachFootprintButton, &QPushButton::clicked, this, &PartEditorDialog::attachKicadFootprint);
+		connect(m_ui->shareFootprintButton, &QPushButton::clicked, this, &PartEditorDialog::shareKicadFootprint);
 		connect(m_ui->removeFootprintButton, &QPushButton::clicked, this, &PartEditorDialog::removeKicadFootprint);
 
 		connect(m_ui->deletePartButton, &QPushButton::clicked, this, &PartEditorDialog::deletePart);
@@ -901,6 +902,10 @@ namespace PartManager
 
 		m_ui->removeSymbolButton->setEnabled(hasSymbol);
 		m_ui->removeFootprintButton->setEnabled(hasFootprint);
+		// §5a: the sharing offer ranks the database against *this* part's footprint, so without
+		// one there is no reference and nothing the metric could order the candidates by. The
+		// tooltip in the .ui says that, which is why it is not swapped per state.
+		m_ui->shareFootprintButton->setEnabled(hasFootprint);
 		m_ui->attachSymbolButton->setText(hasSymbol ? tr("Replace…") : tr("Attach…"));
 		m_ui->attachFootprintButton->setText(hasFootprint ? tr("Replace…") : tr("Attach…"));
 
@@ -1146,6 +1151,53 @@ namespace PartManager
 		}
 		m_controller.detachRoleFile(m_part.id, PartFileRole::KicadFootprint);
 		updateKicadState();
+	}
+
+	void PartEditorDialog::shareKicadFootprint()
+	{
+		// §5a from the other end: the import paths ask at the one moment a part receives a
+		// footprint, which every part imported before this existed has long since passed. This
+		// is that same question, asked whenever the user wants it.
+		const FootprintSuggestionDialog::Outcome outcome =
+			FootprintSuggestionDialog::offerReplacement(this, m_controller, m_part.id);
+
+		QString nothing;
+		switch (outcome)
+		{
+		case FootprintSuggestionDialog::Outcome::Replaced:
+			// Same refresh the attach and remove handlers do — updateKicadState() repaints the
+			// previews too, so the new pads are on screen without anything else being told.
+			updateKicadState();
+			return;
+		case FootprintSuggestionDialog::Outcome::Declined:
+			return;
+		case FootprintSuggestionDialog::Outcome::NoFootprintAttached:
+			// The button is disabled in this state, so reaching it means something changed the
+			// slot from underneath. Still answered rather than ignored.
+			nothing = tr("This part has no footprint yet, so there is nothing to compare the "
+				"others against. Attach or import one first.");
+			break;
+		case FootprintSuggestionDialog::Outcome::ReferenceUnreadable:
+			nothing = tr("The footprint file this part uses holds no pads this can measure, so "
+				"nothing can be ranked against it.");
+			break;
+		case FootprintSuggestionDialog::Outcome::NoOtherFootprints:
+			nothing = tr("No other part in this database has a footprint yet, so there is "
+				"nothing to share.");
+			break;
+		case FootprintSuggestionDialog::Outcome::OnlyIdenticalOnes:
+			nothing = tr("Every other footprint in this database is the very file this part "
+				"already uses — they are shared already.");
+			break;
+		case FootprintSuggestionDialog::Outcome::AllFilteredOut:
+			nothing = tr("Every other footprint in this database has a different number of "
+				"pads, and no amount of comparing turns one into the other. Nothing was "
+				"offered.");
+			break;
+		}
+		// Saying nothing is what made this look broken from the import paths, where the offer
+		// simply never appeared. A button press is a question, and it gets an answer.
+		QMessageBox::information(this, tr("No footprint to share"), nothing);
 	}
 
 	void PartEditorDialog::deletePart()

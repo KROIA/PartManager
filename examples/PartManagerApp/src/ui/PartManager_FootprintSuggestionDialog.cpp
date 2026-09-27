@@ -27,9 +27,9 @@ namespace PartManager
 	{
 		constexpr int CandidateIndexRole = Qt::UserRole;
 
-		// The download and the candidate get one colour each, and they keep it in the tree, the
+		// The reference and the candidate get one colour each, and they keep it in the tree, the
 		// legend and the overlay — "which of these is which" has to be answerable at a glance.
-		const QColor DownloadedColour(0xFF, 0xB3, 0x4D);   // amber
+		const QColor ReferenceColour(0xFF, 0xB3, 0x4D);    // amber
 		const QColor ExistingColour(0x4F, 0xC3, 0xF7);     // blue
 
 		std::string readWholeFile(const std::string& path)
@@ -46,12 +46,14 @@ namespace PartManager
 	}
 
 	FootprintSuggestionDialog::FootprintSuggestionDialog(DatabaseHandle* handle, int partId,
-		const QByteArray& downloaded, const QString& downloadedName, QWidget* parent)
+		const QByteArray& reference, const QString& referenceName, Trigger trigger,
+		QWidget* parent)
 		: QDialog(parent)
 		, m_handle(handle)
 		, m_partId(partId)
-		, m_downloaded(downloaded)
-		, m_downloadedName(downloadedName)
+		, m_trigger(trigger)
+		, m_reference(reference)
+		, m_referenceName(referenceName)
 		, m_ui(new Ui::FootprintSuggestionDialog)
 	{
 		m_ui->setupUi(this);
@@ -70,7 +72,11 @@ namespace PartManager
 
 		m_useExisting = m_ui->buttonBox->addButton(tr("Use this footprint"),
 			QDialogButtonBox::AcceptRole);
-		m_ui->buttonBox->addButton(tr("Keep the downloaded one"), QDialogButtonBox::RejectRole);
+		// "Keep the downloaded one" is a lie on the button path — nothing was downloaded, the
+		// part has had this footprint for as long as it has existed.
+		m_ui->buttonBox->addButton(m_trigger == Trigger::UserRequested
+			? tr("Keep the current one")
+			: tr("Keep the downloaded one"), QDialogButtonBox::RejectRole);
 		connect(m_useExisting, &QPushButton::clicked, this, &FootprintSuggestionDialog::onAccept);
 		connect(m_ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 		// Nothing is current yet, and the tree now also holds rows that are not a choice.
@@ -86,8 +92,8 @@ namespace PartManager
 			}
 		}
 
-		m_downloadedDrawing = KicadGeometry::footprint(
-			std::string(m_downloaded.constData(), static_cast<size_t>(m_downloaded.size())));
+		m_referenceDrawing = KicadGeometry::footprint(
+			std::string(m_reference.constData(), static_cast<size_t>(m_reference.size())));
 		buildCandidates();
 
 		connect(m_ui->candidateTree, &QTreeWidget::currentItemChanged, this,
@@ -107,11 +113,18 @@ namespace PartManager
 			}
 		}
 
-		m_ui->headerLabel->setText(
-			tr("“%1” looks like %n footprint(s) this database already has. Using one of them means "
-				"both parts share a single file — check the overlay first: the download is drawn "
-				"in amber, the one you are looking at in blue.", "",
-				static_cast<int>(m_candidates.size())).arg(m_downloadedName));
+		// Two wordings, because on the button path there is no download to speak of and the
+		// reference is what the part has been using all along. Same sentence otherwise — the
+		// colours mean the same thing and the choice has the same consequence.
+		m_ui->headerLabel->setText(m_trigger == Trigger::UserRequested
+			? tr("This part uses “%1”. %n footprint(s) other parts already have could take its "
+				"place — using one means both parts share a single file. Check the overlay "
+				"first: the footprint in use now is drawn in amber, the one you are looking at "
+				"in blue.", "", static_cast<int>(m_candidates.size())).arg(m_referenceName)
+			: tr("“%1” looks like %n footprint(s) this database already has. Using one of them "
+				"means both parts share a single file — check the overlay first: the download "
+				"is drawn in amber, the one you are looking at in blue.", "",
+				static_cast<int>(m_candidates.size())).arg(m_referenceName));
 	}
 
 	FootprintSuggestionDialog::~FootprintSuggestionDialog()
@@ -133,12 +146,24 @@ namespace PartManager
 
 	void FootprintSuggestionDialog::buildCandidates()
 	{
-		if (m_handle == nullptr || !m_handle->isOpen() || m_downloadedDrawing.empty())
+		if (m_handle == nullptr || !m_handle->isOpen())
 		{
+			return;
+		}
+		if (m_referenceDrawing.empty())
+		{
+			// Nothing to measure *against*, which is a different answer from "nothing matched"
+			// and reads as a different sentence on the button path — the file the part carries
+			// is there, it simply holds no pads this can compare.
+			m_emptyReason = Outcome::ReferenceUnreadable;
 			return;
 		}
 
 		const FileStore store(m_handle->filestorePath());
+		// Only ever set on `UserRequested`, where an identical candidate is skipped instead of
+		// ending the search. It is the difference between "you have nothing else" and "what you
+		// have is already this very file", and the user is owed the second sentence.
+		bool skippedIdentical = false;
 		const std::vector<FootprintPartRef> refs =
 			FootprintVariants::collect(m_handle->connection());
 
@@ -176,10 +201,19 @@ namespace PartManager
 
 				const std::string text =
 					readWholeFile(store.absolutePath(variant.relativePath));
-				// Byte-identical to the download: the content-addressed store will share it on
-				// its own the moment these bytes are attached, so there is nothing to ask.
-				if (QByteArray(text.data(), static_cast<int>(text.size())) == m_downloaded)
+				if (QByteArray(text.data(), static_cast<int>(text.size())) == m_reference)
 				{
+					if (m_trigger == Trigger::UserRequested)
+					{
+						// The user asked to see something *different*, and a byte-identical file
+						// is the one candidate that provably is not — it is already the same
+						// stored file. Drop the row, keep the list: ending the search here
+						// would answer a deliberate button press with silence.
+						skippedIdentical = true;
+						continue;
+					}
+					// Byte-identical to the download: the content-addressed store will share it
+					// on its own the moment these bytes are attached, so there is nothing to ask.
 					return;
 				}
 				candidate.drawing = KicadGeometry::footprint(text);
@@ -193,11 +227,16 @@ namespace PartManager
 		}
 		if (candidates.empty())
 		{
+			m_emptyReason = skippedIdentical ? Outcome::OnlyIdenticalOnes
+				: Outcome::NoOtherFootprints;
 			return;
 		}
+		// Something comparable existed, so from here on an empty list is the pad-count filter's
+		// doing and nothing else.
+		m_emptyReason = Outcome::AllFilteredOut;
 
 		const std::vector<FootprintCandidate> ranked =
-			FootprintCompatibility::rank(m_downloadedDrawing, drawings);
+			FootprintCompatibility::rank(m_referenceDrawing, drawings);
 		for (const FootprintCandidate& entry : ranked)
 		{
 			// A different number of pads is a different part, and no amount of looking at the
@@ -311,12 +350,12 @@ namespace PartManager
 		const Candidate& candidate = m_candidates[static_cast<size_t>(index)];
 
 		std::vector<KicadVariantView::Entry> entries;
-		KicadVariantView::Entry downloaded;
-		downloaded.key = QStringLiteral("downloaded");
-		downloaded.label = m_downloadedName;
-		downloaded.colour = DownloadedColour;
-		downloaded.drawing = m_downloadedDrawing;
-		entries.push_back(downloaded);
+		KicadVariantView::Entry reference;
+		reference.key = QStringLiteral("reference");
+		reference.label = m_referenceName;
+		reference.colour = ReferenceColour;
+		reference.drawing = m_referenceDrawing;
+		entries.push_back(reference);
 
 		KicadVariantView::Entry existing;
 		existing.key = candidate.contentHash;
@@ -326,13 +365,13 @@ namespace PartManager
 		entries.push_back(existing);
 
 		m_view->setEntries(entries);
-		// **The download is the constant, so it is the one drawn bright and on top.** It is the
+		// **The reference is the constant, so it is the one drawn bright and on top.** It is the
 		// only thing that does not change as the user walks the list; the candidates sweep
-		// underneath it in their own colour and the eye compares each against a reference that
+		// underneath it in their own colour and the eye compares each against a shape that
 		// has not moved. Highlighting the candidate instead — which this did until the user ran
 		// it on real data — redraws the reference behind every row and leaves nothing fixed to
 		// judge against.
-		m_view->setHighlighted(downloaded.key);
+		m_view->setHighlighted(reference.key);
 
 		// Built from the fields, **not** from `FootprintComparison::summary`. That string lives
 		// in core/, which has no tr(), so showing it would leave the one line that explains the
@@ -386,32 +425,17 @@ namespace PartManager
 		accept();
 	}
 
-	bool FootprintSuggestionDialog::offer(QWidget* parent, DatabaseHandle* handle, int partId,
-		const QByteArray& downloaded, const QString& downloadedName)
+	bool FootprintSuggestionDialog::applyChosen(QWidget* parent, DatabaseHandle* handle,
+		int partId, int sourcePartId)
 	{
-		if (handle == nullptr || partId == 0 || downloaded.isEmpty())
-		{
-			return false;
-		}
-		FootprintSuggestionDialog dialog(handle, partId, downloaded, downloadedName, parent);
-		if (!dialog.hasSuggestions())
-		{
-			// Nothing comparable in the database, or it is already there byte for byte. Either
-			// way the attach that follows is the right thing and the user is not interrupted.
-			return false;
-		}
-		if (dialog.exec() != QDialog::Accepted || dialog.chosenSourcePartId() == 0)
-		{
-			return false;
-		}
-
 		// Re-point, never re-import. `useStoredFile()` updates this part's row to name the file
 		// the other part already uses and deletes nothing — see its header for the 139-to-138
-		// measurement that made it exist.
+		// measurement that made it exist. It is also the call that makes the button path safe:
+		// the row it rewrites may already name a file, which is the case it was written for, so
+		// the footprint the part had before stays on disk as an ordinary orphan.
 		SQLiteWrapper::SQLite& db = handle->connection();
 		PartFile stored;
-		if (!FileStore::roleFile(db, dialog.chosenSourcePartId(),
-			PartFileRole::KicadFootprint, stored))
+		if (!FileStore::roleFile(db, sourcePartId, PartFileRole::KicadFootprint, stored))
 		{
 			return false;
 		}
@@ -427,6 +451,50 @@ namespace PartManager
 		return true;
 	}
 
+	bool FootprintSuggestionDialog::readAttachedFootprint(const PartEditorController& controller,
+		int partId, QByteArray& outBytes, QString& outName)
+	{
+		PartFile attached;
+		if (!controller.roleFile(partId, PartFileRole::KicadFootprint, attached))
+		{
+			return false;
+		}
+		// Read back from the store rather than kept from whatever put it there: an import's
+		// entry went through the filestore, and what the part actually carries now is the only
+		// thing worth comparing on either path.
+		const std::string bytes =
+			readWholeFile(controller.roleFilePath(partId, PartFileRole::KicadFootprint));
+		if (bytes.empty())
+		{
+			return false;
+		}
+		outBytes = QByteArray(bytes.data(), static_cast<int>(bytes.size()));
+		outName = QString::fromStdString(attached.originalFilename);   // user data
+		return true;
+	}
+
+	bool FootprintSuggestionDialog::offer(QWidget* parent, DatabaseHandle* handle, int partId,
+		const QByteArray& downloaded, const QString& downloadedName)
+	{
+		if (handle == nullptr || partId == 0 || downloaded.isEmpty())
+		{
+			return false;
+		}
+		FootprintSuggestionDialog dialog(handle, partId, downloaded, downloadedName,
+			Trigger::AfterImport, parent);
+		if (!dialog.hasSuggestions())
+		{
+			// Nothing comparable in the database, or it is already there byte for byte. Either
+			// way the attach that follows is the right thing and the user is not interrupted.
+			return false;
+		}
+		if (dialog.exec() != QDialog::Accepted || dialog.chosenSourcePartId() == 0)
+		{
+			return false;
+		}
+		return applyChosen(parent, handle, partId, dialog.chosenSourcePartId());
+	}
+
 	void FootprintSuggestionDialog::offerAfterArchiveImport(QWidget* parent,
 		const PartEditorController& controller, int partId, bool footprintAttached)
 	{
@@ -434,20 +502,48 @@ namespace PartManager
 		{
 			return;
 		}
-		PartFile attached;
-		if (!controller.roleFile(partId, PartFileRole::KicadFootprint, attached))
+		QByteArray bytes;
+		QString name;
+		if (!readAttachedFootprint(controller, partId, bytes, name))
 		{
 			return;
 		}
-		// Read back rather than kept from the import: the archive's entry went through the
-		// filestore, and what the part actually carries now is the only thing worth comparing.
-		const std::string bytes =
-			readWholeFile(controller.roleFilePath(partId, PartFileRole::KicadFootprint));
 		// The result is ignored on purpose — see the header. `offer()` has already done the
 		// re-point when it returns true, and there is no pending attach for false to release.
-		offer(parent, controller.handle(), partId,
-			QByteArray(bytes.data(), static_cast<int>(bytes.size())),
-			QString::fromStdString(attached.originalFilename));   // user data
+		offer(parent, controller.handle(), partId, bytes, name);
+	}
+
+	FootprintSuggestionDialog::Outcome FootprintSuggestionDialog::offerReplacement(QWidget* parent,
+		const PartEditorController& controller, int partId)
+	{
+		DatabaseHandle* handle = controller.handle();
+		if (handle == nullptr || partId == 0)
+		{
+			return Outcome::NoFootprintAttached;
+		}
+		QByteArray bytes;
+		QString name;
+		if (!readAttachedFootprint(controller, partId, bytes, name))
+		{
+			return Outcome::NoFootprintAttached;
+		}
+
+		FootprintSuggestionDialog dialog(handle, partId, bytes, name, Trigger::UserRequested,
+			parent);
+		if (!dialog.hasSuggestions())
+		{
+			// Handed straight back rather than reported here: the dialog says nothing when it
+			// has nothing to say, and which sentence the user gets is the call site's business.
+			return dialog.emptyReason();
+		}
+		if (dialog.exec() != QDialog::Accepted || dialog.chosenSourcePartId() == 0)
+		{
+			return Outcome::Declined;
+		}
+		// A refused re-point has already shown its own warning and changed nothing, which is
+		// what `Declined` means to the caller — it must not report a second time.
+		return applyChosen(parent, handle, partId, dialog.chosenSourcePartId())
+			? Outcome::Replaced : Outcome::Declined;
 	}
 
 }

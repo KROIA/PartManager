@@ -1096,6 +1096,14 @@ Dieser Editor schließt sich dabei, denn die Antwort und die Werkzeugaufrufe dah
         <source>Fetch the product photo Mouser publishes for this part&apos;s article number.</source>
         <translation>Holt das Produktfoto, das Mouser zur Artikelnummer dieses Bauteils veröffentlicht.</translation>
     </message>
+    <message>
+        <source>Use a shared footprint…</source>
+        <translation>Gemeinsamen Footprint verwenden…</translation>
+    </message>
+    <message>
+        <source>Offers the footprints other parts in this database already use, ranked against the one this part has now. Needs a footprint to measure against, so attach one first.</source>
+        <translation>Bietet die Footprints an, die andere Bauteile dieser Datenbank bereits verwenden, bewertet gegen den, den dieses Bauteil jetzt hat. Braucht einen Footprint zum Vergleichen — hängen Sie also zuerst einen an.</translation>
+    </message>
 </context>
 <context>
     <name>PartManager::AttachmentIconPainter</name>
@@ -1852,6 +1860,17 @@ Trotzdem schließen?</translation>
         <source>Other packages</source>
         <comment>footprint candidate group header</comment>
         <translation>Andere Gehäuse</translation>
+    </message>
+    <message>
+        <source>Keep the current one</source>
+        <translation>Den aktuellen behalten</translation>
+    </message>
+    <message numerus="yes">
+        <source>This part uses “%1”. %n footprint(s) other parts already have could take its place — using one means both parts share a single file. Check the overlay first: the footprint in use now is drawn in amber, the one you are looking at in blue.</source>
+        <translation>
+            <numerusform>Dieses Bauteil verwendet „%1“. %n Footprint, den andere Bauteile bereits haben, könnte an seine Stelle treten — ihn zu verwenden heißt, dass sich beide Bauteile eine einzige Datei teilen. Prüfen Sie zuerst die Überlagerung: der jetzt verwendete Footprint ist bernsteinfarben gezeichnet, der betrachtete in Blau.</numerusform>
+            <numerusform>Dieses Bauteil verwendet „%1“. %n Footprints, die andere Bauteile bereits haben, könnten an seine Stelle treten — einen davon zu verwenden heißt, dass sich beide Bauteile eine einzige Datei teilen. Prüfen Sie zuerst die Überlagerung: der jetzt verwendete Footprint ist bernsteinfarben gezeichnet, der betrachtete in Blau.</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -4024,6 +4043,30 @@ Jede Änderung, die Sie in KiCad gemacht haben und die in diese Datei zurückges
     <message>
         <source>Product photo fetched from Mouser.</source>
         <translation>Produktfoto von Mouser geholt.</translation>
+    </message>
+    <message>
+        <source>This part has no footprint yet, so there is nothing to compare the others against. Attach or import one first.</source>
+        <translation>Dieses Bauteil hat noch keinen Footprint, also gibt es nichts, womit die anderen verglichen werden könnten. Hängen Sie zuerst einen an oder importieren Sie einen.</translation>
+    </message>
+    <message>
+        <source>The footprint file this part uses holds no pads this can measure, so nothing can be ranked against it.</source>
+        <translation>Die Footprint-Datei, die dieses Bauteil verwendet, enthält keine Pads, die sich vermessen lassen — es kann also nichts dagegen bewertet werden.</translation>
+    </message>
+    <message>
+        <source>No other part in this database has a footprint yet, so there is nothing to share.</source>
+        <translation>Noch kein anderes Bauteil dieser Datenbank hat einen Footprint, also gibt es nichts zu teilen.</translation>
+    </message>
+    <message>
+        <source>Every other footprint in this database is the very file this part already uses — they are shared already.</source>
+        <translation>Jeder andere Footprint dieser Datenbank ist genau die Datei, die dieses Bauteil bereits verwendet — sie werden schon geteilt.</translation>
+    </message>
+    <message>
+        <source>Every other footprint in this database has a different number of pads, and no amount of comparing turns one into the other. Nothing was offered.</source>
+        <translation>Jeder andere Footprint dieser Datenbank hat eine andere Anzahl Pads, und kein noch so genauer Vergleich macht aus dem einen den anderen. Es wurde nichts angeboten.</translation>
+    </message>
+    <message>
+        <source>No footprint to share</source>
+        <translation>Kein Footprint zum Teilen</translation>
     </message>
 </context>
 <context>
