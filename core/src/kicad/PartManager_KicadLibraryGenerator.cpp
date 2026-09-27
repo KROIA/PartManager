@@ -7,6 +7,7 @@
 #include "persistence/PartManager_PartTypeRepository.h"
 #include "persistence/PartManager_SellerRepository.h"
 #include "PartManager_global.h"
+#include "PartManager_Utf8Path.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -85,6 +86,19 @@ namespace PartManager
 		{
 			text += ", " + std::to_string(footprintsCopied) + " footprint(s)";
 		}
+		if (footprintsShared > 0)
+		{
+			// Said out loud because the number is the feature: naming by package is what turns
+			// forty capacitors into one 0402 file, and a user who expected forty files needs to
+			// read that it was deliberate rather than count the folder and file a bug.
+			text += ", " + std::to_string(footprintsShared)
+				+ " part(s) sharing a package footprint";
+		}
+		if (!footprintClashes.empty())
+		{
+			text += ", " + std::to_string(footprintClashes.size())
+				+ " package name(s) claimed by different pad layouts";
+		}
 		if (modelsCopied > 0)
 		{
 			text += ", " + std::to_string(modelsCopied) + " 3D model(s)";
@@ -121,6 +135,53 @@ namespace PartManager
 			name += (c == ' ' || c == ':' || c == '/' || c == '\\') ? '_' : c;
 		}
 		return name.empty() ? std::string("PartManager") : name;
+	}
+
+	std::string KicadLibraryGenerator::sanitizeFootprintName(const std::string& text)
+	{
+		std::string out;
+		out.reserve(text.size());
+		for (char c : text)
+		{
+			const unsigned char byte = static_cast<unsigned char>(c);
+			const bool keep = (byte >= 'A' && byte <= 'Z') || (byte >= 'a' && byte <= 'z')
+				|| (byte >= '0' && byte <= '9') || byte == '.' || byte == '-' || byte == '_';
+			// Every byte of a multi-byte UTF-8 character is >= 0x80 and so fails `keep`, which is
+			// what makes this whitelist safe to apply byte by byte: a µ becomes one `_` per byte
+			// and the run below collapses them into one.
+			if (keep)
+			{
+				out += c;
+			}
+			else if (!out.empty() && out.back() != '_')
+			{
+				out += '_';
+			}
+		}
+		while (!out.empty() && out.back() == '_')
+		{
+			out.pop_back();
+		}
+		// A nameless file is not a file, and "Unnamed" is at least greppable.
+		return out.empty() ? std::string("Unnamed") : out;
+	}
+
+	std::string KicadLibraryGenerator::footprintNameFor(const std::string& package,
+		const std::string& partName, const std::string& reference)
+	{
+		const std::string cleanPackage = sanitizeFootprintName(package);
+		// "Unnamed" is what the sanitiser returns for nothing at all, so it is also how "this
+		// part has no package" arrives here — both mean fall back to the part's own name.
+		if (package.empty() || cleanPackage == "Unnamed")
+		{
+			return sanitizeFootprintName(partName);
+		}
+		const std::string prefix = sanitizeFootprintName(reference);
+		if (prefix.empty() || prefix == "Unnamed")
+		{
+			return cleanPackage;
+		}
+		return prefix + "_" + cleanPackage;
 	}
 
 	// Both tables are built by the same code that installs into KiCad's own, so the file a user
@@ -166,12 +227,12 @@ namespace PartManager
 			{
 				const PartFileRole role = partFileRoleFromString(file.role);
 				const std::filesystem::path stored =
-					std::filesystem::path(filestorePath) / file.relativePath;
+					utf8Path(filestorePath) / utf8Path(file.relativePath);
 				if (role == PartFileRole::Datasheet && spec.datasheet.empty())
 				{
 					// A path rather than a URL: the file is already local, and the URL it came
 					// from is not stored on the file row.
-					spec.datasheet = stored.string();
+					spec.datasheet = pathToUtf8(stored);
 				}
 				else if (role == PartFileRole::Kicad3DModel)
 				{
@@ -179,11 +240,11 @@ namespace PartManager
 					// symbol is readable, and referenced through the same env var the lib tables
 					// use — an absolute filestore path would not survive moving the database.
 					const std::string name = file.originalFilename.empty()
-						? std::filesystem::path(file.relativePath).filename().string()
+						? pathToUtf8(utf8Path(file.relativePath).filename())
 						: file.originalFilename;
 					std::error_code error;
 					std::filesystem::create_directories(modelsDir, error);
-					std::filesystem::copy_file(stored, modelsDir / name,
+					std::filesystem::copy_file(stored, modelsDir / utf8Path(name),
 						std::filesystem::copy_options::overwrite_existing, error);
 					if (!error)
 					{
@@ -249,7 +310,7 @@ namespace PartManager
 				return std::string();
 			}
 			const std::string text =
-				readFile(std::filesystem::path(filestorePath) / file.relativePath);
+				readFile(utf8Path(filestorePath) / utf8Path(file.relativePath));
 			const std::string picked = pickPartSymbol(
 				KicadSymbolWriter::splitSymbols(text), symbolName);
 			if (picked.empty())
@@ -320,7 +381,9 @@ namespace PartManager
 		// editor uses — the same single-slot rule, from the same place.
 		FileStore store(filestorePath);
 
-		const std::filesystem::path root(kicadLibsPath);
+		// utf8Path, not the plain constructor: the library folder comes from Qt as UTF-8, and a
+		// user whose path has an umlaut in it would otherwise get a second, mangled folder tree.
+		const std::filesystem::path root = utf8Path(kicadLibsPath);
 		const std::filesystem::path symbolsDir = root / "symbols";
 		const std::filesystem::path footprintsDir = root / "footprints";
 		const std::filesystem::path modelsDir = root / "3dmodels";
@@ -335,6 +398,12 @@ namespace PartManager
 		// Libraries with at least one qualifying part, so a library that lost its last one can be
 		// told apart from one that only holds footprints.
 		std::set<std::string> usedLibraries;
+		// Footprint target path -> the hash of what this run wrote there, and who wrote it. A
+		// footprint is named after its package now, so two parts routinely arrive at the same
+		// path: identical bytes are the intended sharing, different bytes are a clash that has
+		// to be renamed rather than silently given to whichever part came second.
+		struct WrittenFootprint { std::string hash; int partId = 0; std::string partName; };
+		std::map<std::string, WrittenFootprint> writtenFootprints;
 
 		for (const PartType& type : PartTypeRepository::listTypes(db))
 		{
@@ -385,23 +454,81 @@ namespace PartManager
 
 				KicadSymbolSpec spec = specFor(db, part, type.name, filestorePath, modelsDir,
 					result.modelsCopied);
-				// The footprint the symbol should reference — the .pretty entry is written under
-				// the symbol's name.
+
+				// Read once: the footprint is both where the symbol's pins may come from and what
+				// gets copied into the `.pretty` below.
+				const std::string footprintText = hasFootprint
+					? readFile(utf8Path(filestorePath) / utf8Path(footprintRow.relativePath))
+					: std::string();
+				// The vendor's footprint names the vendor's own 3D-model path, which resolves to
+				// nothing on this machine. The model file itself has already been copied into
+				// kicad_libs/3dmodels/ by specFor(), so the copy is pointed at that — otherwise
+				// KiCad opens the footprint and shows no model at all. Built here rather than at
+				// the write below because its *hash* is what decides the file's name.
+				const std::string footprintContents = hasFootprint
+					? KicadGeometry::withModelPath(footprintText, spec.model3DPath)
+					: std::string();
+
+				// The footprint file this part writes or shares, resolved before the symbol is
+				// built: the symbol has to name the file that actually ends up on disk, which is
+				// the half of this bug that made a rename break the reference as well.
+				std::string footprintName;
+				std::string footprintKey;
+				std::filesystem::path footprintTarget;
+				std::string footprintHash;
+				bool footprintAlreadyWritten = false;
 				if (hasFootprint)
 				{
+					const auto keyFor = [&](const std::string& name)
+					{
+						return footprintsDir / utf8Path(libraryName + ".pretty")
+							/ utf8Path(name + ".kicad_mod");
+					};
+					footprintName = footprintNameFor(part.package, part.name, spec.reference);
+					footprintHash = KicadEditTracker::hashContent(footprintContents);
+					footprintTarget = keyFor(footprintName);
+					footprintKey = pathToUtf8(footprintTarget);
+
+					const auto written = writtenFootprints.find(footprintKey);
+					if (written != writtenFootprints.end())
+					{
+						if (written->second.hash == footprintHash)
+						{
+							// The point of naming by package: two 0402s with the same pads are
+							// one file, written once and referenced twice.
+							footprintAlreadyWritten = true;
+						}
+						else
+						{
+							// Same package, different pads. Suffixed with the content hash rather
+							// than a counter, so the name depends only on what is in the file: the
+							// same layout lands on the same name whatever order the parts are
+							// generated in, and adding a part never renames an existing file.
+							KicadFootprintClash clash;
+							clash.libraryName = libraryName;
+							clash.wantedName = footprintName;
+							clash.keptPartId = written->second.partId;
+							clash.keptPartName = written->second.partName;
+							clash.renamedPartId = part.id;
+							clash.renamedPartName = part.name;
+							footprintName += "_" + footprintHash.substr(0, 8);
+							clash.resolvedName = footprintName;
+							result.footprintClashes.push_back(clash);
+
+							footprintTarget = keyFor(footprintName);
+							footprintKey = pathToUtf8(footprintTarget);
+							footprintAlreadyWritten =
+								writtenFootprints.count(footprintKey) != 0;
+						}
+					}
+
 					// **The nickname, not the file name.** KiCad resolves a `Footprint` property
 					// through the fp-lib-table, where the library is called
 					// `PartManager_ICs` — the `ICs.pretty` folder name never appears to it. Using
 					// the file name produces a reference that looks right in the symbol's
 					// properties and cannot be resolved.
-					spec.footprint = KicadLibTable::nicknameFor(libraryName) + ":" + symbolName;
+					spec.footprint = KicadLibTable::nicknameFor(libraryName) + ":" + footprintName;
 				}
-
-				// Read once: the footprint is both where the symbol's pins may come from and what
-				// gets copied into the `.pretty` below.
-				const std::string footprintText = hasFootprint
-					? readFile(std::filesystem::path(filestorePath) / footprintRow.relativePath)
-					: std::string();
 
 				// §5c: the symbol is the part's own `.kicad_sym`, or one derived from the pads of
 				// its footprint, or there is no symbol.
@@ -437,43 +564,55 @@ namespace PartManager
 				// Footprints are per-file, so they are a straight hash check against the file.
 				if (hasFootprint)
 				{
-					const std::filesystem::path target = footprintsDir
-						/ (libraryName + ".pretty")
-						/ (symbolName + ".kicad_mod");
-					currentTargets.insert(target.string());
-					const std::string onDisk = readFile(target);
-					const KicadItemState state = KicadEditTracker::stateOf(db, target.string(), onDisk);
+					currentTargets.insert(footprintKey);
+					if (footprintAlreadyWritten)
+					{
+						// Another part in this library wrote exactly these bytes a moment ago.
+						// Writing them again would be identical work and a second tracker row for
+						// one file, so the part just points at it.
+						++result.footprintsShared;
+						continue;
+					}
+					const std::string onDisk = readFile(footprintTarget);
+					const KicadItemState state =
+						KicadEditTracker::stateOf(db, footprintKey, onDisk);
 					const bool forced = std::find(forcePaths.begin(), forcePaths.end(),
-						target.string()) != forcePaths.end();
+						footprintKey) != forcePaths.end();
 					if (state == KicadItemState::EditedExternally && !forced)
 					{
 						// §5c: the edit in KiCad wins and goes back into the part's attachment, so
 						// the two copies agree again and the edit outlives `kicad_libs/`.
 						if (syncAttachment(db, store, part.id, PartFileRole::KicadFootprint, onDisk,
 							footprintRow.originalFilename.empty()
-								? symbolName + ".kicad_mod" : footprintRow.originalFilename))
+								? footprintName + ".kicad_mod" : footprintRow.originalFilename))
 						{
 							++result.footprintsSyncedBack;
-							KicadEditTracker::rebaseline(db, target.string(), onDisk);
+							KicadEditTracker::rebaseline(db, footprintKey, onDisk);
 						}
 						KicadSkippedItem skipped;
 						skipped.partId = part.id;
 						skipped.partName = part.name;
-						skipped.targetPath = target.string();
+						skipped.targetPath = footprintKey;
 						result.preserved.push_back(skipped);
+						// Registered under the bytes that are *on disk*, not the ones this part
+						// would have written. Naming by package means a later part can resolve to
+						// this same file, and without this it would find no entry, conclude the
+						// name is free, and — because the rebaseline above just made the edited
+						// content the new baseline — read "unchanged" and overwrite the edit.
+						// Measured on the user's real library: a hand-edited `R_0603.kicad_mod`
+						// was silently rewritten by the next 0603 resistor in the same run.
+						writtenFootprints[footprintKey] =
+							WrittenFootprint{ KicadEditTracker::hashContent(onDisk), part.id,
+								part.name };
 						continue;
 					}
-					// The vendor's footprint names the vendor's own 3D-model path, which resolves
-					// to nothing on this machine. The model file itself has already been copied
-					// into kicad_libs/3dmodels/ by specFor(), so the copy is pointed at that —
-					// otherwise KiCad opens the footprint and shows no model at all.
-					const std::string contents =
-						KicadGeometry::withModelPath(footprintText, spec.model3DPath);
-					if (!contents.empty() && writeFile(target, contents))
+					if (!footprintContents.empty() && writeFile(footprintTarget, footprintContents))
 					{
 						KicadEditTracker::record(db, part.id, KicadItemType::Footprint,
-							target.string(), contents);
+							footprintKey, footprintContents);
 						++result.footprintsCopied;
+						writtenFootprints[footprintKey] =
+							WrittenFootprint{ footprintHash, part.id, part.name };
 					}
 				}
 			}
@@ -508,8 +647,9 @@ namespace PartManager
 				continue;
 			}
 
-			// A footprint is its own file, so dropping it means deleting it.
-			const std::filesystem::path target(item.targetPath);
+			// A footprint is its own file, so dropping it means deleting it. The recorded path is
+			// UTF-8 — it was written by pathToUtf8() above — so it comes back the same way.
+			const std::filesystem::path target = utf8Path(item.targetPath);
 			const std::string onDisk = readFile(target);
 			const bool forced = std::find(forcePaths.begin(), forcePaths.end(), item.targetPath)
 				!= forcePaths.end();
@@ -518,7 +658,7 @@ namespace PartManager
 			{
 				KicadSkippedItem skipped;
 				skipped.partId = item.partId;
-				skipped.partName = target.filename().string();
+				skipped.partName = pathToUtf8(target.filename());
 				skipped.targetPath = item.targetPath;
 				skipped.stale = true;
 				result.preserved.push_back(skipped);
@@ -534,7 +674,8 @@ namespace PartManager
 		for (const std::pair<const std::string, std::vector<std::string>>& entry : symbolsByCategory)
 		{
 			const std::string& libraryName = entry.first;
-			const std::filesystem::path libraryPath = symbolsDir / (libraryName + ".kicad_sym");
+			const std::filesystem::path libraryPath =
+				symbolsDir / utf8Path(libraryName + ".kicad_sym");
 
 			// The existing file's symbols, byte for byte, so a hand-edited one can be carried
 			// across without being re-serialised (which would itself count as an edit next run).
@@ -626,7 +767,7 @@ namespace PartManager
 			}
 			if (!writeFile(libraryPath, KicadSymbolWriter::library(blocks)))
 			{
-				result.errorMessage = "Could not write " + libraryPath.string();
+				result.errorMessage = "Could not write " + pathToUtf8(libraryPath);
 				return result;
 			}
 			libraryNames.push_back(libraryName);

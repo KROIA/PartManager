@@ -1,6 +1,7 @@
 #include "filestore/PartManager_FileStore.h"
 #include "persistence/PartManager_PartRepository.h"
 #include "PartManager_global.h"
+#include "PartManager_Utf8Path.h"
 
 #include <algorithm>
 #include <cctype>
@@ -83,7 +84,7 @@ namespace PartManager
 		// Lowercased extension including the dot, e.g. ".pdf". Empty when there is none.
 		std::string extensionOf(const std::string& filename)
 		{
-			std::string extension = std::filesystem::path(filename).extension().string();
+			std::string extension = pathToUtf8(utf8Path(filename).extension());
 			std::transform(extension.begin(), extension.end(), extension.begin(),
 				[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 			return extension;
@@ -378,19 +379,22 @@ namespace PartManager
 	FileStoreResult FileStore::importBytes(const std::string& bytes, const std::string& originalFilename)
 	{
 		FileStoreResult result;
-		result.originalFilename = std::filesystem::path(originalFilename).filename().string();
+		// utf8Path, not the plain constructor: this name is the user's, it is stored in
+		// part_file.original_filename and shown back to them, and the ANSI round trip would
+		// rewrite an umlaut on the way through (see PartManager_Utf8Path.h).
+		result.originalFilename = pathToUtf8(utf8Path(originalFilename).filename());
 		result.contentHash = hashBytes(bytes);
 		result.sizeBytes = static_cast<int>(bytes.size());
 		const std::string extension = extensionOf(result.originalFilename);
 		result.mimeType = mimeTypeOf(extension);
 
 		const std::string subFolder = result.contentHash.substr(0, 2);
-		std::filesystem::path folder = std::filesystem::path(m_rootPath) / subFolder;
+		std::filesystem::path folder = utf8Path(m_rootPath) / subFolder;
 		std::error_code error;
 		std::filesystem::create_directories(folder, error);
 		if (error)
 		{
-			result.errorMessage = "Cannot create filestore folder " + folder.string() + ": " + error.message();
+			result.errorMessage = "Cannot create filestore folder " + pathToUtf8(folder) + ": " + error.message();
 			return result;
 		}
 
@@ -417,7 +421,7 @@ namespace PartManager
 			}
 			else if (!writeWholeFile(candidate, bytes))
 			{
-				result.errorMessage = "Cannot write " + candidate.string() + ".";
+				result.errorMessage = "Cannot write " + pathToUtf8(candidate) + ".";
 				return result;
 			}
 			result.relativePath = subFolder + "/" + name;
@@ -489,12 +493,13 @@ namespace PartManager
 		{
 			return std::string();
 		}
-		const std::filesystem::path full = std::filesystem::path(m_rootPath) / relativePath;
+		const std::filesystem::path full = utf8Path(m_rootPath) / utf8Path(relativePath);
 		if (!std::filesystem::exists(full))
 		{
 			return std::string();
 		}
-		return full.string();
+		// UTF-8 out, because this goes back to Qt and into QDesktopServices::openUrl().
+		return pathToUtf8(full);
 	}
 
 	void FileStore::setTimeoutMs(int timeoutMs)
@@ -721,11 +726,11 @@ namespace PartManager
 			return;
 		}
 
-		const std::filesystem::path from = std::filesystem::path(m_rootPath) / stored.relativePath;
+		const std::filesystem::path from = utf8Path(m_rootPath) / utf8Path(stored.relativePath);
 		const std::string name = readableFileName(owner.name, role, stored.contentHash,
-			extensionOf(from.filename().string()));
+			extensionOf(pathToUtf8(from.filename())));
 		const std::string subFolder = stored.contentHash.substr(0, 2);
-		const std::filesystem::path to = std::filesystem::path(m_rootPath) / subFolder / name;
+		const std::filesystem::path to = utf8Path(m_rootPath) / subFolder / utf8Path(name);
 		if (from == to)
 		{
 			return;
@@ -867,7 +872,7 @@ namespace PartManager
 		if (PartRepository::countFilesWithPath(db, file.relativePath) == 0)
 		{
 			std::error_code error;
-			std::filesystem::remove(std::filesystem::path(m_rootPath) / file.relativePath, error);
+			std::filesystem::remove(utf8Path(m_rootPath) / utf8Path(file.relativePath), error);
 		}
 		return true;
 	}
@@ -886,7 +891,7 @@ namespace PartManager
 		}
 		std::sort(referenced.begin(), referenced.end());
 
-		const std::filesystem::path root(m_rootPath);
+		const std::filesystem::path root = utf8Path(m_rootPath);
 		std::error_code error;
 		if (!std::filesystem::is_directory(root, error))
 		{
@@ -903,7 +908,7 @@ namespace PartManager
 			// The content-addressed layout is `<hash[0:2]>/<hash>.<ext>`, so a bucket is exactly
 			// two hex characters. Anything else — `meshcache/` today, whatever a later feature
 			// adds tomorrow — is not this store's to judge and is left alone.
-			const std::string name = bucket.path().filename().string();
+			const std::string name = pathToUtf8(bucket.path().filename());
 			if (name.size() != 2 || !std::isxdigit(static_cast<unsigned char>(name[0]))
 				|| !std::isxdigit(static_cast<unsigned char>(name[1])))
 			{
@@ -917,7 +922,7 @@ namespace PartManager
 				{
 					continue;
 				}
-				const std::string relative = name + "/" + file.path().filename().string();
+				const std::string relative = name + "/" + pathToUtf8(file.path().filename());
 				if (std::binary_search(referenced.begin(), referenced.end(), relative))
 				{
 					continue;
@@ -937,7 +942,7 @@ namespace PartManager
 		for (const std::string& relative : findOrphans(db).relativePaths)
 		{
 			std::error_code error;
-			if (std::filesystem::remove(std::filesystem::path(m_rootPath) / relative, error))
+			if (std::filesystem::remove(utf8Path(m_rootPath) / utf8Path(relative), error))
 			{
 				++removed;
 			}
@@ -953,7 +958,7 @@ namespace PartManager
 		// number acted on cannot come from two different rules.
 		int sweepMeshCache(const std::string& rootPath, bool deleteThem)
 		{
-			const std::filesystem::path cache = std::filesystem::path(rootPath) / "meshcache";
+			const std::filesystem::path cache = utf8Path(rootPath) / "meshcache";
 			std::error_code error;
 			if (!std::filesystem::is_directory(cache, error))
 			{
@@ -968,7 +973,7 @@ namespace PartManager
 				{
 					continue;
 				}
-				std::string extension = file.path().extension().string();
+				std::string extension = pathToUtf8(file.path().extension());
 				std::transform(extension.begin(), extension.end(), extension.begin(),
 					[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 				if (extension != ".stl")

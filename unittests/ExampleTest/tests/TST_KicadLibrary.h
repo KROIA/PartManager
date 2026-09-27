@@ -40,7 +40,11 @@ public:
 		ADD_TEST(TST_KicadLibrary::padNumbersSortInAnOrderThatSurvivesBgas);
 		ADD_TEST(TST_KicadLibrary::aFootprintWithNoUsablePadsDerivesNothing);
 		ADD_TEST(TST_KicadLibrary::aVendorFootprintDerivesOnePinPerPad);
+		ADD_TEST(TST_KicadLibrary::footprintFileNamesAreAsciiAndComeFromThePackage);
 #if SQLITEWRAPPER_LIBRARY_AVAILABLE == 1
+		ADD_TEST(TST_KicadLibrary::onePackageIsOneFootprintFileOnDisk);
+		ADD_TEST(TST_KicadLibrary::differentPadsCannotShareAPackageName);
+		ADD_TEST(TST_KicadLibrary::aHandEditSurvivesAnotherPartWantingItsFileName);
 		ADD_TEST(TST_KicadLibrary::handEditedSymbolsSurviveRegeneration);
 		ADD_TEST(TST_KicadLibrary::footprintReferenceUsesTheLibraryNickname);
 		ADD_TEST(TST_KicadLibrary::partsWithoutKicadFilesAreSkippedNotInvented);
@@ -240,6 +244,11 @@ private:
 		// A colon separates library from symbol everywhere KiCad references one.
 		TEST_COMPARE(PartManager::KicadSymbolWriter::sanitizeSymbolName("A:B"), std::string("A_B"));
 		TEST_COMPARE(PartManager::KicadSymbolWriter::sanitizeSymbolName(""), std::string("Unnamed"));
+		// A symbol name is **not** a file name: it lives inside a quoted s-expression in a UTF-8
+		// file, so `µ` survives it untouched. The footprint rule next door is stricter for
+		// exactly that reason — see footprintFileNamesAreAsciiAndComeFromThePackage.
+		TEST_COMPARE(PartManager::KicadSymbolWriter::sanitizeSymbolName("1 \xC2\xB5" "F 0402"),
+			std::string("1 \xC2\xB5" "F 0402"));
 	}
 
 	TEST_FUNCTION(libraryNamesAndTablesAreKicadSafe)
@@ -444,6 +453,49 @@ private:
 	// reaches KiCad at all. Writing the folder name produces a reference that looks correct in
 	// the symbol's properties and silently resolves to nothing, which is what shipped the first
 	// time the nickname was prefixed.
+	// The naming half of the `1 ÂµF 10 V X7S 0402.kicad_mod` bug. Two rules, both pure: a
+	// footprint file is named after the package, and the name is ASCII with no spaces in it —
+	// it is a file name that travels through an fp-lib-table and onto whatever filesystem the
+	// library is copied to, not a label.
+	TEST_FUNCTION(footprintFileNamesAreAsciiAndComeFromThePackage)
+	{
+		TEST_START;
+
+		using PartManager::KicadLibraryGenerator;
+
+		// The package is the footprint, so it is the name. The reference letter comes from the
+		// category's base symbol and says what the pads are for.
+		TEST_COMPARE(KicadLibraryGenerator::footprintNameFor("0402", "1 uF 10 V X7S 0402", "C"),
+			std::string("C_0402"));
+		TEST_COMPARE(KicadLibraryGenerator::footprintNameFor("SOIC-8", "LM358", "U"),
+			std::string("U_SOIC-8"));
+		// No package: the part's own name, and no prefix — there is nothing for a prefix to
+		// qualify, and this is the shape every pre-existing library on disk already has.
+		TEST_COMPARE(KicadLibraryGenerator::footprintNameFor("", "R-4K7", "R"),
+			std::string("R-4K7"));
+
+		// The actual bytes out of the user's report: `µ` is C2 B5 in UTF-8, and the file name
+		// that came out of it was `1 ÂµF 10 V X7S 0402.kicad_mod`. Written as escapes so the
+		// test does not depend on how the compiler reads this source file.
+		const std::string micro = "1 \xC2\xB5" "F 10 V X7S 0402";
+		const std::string named = KicadLibraryGenerator::footprintNameFor("", micro, "C");
+		TEST_COMPARE(named, std::string("1_F_10_V_X7S_0402"));
+		for (char c : named)
+		{
+			TEST_ASSERT_M(static_cast<unsigned char>(c) < 0x80 && c != ' ',
+				"a footprint file name must be ASCII and space-free: " + named);
+		}
+
+		// Spaces and punctuation collapse rather than each becoming an underscore, and the ends
+		// are trimmed — `_C_0402_` would be a legal but ugly file name.
+		TEST_COMPARE(KicadLibraryGenerator::sanitizeFootprintName("  0402 / 1005  "),
+			std::string("0402_1005"));
+		TEST_COMPARE(KicadLibraryGenerator::sanitizeFootprintName("LT1506CR-3.3#PBF"),
+			std::string("LT1506CR-3.3_PBF"));
+		TEST_COMPARE(KicadLibraryGenerator::sanitizeFootprintName("\xC2\xB5\xC2\xB5"),
+			std::string("Unnamed"));
+	}
+
 	TEST_FUNCTION(footprintReferenceUsesTheLibraryNickname)
 	{
 		TEST_START;
@@ -494,6 +546,265 @@ private:
 			"the Footprint property must name the library as KiCad knows it: " + library);
 		// The bare folder name is exactly the reference KiCad cannot resolve.
 		TEST_ASSERT_M(library.find("\"Resistors:R-4K7\"") == std::string::npos, library);
+
+		db.close();
+		std::filesystem::remove_all(folder);
+	}
+
+	// Every 0402 capacitor used to get a private copy of the same pad layout, named after its own
+	// capacitance — `1 µF 10 V X7S 0402.kicad_mod`, which KiCad could not find and no second part
+	// could reuse. One package is now one file, and the file name is ASCII whatever the part is
+	// called.
+	TEST_FUNCTION(onePackageIsOneFootprintFileOnDisk)
+	{
+		TEST_START;
+
+		std::filesystem::path folder =
+			std::filesystem::temp_directory_path() / "PartManager_TST_KicadPackageName";
+		std::filesystem::remove_all(folder);
+		std::filesystem::create_directories(folder);
+
+		SQLiteWrapper::SQLite db((folder / "test.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+		PartManager::KicadEditTracker::createSchema(db);
+
+		PartManager::PartType type;
+		type.name = "Capacitor";
+		type.domain = "electronic";
+		type.kicadRelevant = true;
+		type.kicadCategory = "Capacitors";
+		const int typeId = PartManager::PartTypeRepository::insertType(db, type);
+
+		const std::string filestore = (folder / "filestore").string();
+		PartManager::FileStore store(filestore);
+		std::string error;
+		// One vendor footprint attached to both parts: identical bytes are exactly what makes
+		// sharing the right answer rather than a guess.
+		const std::filesystem::path pads = writePaddedFootprintFile(folder, "C_0402", 2);
+
+		// The first name is the one from the user's report, µ and all, written as escapes so the
+		// test does not depend on how the compiler reads this file.
+		const char* names[2] = { "1 \xC2\xB5" "F 10 V X7S 0402", "100 nF 16 V X7R 0402" };
+		for (int i = 0; i < 2; ++i)
+		{
+			PartManager::Part part;
+			part.partTypeId = typeId;
+			part.name = names[i];
+			part.package = "0402";
+			const int id = PartManager::PartRepository::insertPart(db, part);
+			TEST_ASSERT_M(store.attachFile(db, id, PartManager::PartFileRole::KicadFootprint,
+				pads.string(), &error) != 0, error);
+		}
+
+		const std::string libs = (folder / "kicad_libs").string();
+		const PartManager::KicadGenerationResult result =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_ASSERT_M(result.ok, result.errorMessage);
+
+		TEST_COMPARE(result.footprintsCopied, 1);
+		TEST_COMPARE(result.footprintsShared, 1);
+		TEST_COMPARE(result.footprintClashes.size(), static_cast<size_t>(0));
+
+		const std::filesystem::path pretty =
+			std::filesystem::path(libs) / "footprints" / "Capacitors.pretty";
+		TEST_ASSERT(std::filesystem::exists(pretty / "C_0402.kicad_mod"));
+		int files = 0;
+		for (const std::filesystem::directory_entry& entry :
+			std::filesystem::directory_iterator(pretty))
+		{
+			++files;
+			// u8string(), because `string()` is the very conversion that produced `Âµ`: asking
+			// for the name the wrong way would hide exactly the bug under test.
+			const std::string name = entry.path().filename().u8string();
+			for (char c : name)
+			{
+				TEST_ASSERT_M(static_cast<unsigned char>(c) < 0x80,
+					"a generated file name must not carry a mangled byte: " + name);
+			}
+		}
+		TEST_COMPARE(files, 1);
+
+		// Both symbols point at the one file. A rename that did not carry the reference with it
+		// would leave these naming a file that is no longer there — the same breakage, moved.
+		const std::string library = readFile(
+			std::filesystem::path(libs) / "symbols" / "Capacitors.kicad_sym");
+		TEST_COMPARE(countOf(library, "\"PartManager_Capacitors:C_0402\""),
+			static_cast<size_t>(2));
+
+		db.close();
+		std::filesystem::remove_all(folder);
+	}
+
+	// Sharing is only right when the pads are the same pads. Two parts that want one name for
+	// two different layouts must end up with two files — handing one of them the other's
+	// footprint would be worse than the old per-part names, because it looks correct.
+	TEST_FUNCTION(differentPadsCannotShareAPackageName)
+	{
+		TEST_START;
+
+		std::filesystem::path folder =
+			std::filesystem::temp_directory_path() / "PartManager_TST_KicadPackageClash";
+		std::filesystem::remove_all(folder);
+		std::filesystem::create_directories(folder);
+
+		SQLiteWrapper::SQLite db((folder / "test.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+		PartManager::KicadEditTracker::createSchema(db);
+
+		PartManager::PartType type;
+		type.name = "Capacitor";
+		type.domain = "electronic";
+		type.kicadRelevant = true;
+		type.kicadCategory = "Capacitors";
+		const int typeId = PartManager::PartTypeRepository::insertType(db, type);
+
+		const std::string filestore = (folder / "filestore").string();
+		PartManager::FileStore store(filestore);
+		std::string error;
+
+		// Same package, different pad counts: one of these is mislabelled in the real world, and
+		// the generator's job is to make that visible rather than to pick a winner.
+		const std::filesystem::path twoPads = writePaddedFootprintFile(folder, "C_0402_a", 2);
+		const std::filesystem::path fourPads = writePaddedFootprintFile(folder, "C_0402_b", 4);
+		const std::filesystem::path* attachments[2] = { &twoPads, &fourPads };
+		const char* names[2] = { "CAP-A-0402", "CAP-B-0402" };
+		for (int i = 0; i < 2; ++i)
+		{
+			PartManager::Part part;
+			part.partTypeId = typeId;
+			part.name = names[i];
+			part.package = "0402";
+			const int id = PartManager::PartRepository::insertPart(db, part);
+			TEST_ASSERT_M(store.attachFile(db, id, PartManager::PartFileRole::KicadFootprint,
+				attachments[i]->string(), &error) != 0, error);
+		}
+
+		const std::string libs = (folder / "kicad_libs").string();
+		const PartManager::KicadGenerationResult result =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_ASSERT_M(result.ok, result.errorMessage);
+
+		TEST_COMPARE(result.footprintsCopied, 2);
+		TEST_COMPARE(result.footprintsShared, 0);
+		// The clash is recorded rather than resolved silently: this list is what a review screen
+		// reads, so it is produced as a by-product of generating instead of rediscovered later.
+		TEST_COMPARE(result.footprintClashes.size(), static_cast<size_t>(1));
+		const PartManager::KicadFootprintClash& clash = result.footprintClashes[0];
+		TEST_COMPARE(clash.libraryName, std::string("Capacitors"));
+		TEST_COMPARE(clash.wantedName, std::string("C_0402"));
+		TEST_ASSERT_M(clash.resolvedName != clash.wantedName, clash.resolvedName);
+		TEST_ASSERT_M(clash.resolvedName.rfind("C_0402_", 0) == 0, clash.resolvedName);
+		TEST_ASSERT(clash.keptPartId != 0 && clash.renamedPartId != 0);
+		TEST_ASSERT(clash.keptPartId != clash.renamedPartId);
+
+		const std::filesystem::path pretty =
+			std::filesystem::path(libs) / "footprints" / "Capacitors.pretty";
+		TEST_ASSERT(std::filesystem::exists(pretty / "C_0402.kicad_mod"));
+		TEST_ASSERT(std::filesystem::exists(
+			pretty / (clash.resolvedName + ".kicad_mod")));
+
+		// Each symbol names its own file, including the renamed one.
+		const std::string library = readFile(
+			std::filesystem::path(libs) / "symbols" / "Capacitors.kicad_sym");
+		TEST_ASSERT_M(library.find("\"PartManager_Capacitors:" + clash.resolvedName + "\"")
+			!= std::string::npos, library);
+
+		// The name is a hash of the content, so a second run produces the same one — a counter
+		// would renumber the moment a part was added and rename a file KiCad already refers to.
+		const PartManager::KicadGenerationResult again =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_ASSERT_M(again.ok, again.errorMessage);
+		TEST_COMPARE(again.footprintClashes.size(), static_cast<size_t>(1));
+		TEST_COMPARE(again.footprintClashes[0].resolvedName, clash.resolvedName);
+		TEST_COMPARE(again.staleItemsRemoved, 0);
+
+		db.close();
+		std::filesystem::remove_all(folder);
+	}
+
+	// Found by regenerating the user's real library, not by reading the code. Naming by package
+	// means two parts can resolve to one file, and the preserve-on-edit path did not account for
+	// that: the first part found its file edited, kept it and re-baselined the row to the edited
+	// bytes — after which the *second* part resolved to the same name, saw a baseline that now
+	// matched what was on disk, read "unchanged" and overwrote the edit. A rename must never cost
+	// someone their hand edit, so the preserved file is registered under its on-disk bytes and
+	// the next part treats it as a clash.
+	TEST_FUNCTION(aHandEditSurvivesAnotherPartWantingItsFileName)
+	{
+		TEST_START;
+
+		std::filesystem::path folder =
+			std::filesystem::temp_directory_path() / "PartManager_TST_KicadEditVsPackage";
+		std::filesystem::remove_all(folder);
+		std::filesystem::create_directories(folder);
+
+		SQLiteWrapper::SQLite db((folder / "test.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+		PartManager::KicadEditTracker::createSchema(db);
+
+		PartManager::PartType type;
+		type.name = "Capacitor";
+		type.domain = "electronic";
+		type.kicadRelevant = true;
+		type.kicadCategory = "Capacitors";
+		const int typeId = PartManager::PartTypeRepository::insertType(db, type);
+
+		const std::string filestore = (folder / "filestore").string();
+		PartManager::FileStore store(filestore);
+		std::string error;
+		const std::filesystem::path twoPads = writePaddedFootprintFile(folder, "C_0402_a", 2);
+		const std::filesystem::path fourPads = writePaddedFootprintFile(folder, "C_0402_b", 4);
+		const std::filesystem::path* attachments[2] = { &twoPads, &fourPads };
+		const char* names[2] = { "CAP-A-0402", "CAP-B-0402" };
+		for (int i = 0; i < 2; ++i)
+		{
+			PartManager::Part part;
+			part.partTypeId = typeId;
+			part.name = names[i];
+			part.package = "0402";
+			const int id = PartManager::PartRepository::insertPart(db, part);
+			TEST_ASSERT_M(store.attachFile(db, id, PartManager::PartFileRole::KicadFootprint,
+				attachments[i]->string(), &error) != 0, error);
+		}
+
+		const std::string libs = (folder / "kicad_libs").string();
+		TEST_ASSERT(PartManager::KicadLibraryGenerator::generate(db, libs, filestore).ok);
+
+		// The plain package name is the one two parts compete for, so it is the one to edit.
+		const std::filesystem::path edited =
+			std::filesystem::path(libs) / "footprints" / "Capacitors.pretty" / "C_0402.kicad_mod";
+		TEST_ASSERT(std::filesystem::exists(edited));
+		{
+			std::ofstream out(edited, std::ios::binary | std::ios::app);
+			out << "  (property \"HandEdit\" \"a human nudged this courtyard\")\n";
+		}
+		const std::string editedBytes = readFile(edited);
+
+		const PartManager::KicadGenerationResult second =
+			PartManager::KicadLibraryGenerator::generate(db, libs, filestore);
+		TEST_ASSERT_M(second.ok, second.errorMessage);
+
+		// Byte for byte: an edit that survives in spirit but not in content is not a survival.
+		TEST_COMPARE(readFile(edited), editedBytes);
+		bool surfaced = false;
+		for (const PartManager::KicadSkippedItem& item : second.preserved)
+		{
+			if (item.targetPath.find("C_0402.kicad_mod") != std::string::npos)
+			{
+				surfaced = true;
+			}
+		}
+		TEST_ASSERT_M(surfaced, "a preserved edit the user has to decide about must be reported");
+		// ...and the other part still has a footprint of its own rather than none.
+		TEST_ASSERT(!second.footprintClashes.empty());
+		TEST_ASSERT(std::filesystem::exists(std::filesystem::path(libs) / "footprints"
+			/ "Capacitors.pretty" / (second.footprintClashes[0].resolvedName + ".kicad_mod")));
 
 		db.close();
 		std::filesystem::remove_all(folder);

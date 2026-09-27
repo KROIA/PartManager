@@ -6,8 +6,15 @@
 // under the database folder's `kicad_libs/`:
 //
 //     kicad_libs/symbols/<Category>.kicad_sym
-//     kicad_libs/footprints/<Category>.pretty/<name>.kicad_mod
+//     kicad_libs/footprints/<Category>.pretty/<Ref>_<Package>.kicad_mod
 //     kicad_libs/3dmodels/<file>
+//
+// A footprint file is named after the **package**, not the part (see
+// `footprintNameFor`), so the 0402 capacitors in a library share one
+// `C_0402.kicad_mod` instead of each carrying a private copy named after its own
+// capacitance. Every path here is built through `utf8Path()`: the plain
+// `std::filesystem::path` constructor decodes UTF-8 as the ANSI code page and
+// put `1 ÂµF 10 V X7S 0402.kicad_mod` on disk, which KiCad could not resolve.
 //     kicad_libs/partmanager-sym-lib-table
 //     kicad_libs/partmanager-fp-lib-table
 //
@@ -80,6 +87,24 @@ namespace PartManager
 		bool stale = false;
 	};
 
+	// Two parts in one library whose footprints want the same file name and do **not** hold the
+	// same bytes. Sharing one file between them would give one of the two a footprint that is
+	// not its own — which is worse than the old per-part names, because it looks right. So the
+	// second one is renamed and the pair is recorded here for the user to look at.
+	//
+	// **Only a genuine conflict is listed.** Two 0402 capacitors with byte-identical pads share
+	// one file on purpose — that is the point of naming by package — and produce nothing here.
+	struct PART_MANAGER_API KicadFootprintClash
+	{
+		std::string libraryName;      // "Capacitors"
+		std::string wantedName;       // the name both parts asked for, e.g. "C_0402"
+		std::string resolvedName;     // what the second part was given, e.g. "C_0402_3f2a19b8"
+		int keptPartId = 0;           // the part that kept `wantedName`
+		std::string keptPartName;
+		int renamedPartId = 0;
+		std::string renamedPartName;
+	};
+
 	// What one generation run did.
 	struct PART_MANAGER_API KicadGenerationResult
 	{
@@ -118,6 +143,12 @@ namespace PartManager
 		// Artifacts of parts that stopped qualifying: dropped from the library and forgotten.
 		int staleItemsRemoved = 0;
 		std::vector<KicadSkippedItem> preserved;
+		// Package names that two parts in one library wanted for different pad layouts. A
+		// by-product of generating, not a separate pass — see KicadFootprintClash.
+		std::vector<KicadFootprintClash> footprintClashes;
+		// Parts that shared an already-written footprint file because their bytes were identical.
+		// The saving is the point of naming by package, so it is counted where it can be seen.
+		int footprintsShared = 0;
 
 		// Human summary of the counts above, for a status line.
 		std::string summary() const;
@@ -130,6 +161,29 @@ namespace PartManager
 		// A KiCad library name from a category: KiCad rejects a library nickname containing a
 		// space or a colon, so "Power Regulators" becomes "Power_Regulators".
 		static std::string libraryNameFor(const std::string& category);
+
+		// A `.kicad_mod` file name, without the extension, for one part.
+		//
+		// **Named after the package, not the part.** A footprint is a pad layout, and every 0402
+		// capacitor has the same one — naming the file after the part's *value* gave each of them
+		// a private copy called `1 µF 10 V X7S 0402`, which is neither findable in KiCad nor
+		// anything a second part could reuse. `reference` (the "C" of C1, from the type's base
+		// symbol) is prefixed so the file says what it is for: `C_0402`, KiCad's own style. The
+		// `_1005Metric` half of KiCad's names is a metric size this project has no table for, so
+		// it is deliberately absent rather than guessed.
+		//
+		// Falls back to the part's own name when the package is empty — with no prefix, because
+		// there is no package for the prefix to qualify and the part name already names itself.
+		static std::string footprintNameFor(const std::string& package, const std::string& partName,
+			const std::string& reference);
+
+		// The file-name rule the above applies: `[A-Za-z0-9._-]` survives, everything else — a
+		// space, a `#`, a `/`, the whole of non-ASCII — becomes `_`, runs of `_` collapse, and
+		// leading/trailing `_` go. Stricter than sanitizeSymbolName() on purpose: a symbol name
+		// lives inside a quoted s-expression and may hold anything, a footprint name **is a file
+		// name** and travels through KiCad's fp-lib-table, a `.pretty` folder and whatever
+		// filesystem the library is copied onto.
+		static std::string sanitizeFootprintName(const std::string& text);
 
 		// The `partmanager-sym-lib-table` / `partmanager-fp-lib-table` contents for a set of
 		// library names. `pathVariable` is the KiCad environment variable the user points at
