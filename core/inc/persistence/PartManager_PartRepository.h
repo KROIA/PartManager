@@ -50,6 +50,11 @@ namespace PartManager
 
 		// part_file CRUD.
 		static int insertFile(SQLiteWrapper::SQLite& db, const PartFile& file);
+		// Re-points an existing row at another **already stored** file: path, hash, size, mime
+		// and display name, by `file.id`. The row keeps its `added_at`, and nothing on disk is
+		// touched — which is the whole reason this exists rather than a delete-and-insert. See
+		// FileStore::useStoredFile().
+		static bool updateFile(SQLiteWrapper::SQLite& db, const PartFile& file);
 		static bool deleteFile(SQLiteWrapper::SQLite& db, int fileId);
 		static std::vector<PartFile> listFiles(SQLiteWrapper::SQLite& db, int partId);
 		// Every part_file row carrying one role, across all parts. The part table paints a

@@ -3,6 +3,7 @@
 
 #include "controllers/PartManager_LlmController.h"
 #include "ui/PartManager_EcadFetchDialog.h"
+#include "ui/PartManager_FootprintSuggestionDialog.h"
 #include "widgets/PartManager_AttributeFormWidget.h"
 #include "widgets/PartManager_KeywordCheckList.h"
 #include "widgets/PartManager_KicadPreviewWidget.h"
@@ -997,7 +998,20 @@ namespace PartManager
 				}
 			};
 		attach(PartFileRole::KicadSymbol, dialog.symbolBytes(), dialog.symbolFilename());
-		attach(PartFileRole::KicadFootprint, dialog.footprintBytes(), dialog.footprintFilename());
+
+		// §5a: before the download lands, offer the footprints this database already has. The
+		// moment to ask is *now* — the part has no footprint yet, so taking an existing one
+		// costs nothing, and the near-duplicate is never created rather than being cleaned up
+		// later. Accepting rewrites the bytes; the content-addressed store then puts both parts
+		// on one stored file.
+		// True means an existing footprint was re-pointed onto this part and the download is not
+		// wanted — attaching it anyway would put the row back where it started.
+		if (!FootprintSuggestionDialog::offer(this, m_controller.handle(), m_part.id,
+			dialog.footprintBytes(), dialog.footprintFilename()))
+		{
+			attach(PartFileRole::KicadFootprint, dialog.footprintBytes(),
+				dialog.footprintFilename());
+		}
 
 		updateKicadState();
 		if (!failures.isEmpty())
@@ -1047,6 +1061,27 @@ namespace PartManager
 					: tr("The archive has no KiCad files in it — %n entr(y/ies) for other CAD "
 						 "tools were skipped.", "", summary.ignoredEntries));
 			return;
+		}
+
+		// §5a: the vendor ZIP is the case the user described when they asked for this — "the
+		// same package already exists and the user would like to use the shared package". The
+		// archive has already attached its footprint by the time we get here, so the suggestion
+		// re-points that row rather than choosing before the attach; since accepting goes
+		// through FileStore::useStoredFile(), which deletes nothing, the archive's own footprint
+		// stays on disk either way. Declining leaves the import exactly as it was, and the
+		// symbol and 3D model this archive also brought are never touched — only the footprint
+		// slot is.
+		if (summary.footprintAttached)
+		{
+			PartFile attached;
+			if (m_controller.roleFile(m_part.id, PartFileRole::KicadFootprint, attached))
+			{
+				const std::string bytes =
+					readWholeFile(m_controller.roleFilePath(m_part.id, PartFileRole::KicadFootprint));
+				FootprintSuggestionDialog::offer(this, m_controller.handle(), m_part.id,
+					QByteArray(bytes.data(), static_cast<int>(bytes.size())),
+					toQt(attached.originalFilename));   // user data
+			}
 		}
 
 		updateKicadState();

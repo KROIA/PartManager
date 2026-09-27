@@ -30,6 +30,7 @@ public:
 		ADD_TEST(TST_FileStore::attachingCopiesAndKeepsNoPathToTheOriginal);
 		ADD_TEST(TST_FileStore::attachAndDetachKeepsRowsAndFilesInSync);
 		ADD_TEST(TST_FileStore::theSweepFindsOnlyWhatNothingPointsAt);
+		ADD_TEST(TST_FileStore::sharingAStoredFileDeletesNothing);
 #endif
 	}
 
@@ -467,6 +468,90 @@ private:
 		TEST_ASSERT_M(!store.absolutePath(
 			PartManager::PartRepository::listFiles(db, partId).front().relativePath).empty(),
 			"a file a part_file row points at must survive the sweep");
+	}
+
+	// §5a sharing: pointing one part at another part's footprint must leave **every** byte on
+	// disk. Measured in the app before this existed — accepting a suggestion on a part that
+	// already had a footprint took the filestore from 139 files to 138, because the ordinary
+	// attach route runs through detachFile() and that deletes a stored file the moment its last
+	// row goes. The user's rule is that the files stay; this is the test that keeps them.
+	TEST_FUNCTION(sharingAStoredFileDeletesNothing)
+	{
+		TEST_START;
+
+		std::filesystem::path work = freshFolder("PartManager_TST_FileStore_share");
+		SQLiteWrapper::SQLite db((work / "test.db").string());
+		db.open();
+		PartManager::PartTypeRepository::createSchema(db);
+		PartManager::PartRepository::createSchema(db);
+
+		PartManager::PartType type;
+		type.name = "Resistor";
+		const int typeId = PartManager::PartTypeRepository::insertType(db, type);
+		const auto newPart = [&](const char* name)
+			{
+				PartManager::Part part;
+				part.partTypeId = typeId;
+				part.name = name;
+				return PartManager::PartRepository::insertPart(db, part);
+			};
+		const int keeper = newPart("KEEPER");
+		const int mover = newPart("MOVER");
+
+		PartManager::FileStore store((work / "filestore").string());
+		std::string error;
+		TEST_ASSERT_M(store.attachFile(db, keeper, PartManager::PartFileRole::KicadFootprint,
+			writeTempFile(work, "shared.kicad_mod", "(footprint \"SHARED\")").string(),
+			&error) != 0, error);
+		TEST_ASSERT_M(store.attachFile(db, mover, PartManager::PartFileRole::KicadFootprint,
+			writeTempFile(work, "private.kicad_mod", "(footprint \"PRIVATE\")").string(),
+			&error) != 0, error);
+
+		PartManager::PartFile before;
+		TEST_ASSERT(PartManager::FileStore::roleFile(db, mover,
+			PartManager::PartFileRole::KicadFootprint, before));
+		const std::string privatePath = store.absolutePath(before.relativePath);
+		TEST_ASSERT_M(!privatePath.empty(), "the mover's own footprint must be on disk to start");
+
+		PartManager::PartFile shared;
+		TEST_ASSERT(PartManager::FileStore::roleFile(db, keeper,
+			PartManager::PartFileRole::KicadFootprint, shared));
+
+		const int rowId = store.useStoredFile(db, mover, PartManager::PartFileRole::KicadFootprint,
+			shared, &error);
+		TEST_ASSERT_M(rowId != 0, error);
+		// The same row, re-pointed — not a new one beside the old. A second row in a single-slot
+		// role is what makes roleFile() a coin flip.
+		TEST_COMPARE(rowId, before.id);
+		TEST_COMPARE(PartManager::PartRepository::listFiles(db, mover).size(),
+			static_cast<size_t>(1));
+
+		PartManager::PartFile after;
+		TEST_ASSERT(PartManager::FileStore::roleFile(db, mover,
+			PartManager::PartFileRole::KicadFootprint, after));
+		TEST_COMPARE(after.relativePath, shared.relativePath);
+		TEST_COMPARE(after.contentHash, shared.contentHash);
+		TEST_COMPARE(readFile(store.absolutePath(after.relativePath)),
+			std::string("(footprint \"SHARED\")"));
+
+		// **The point of the whole test.** Nothing references the mover's old footprint any
+		// more, and it is still there — an undo has something to restore, and the vendor's
+		// original is not gone because the user said yes to a suggestion.
+		TEST_ASSERT_M(std::filesystem::exists(privatePath),
+			"re-pointing a row must not delete the file it used to name: " + privatePath);
+		TEST_COMPARE(readFile(privatePath), std::string("(footprint \"PRIVATE\")"));
+		// ...and the keeper is untouched, sharing the file it always had.
+		PartManager::PartFile keeperAfter;
+		TEST_ASSERT(PartManager::FileStore::roleFile(db, keeper,
+			PartManager::PartFileRole::KicadFootprint, keeperAfter));
+		TEST_COMPARE(keeperAfter.relativePath, shared.relativePath);
+
+		// It is now genuinely unreferenced, so the sweep is the one thing that may remove it —
+		// deliberately, by the user, from Settings.
+		TEST_COMPARE(store.findOrphans(db).relativePaths.size(), static_cast<size_t>(1));
+
+		db.close();
+		std::filesystem::remove_all(work);
 	}
 #endif
 

@@ -145,6 +145,11 @@ namespace PartManager
 	public:
 		explicit PartEditorController(DatabaseHandle* handle);
 
+		// The same connection this controller reads through, for a screen that needs the
+		// database itself rather than one of the wrappers below — §5a's footprint suggestion
+		// reads every part's attachment to rank it. Non-owning, like the member it returns.
+		DatabaseHandle* handle() const { return m_handle; }
+
 		std::vector<PartType> types() const;
 		std::vector<PartTypeAttribute> attributesFor(int typeId) const;
 		std::vector<PartTypeFileSlot> fileSlotsFor(int typeId) const;

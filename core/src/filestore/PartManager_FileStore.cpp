@@ -810,6 +810,51 @@ namespace PartManager
 		return fileId;
 	}
 
+	int FileStore::useStoredFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+		const PartFile& stored, std::string* outError)
+	{
+		if (stored.relativePath.empty())
+		{
+			if (outError) { *outError = "No stored file to point at."; }
+			return 0;
+		}
+
+		PartFile existing;
+		if (roleFile(db, partId, role, existing))
+		{
+			// The whole point: the row moves, the files do not. No detach, so the footprint this
+			// part is leaving stays on disk for whoever else wants it — or for an undo.
+			existing.relativePath = stored.relativePath;
+			existing.contentHash = stored.contentHash;
+			existing.sizeBytes = stored.sizeBytes;
+			existing.mimeType = stored.mimeType;
+			existing.originalFilename = stored.originalFilename;
+			if (!PartRepository::updateFile(db, existing))
+			{
+				if (outError) { *outError = "Could not re-point the part_file row."; }
+				return 0;
+			}
+			return existing.id;
+		}
+
+		// An empty slot — the ordinary case for a part that was just created. An insert detaches
+		// nothing either, so this path is safe for the same reason.
+		PartFile file;
+		file.partId = partId;
+		file.role = toString(role);
+		file.relativePath = stored.relativePath;
+		file.contentHash = stored.contentHash;
+		file.sizeBytes = stored.sizeBytes;
+		file.mimeType = stored.mimeType;
+		file.originalFilename = stored.originalFilename;
+		const int fileId = PartRepository::insertFile(db, file);
+		if (fileId == 0 && outError)
+		{
+			*outError = "Could not insert the part_file row for " + stored.originalFilename + ".";
+		}
+		return fileId;
+	}
+
 	int FileStore::replaceRoleFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
 		const std::string& sourcePath, std::string* outError)
 	{

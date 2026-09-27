@@ -87,6 +87,10 @@ list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_DimensionLineE
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KicadPreviewWidget.cpp")
 ## ...whose shape loop is shared with the footprint-variant overlay, so it lives beside it.
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KicadShapePainter.cpp")
+## §5a's "use a footprint you already have" prompt, which New Part and the part editor both
+## open after an ECAD download — and the overlay it confirms the suggestion with.
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/ui/PartManager_FootprintSuggestionDialog.cpp")
+list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_KicadVariantView.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_TypeIconPainter.cpp")
 list(APPEND ADDITONAL_SOURCES "${APP_SRC_DIR}/widgets/PartManager_AttachmentIconPainter.cpp")
 

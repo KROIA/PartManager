@@ -2,6 +2,7 @@
 #include "ui_PartManager_NewPartDialog.h"
 
 #include "ui/PartManager_EcadFetchDialog.h"
+#include "ui/PartManager_FootprintSuggestionDialog.h"
 #include "ui/PartManager_PartTypePickerDialog.h"
 
 #include "domain/PartManager_PartTypeMatcher.h"
@@ -696,7 +697,15 @@ namespace PartManager
 				}
 			};
 		attach(PartFileRole::KicadSymbol, dialog.symbolBytes(), dialog.symbolFilename());
-		attach(PartFileRole::KicadFootprint, dialog.footprintBytes(), dialog.footprintFilename());
+
+		// §5a, same as the part editor's fetch: the database may already hold this land pattern,
+		// and a part that has just been created is the cheapest possible moment to share one.
+		if (!FootprintSuggestionDialog::offer(this, m_controller.handle(), m_createdPartId,
+			dialog.footprintBytes(), dialog.footprintFilename()))
+		{
+			attach(PartFileRole::KicadFootprint, dialog.footprintBytes(),
+				dialog.footprintFilename());
+		}
 	}
 
 	void NewPartDialog::applyPendingFiles(int partId, Part& part)

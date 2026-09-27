@@ -237,6 +237,25 @@
     </message>
 </context>
 <context>
+    <name>FootprintSuggestionDialog</name>
+    <message>
+        <source>Use a footprint you already have?</source>
+        <translation>Einen vorhandenen Footprint verwenden?</translation>
+    </message>
+    <message>
+        <source>Used by</source>
+        <translation>Verwendet von</translation>
+    </message>
+    <message>
+        <source>Fit</source>
+        <translation>Passung</translation>
+    </message>
+    <message>
+        <source>Measured</source>
+        <translation>Gemessen</translation>
+    </message>
+</context>
+<context>
     <name>FootprintVariantsDialog</name>
     <message>
         <source>Footprint Variants</source>
@@ -1759,6 +1778,78 @@ Trotzdem schließen?</translation>
     <message>
         <source>ECAD archives (*.zip);;All files (*)</source>
         <translation>ECAD-Archive (*.zip);;Alle Dateien (*)</translation>
+    </message>
+</context>
+<context>
+    <name>PartManager::FootprintSuggestionDialog</name>
+    <message>
+        <source>Use this footprint</source>
+        <translation>Diesen Footprint verwenden</translation>
+    </message>
+    <message>
+        <source>Keep the downloaded one</source>
+        <translation>Den heruntergeladenen behalten</translation>
+    </message>
+    <message numerus="yes">
+        <source>“%1” looks like %n footprint(s) this database already has. Using one of them means both parts share a single file — check the overlay first: the download is drawn in amber, the one you are looking at in blue.</source>
+        <translation>
+            <numerusform>„%1“ ähnelt %n Footprint, den diese Datenbank bereits hat. Ihn zu verwenden heißt, dass sich beide Bauteile eine einzige Datei teilen — prüfen Sie zuerst die Überlagerung: der Download ist bernsteinfarben gezeichnet, der betrachtete in Blau.</numerusform>
+            <numerusform>„%1“ ähnelt %n Footprints, die diese Datenbank bereits hat. Einen davon zu verwenden heißt, dass sich beide Bauteile eine einzige Datei teilen — prüfen Sie zuerst die Überlagerung: der Download ist bernsteinfarben gezeichnet, der betrachtete in Blau.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>offset %1 mm · size %2 mm</source>
+        <translation>Versatz %1 mm · Größe %2 mm</translation>
+    </message>
+    <message>
+        <source>%1 pads vs %2</source>
+        <translation>%1 Pads statt %2</translation>
+    </message>
+    <message>
+        <source>Compatible</source>
+        <comment>footprint fit verdict</comment>
+        <translation>Kompatibel</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <comment>footprint fit verdict: nearly compatible</comment>
+        <translation>Knapp</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <comment>footprint fit verdict: not compatible at all</comment>
+        <translation>Nein</translation>
+    </message>
+    <message>
+        <source>%1 pads against %2 — a different number of pads is a different part.</source>
+        <translation>%1 Pads statt %2 — eine andere Pad-Anzahl ist ein anderes Bauteil.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Same %n pad(s). Largest position difference %1 mm, largest size difference %2 mm.</source>
+        <translation>
+            <numerusform>Gleiches Pad. Größter Positionsunterschied %1 mm, größter Größenunterschied %2 mm.</numerusform>
+            <numerusform>Gleiche %n Pads. Größter Positionsunterschied %1 mm, größter Größenunterschied %2 mm.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>One is through-hole and the other is not, so they cannot replace each other.</source>
+        <translation>Einer ist bedrahtet, der andere nicht — sie können einander nicht ersetzen.</translation>
+    </message>
+    <message>
+        <source>Pad shapes differ (round against rectangular), which solders the same but looks different.</source>
+        <translation>Die Pad-Formen unterscheiden sich (rund statt rechteckig); gelötet wird gleich, es sieht nur anders aus.</translation>
+    </message>
+    <message>
+        <source>Pads were paired by position because the two files do not use the same pad numbers.</source>
+        <translation>Die Pads wurden nach Position zugeordnet, weil die beiden Dateien nicht dieselben Pad-Nummern verwenden.</translation>
+    </message>
+    <message>
+        <source>Could not use that footprint</source>
+        <translation>Dieser Footprint konnte nicht übernommen werden</translation>
+    </message>
+    <message>
+        <source>The database rejected the change.</source>
+        <translation>Die Datenbank hat die Änderung abgelehnt.</translation>
     </message>
 </context>
 <context>

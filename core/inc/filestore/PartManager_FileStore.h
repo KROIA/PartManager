@@ -185,6 +185,25 @@ namespace PartManager
 		static bool roleFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
 			PartFile& outFile);
 
+		// Points a part's slot at a file **another part already has**, and deletes nothing.
+		//
+		// The sharing operation: §5a offers a footprint the database already holds instead of
+		// the one that was just downloaded, and the §5a collapse will move several parts onto
+		// one footprint. Both must leave every byte on disk — the user's rule is *"the files
+		// can stay on disk"*, and undo has nothing to restore from otherwise.
+		//
+		// **Why not replaceRoleFileBytes().** That route imports the bytes, inserts a row, then
+		// detaches the old one — and detachFile() deletes the stored file the moment its last
+		// row goes. Measured: accepting a suggestion on a part that already had a footprint took
+		// the filestore from 139 files to 138, destroying the vendor original the user might
+		// have wanted back. Here the existing row is *updated in place* (or inserted when the
+		// slot is empty), so nothing is ever unreferenced by this call.
+		//
+		// `stored` is any part's row for the file to point at — its path, hash, size and mime
+		// are copied; its id and part are not. Returns the part_file id, 0 on failure.
+		int useStoredFile(SQLiteWrapper::SQLite& db, int partId, PartFileRole role,
+			const PartFile& stored, std::string* outError = nullptr);
+
 		// Import + insert + drop whatever occupied the slot, in that order — a failed import
 		// leaves the old file in place rather than losing both. Returns the new part_file id,
 		// 0 on failure with the reason in outError.

@@ -307,6 +307,18 @@ namespace PartManager
 		return ok ? static_cast<int>(db.getLastInsertRowId()) : 0;
 	}
 
+	bool PartRepository::updateFile(SQLiteWrapper::SQLite& db, const PartFile& file)
+	{
+		// `added_at` is deliberately left alone: the row is being re-pointed at another stored
+		// file, not attached afresh, and rewriting the date would lose when this part first got
+		// a file in that slot.
+		return db.executeWithParams(
+			"UPDATE part_file SET relative_path=?, content_hash=?, size_bytes=?, mime_type=?, "
+			"original_filename=? WHERE id=?;",
+			{ file.relativePath, file.contentHash, std::to_string(file.sizeBytes), file.mimeType,
+			  file.originalFilename, std::to_string(file.id) });
+	}
+
 	bool PartRepository::deleteFile(SQLiteWrapper::SQLite& db, int fileId)
 	{
 		return db.executeWithParams("DELETE FROM part_file WHERE id=?;", { std::to_string(fileId) });
